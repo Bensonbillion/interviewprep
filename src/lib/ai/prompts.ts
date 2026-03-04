@@ -210,6 +210,18 @@ ${jlc ? `${jlc}\n` : ""}SHARED REQUIREMENTS:
 - Use specific numbers/achievements from their ACTUAL experience — never fabricate
 - End with a specific bridge connecting their journey to THIS company and role — name the company and role explicitly
 
+SHOW, DON'T TELL IN CAREER NARRATIVE:
+Specific numbers beat vague claims: "hit 127% to quota" not "exceeded expectations"
+Quoted moments beat summaries: "my manager told me 'you're the first SDR who's asked me that'" not "I built strong relationships"
+Physical context beats emotional labels: "I was the only SDR making calls at 7am" not "I was really dedicated"
+Named turning points beat smooth arcs: "the moment it clicked was when I closed a deal my AE had written off" not "I grew a lot in that role"
+
+NESTED DETAILS — one per narrative:
+Include one detail that wasn't specifically requested — a small piece of texture that makes the story feel like a memory rather than a pitch. The name of the product they were selling, what city they were in when they got the news, what they said to themselves the night before a big call. One unrequested detail signals the story is real.
+
+ONE AUTHENTIC ROUGH EDGE — required:
+A perfect career arc reads as fabricated. Include one moment where something was hard, uncertain, or didn't go as planned — and how the candidate moved through it. Harvard research shows that disclosing a genuine work difficulty increases perceived authenticity because it signals the speaker isn't just managing impressions. This doesn't mean leading with weakness — it means a single honest beat inside an otherwise strong narrative.
+
 CANDIDATE:
 ${buildResumeContext(ctx.resume)}
 
