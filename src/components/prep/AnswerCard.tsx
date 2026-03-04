@@ -366,14 +366,25 @@ function ContentRenderer({
 
   // ─ questions_to_ask ─
   if (slot.type === "questions_to_ask") {
-    const data = parsed as { questions?: Array<{ question: string; why: string }> };
+    const data = parsed as { questions?: Array<{ context?: string; question: string; followUpChain?: string; why: string; followUp?: boolean }> };
     return (
       <div className="space-y-4">
         {(data.questions ?? []).map((q, i) => (
-          <div key={i}>
+          <div key={i} className={q.followUp ? "bg-primary-50/60 rounded-lg px-3 py-2.5 -mx-1" : undefined}>
+            {q.followUp && (
+              <p className="text-[10px] font-semibold text-primary-500 uppercase tracking-wide mb-1">Follow-up question</p>
+            )}
+            {q.context && (
+              <p className="text-xs text-ink-muted mb-0.5">{q.context}</p>
+            )}
             <p className="text-sm font-medium text-ink">
               {i + 1}. {q.question}
             </p>
+            {q.followUpChain && (
+              <p className="text-xs text-ink-muted mt-1 pl-3 border-l-2 border-gray-200">
+                <span className="font-medium text-ink-light">If they give a short answer:</span> {q.followUpChain}
+              </p>
+            )}
             <p className="text-xs text-ink-muted mt-0.5 italic">{q.why}</p>
           </div>
         ))}

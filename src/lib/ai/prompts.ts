@@ -108,6 +108,11 @@ SPOKEN LANGUAGE RULES (apply to all narrative/prose answers):
 - Fragments are natural in speech: "Not bad for a first month." "Which is exactly why I'm here."
 - No corporate jargon: not "leverage", "synergize", "utilize", "streamline" — say "use", "build", "cut", "grow"
 - End spoken answers with forward energy — not a period, but a bridge to the next conversation
+- BUILD ANSWERS THROUGH CLAUSE-CHAINING, NOT SENTENCES: Spoken English connects short clauses with "and," "so," "but," "because," "which" — not periods followed by new topic sentences. WRONG: "I identified the problem early. I proposed a solution to my manager. She approved it. I implemented it within two weeks." RIGHT: "I caught it pretty early, so I put together a quick proposal for my manager — and she was actually on board right away, which meant I could start implementing within like two weeks." RULE: No more than 2 consecutive sentences that end with a period and start a completely new thought. By the third sentence, chain it to the previous thought with a conjunction.
+- PLACE COGNITIVE MARKERS AT THOUGHT TRANSITIONS: Research shows ~6 disfluencies per 100 words in natural speech. Use 2–3 cognitive markers per answer at clause boundaries only — NEVER mid-clause, NEVER two in the same clause, NEVER more than 4 per answer. Markers: "I mean," (self-clarification/rephrase), "actually," (mid-sentence revision), "honestly," (authenticity — once per answer max), "like," (approximation: "we had like 300 accounts"), "you know," (shared understanding — once per answer max), "right," (self-confirmation: "I was doing about 50 calls a day, right, and what I noticed was..."), "— sorry, let me back up —" (narrative reorganization). Place them where the speaker is SHIFTING from one idea to another or SHARPENING a vague statement. EXAMPLE: "So I was handling about — I mean, it was probably 40 to 50 outbound calls a day, and honestly the thing that made the biggest difference was actually slowing down and doing more research before each call."
+- USE PHONETIC REDUCTIONS THAT MATCH SPOKEN ENGLISH: Written text uses full forms. Spoken English compresses. ALWAYS use: "gonna" (not "going to"), "wanna" (not "want to"), "'cause" (not "because" in casual explanations), "kinda" (not "kind of"), "a lot" (not "a great deal" or "significantly"), "pretty" (not "quite" or "rather"), "stuff"/"things" (not "various elements" or "multiple factors"), "figured out" (not "determined" or "ascertained"), "messed up" (not "made an error" in vulnerability moments), "ended up" (not "ultimately" or "eventually"). EXCEPTION: Never reduce in the key metric moment — when stating a specific achievement, use precise language: "I increased our conversion rate from 12 to 18 percent" — not "I kinda bumped our numbers up a lot."
+- INDICATE EMPHASIS AND PACE SHIFTS: These answers will be read aloud and practiced, so embed delivery cues in the structure. Use em dashes (—) to mark natural pause points where the speaker should breathe and let the point land. Use ALL CAPS for the single word in a key sentence that carries the emphasis: "it wasn't about the VOLUME of calls — it was about the quality of each conversation." Use short sentences (3–6 words) for impact moments, surrounded by longer flowing clauses: "That was the turning point. After that, everything kind of clicked and I went from middle of the pack to consistently hitting 120%." PACE PRINCIPLE: Short sentences = slow down, let it land. Surrounding clauses = normal pace. Numbers and key claims = slow, precise. Transitions = faster. Varying pace within 140–160 wpm is what creates the perception of confidence.
+- FIRST-PERSON PRONOUN DOMINANCE (Newman et al., 2003): People who ACTUALLY did something use "I" heavily. People fabricating or inflating use "we," "the team," or passive voice to create distance. RULES: "I" must appear in at least 60% of action sentences. "We" is acceptable for context ("we had a team of four") but NEVER for actions ("I built the sequence" not "we built"). NEVER passive voice for the candidate's own actions ("The pipeline was increased by 40%" → "I grew the pipeline by 40%"). If the candidate genuinely led a team effort, structure it as: "I coordinated with [role] to do X — specifically, my part was Y." Include at least ONE explicit ownership statement per behavioral answer: "That was my call" / "I made that decision" / "I was the one who pushed for that."
 
 PRONOUN DISCIPLINE — CRITICAL:
 Authentic speakers own their actions with "I", not "we" or passive constructions. Deception research shows candidates who hide behind "we" and passive voice are perceived as less credible.
@@ -121,6 +126,20 @@ BAN THESE AI SPEECH PATTERNS — they make answers sound generated, not experien
 - Rhetorical road-mapping: NEVER "In this answer I will cover...", "There are three key points to consider", "To summarize..."
 - Uniform cautiousness: Take positions. "I think that approach is wrong" not "different methods may have merit depending on context"
 - Passive distance: NEVER "A decision was made", "Challenges were encountered", "Results were achieved" — who did it? Say it directly.
+
+BANNED STRUCTURES — structural AI tells, not just phrases:
+- I-chain: NEVER start 3+ consecutive sentences with "I". "I did X. I then Y. I also Z." is robotic and AI-patterned. Break it: "I did X — and then Y kind of fell into place, which meant Z."
+- Balanced hedging: NEVER "While X, it's also true that Y." This is AI's signature even-handedness. Real people have opinions. Pick a side.
+- Enumeration: NEVER "First... Second... Third..." — say "the main thing was X, and then on top of that Y"
+- Meta-commentary: NEVER "That's a great question" (unless genuinely buying time), NEVER "Let me think about that for a second" as a pattern
+- Identical sentence length: if three consecutive sentences are all 12–18 words, force at least one to be <8 or >22 words
+- Thesis restatement closing: NEVER end with "So that's why I believe I'd be a great fit for this role." End with a specific forward-looking statement or a natural trail-off: "...and that's basically what brought me here."
+
+USE THESE HUMAN PATTERNS INSTEAD:
+- Self-interruption: "The thing that — actually no, let me give you a better example..."
+- Acknowledged imprecision: "I don't remember the exact number, but it was somewhere around 30%"
+- Strong opinions: "Honestly, I think most SDRs waste too much time on low-intent leads" — a strong stance reads as authentic
+- Sensory/physical anchors: "I remember sitting at my desk on a Friday..." — specific physical context signals genuine memory, not fabrication
 
 GUARDRAILS:
 - Every answer MUST trace to specific resume details — never fabricate achievements
@@ -222,6 +241,15 @@ Include one detail that wasn't specifically requested — a small piece of textu
 ONE AUTHENTIC ROUGH EDGE — required:
 A perfect career arc reads as fabricated. Include one moment where something was hard, uncertain, or didn't go as planned — and how the candidate moved through it. Harvard research shows that disclosing a genuine work difficulty increases perceived authenticity because it signals the speaker isn't just managing impressions. This doesn't mean leading with weakness — it means a single honest beat inside an otherwise strong narrative.
 
+NESTED DETAILS REQUIRED (all three must be present):
+1. ONE specific metric from a current or previous role — a number, rate, attainment percentage, ranking. Not "exceeded expectations" — a real figure.
+2. ONE named tool or methodology they actually used — Outreach, Salesforce, MEDDIC, SPICED, Gong, a framework name. Whatever the resume supports.
+3. ONE moment of genuine reflection about career direction — where they realized something, made a deliberate choice, or changed direction. Stated as a specific moment, not a general observation.
+
+PROBE-READINESS — this answer must survive:
+- "Tell me more about [specific role]" — each role mentioned needs enough depth in the narrative to continue discussing for 60+ seconds
+- "Why did you leave [company]?" — every career transition must have a forward-leaning reason already embedded. Never escape-framing ("I wanted more" not "it wasn't working out").
+
 CANDIDATE:
 ${buildResumeContext(ctx.resume)}
 
@@ -295,11 +323,20 @@ REQUIREMENTS:
 - BANNED: "I've always been passionate about...", "I'm a natural communicator", "I believe I would thrive in sales", "I'm a people person"
 - End by connecting the story to why THIS specific type of sales role (SDR, SaaS, B2B — whatever the target is)
 
+NESTED DETAILS REQUIRED (all three must be present):
+1. ONE specific MOMENT — not a phase or period, but a specific day, call, interaction, or conversation. "When I was working at [place] and [specific thing happened]" — not "during my time in retail."
+2. The EMOTION felt in that moment — not "I was excited" but a physical or behavioral signal: "I couldn't stop thinking about it that night" / "I called my friend right after" / "I stayed two hours late just to keep doing it."
+3. What SPECIFICALLY about sales was revealed — not "I'm good with people" but the actual mechanic: "I realized I was wired to figure out what someone actually needed before they could articulate it" / "I genuinely enjoyed the no — it made me want to figure out what I missed."
+
+PROBE-READINESS — this answer must survive:
+- "What specifically about that moment clicked?" — the answer must have sensory or physical detail to draw from, not just a summary
+- "Was there a time you doubted sales?" — the answer should already acknowledge one honest friction point or uncertainty, so this probe feels pre-answered
+
 CANDIDATE:
 ${buildResumeContext(ctx.resume)}
 
 Return ONLY the answer text.`,
-    maxTokens: 300,
+    maxTokens: 350,
   };
 }
 
@@ -341,6 +378,15 @@ THREE-LAYER STRUCTURE (every stage, every depth level):
 3. Why YOU specifically belong here (1–2 sentences): Connect their mission to your actual background or goals.
 
 If company values are in the profile: EMBODY them in the tone — don't name them. If the value is 'audacity,' the answer should sound bold. If it's 'honesty,' it should feel direct and unpolished.
+
+NESTED DETAILS REQUIRED (all three must be present):
+1. The PROBLEM the company solves in plain language — not marketing copy, but how a customer would describe it: "basically their [buyers/teams/companies] are dealing with [specific friction] and there's no good solution that doesn't require..." Not: "they provide an innovative platform that enables..."
+2. ONE specific product feature, approach, or differentiator mentioned by name — not "your platform" or "your solution." A named feature, tier, methodology, or market position from the company profile.
+3. HOW the candidate discovered or researched this company — shows authentic investigation, not job-board spray. Use the resume/background to make it plausible: "came across it while researching [industry/problem]", "a former colleague who works in this space mentioned it", "found the job posting and then went deep on the product before applying."
+
+PROBE-READINESS — this answer must survive:
+- "What do you know about our competitors?" — the answer should reference the competitive landscape naturally or create an obvious setup for this probe
+- "Who do you think our ideal customer is?" — the answer must reflect ICP understanding from the company profile, stated in plain language
 
 REQUIREMENTS (all stages):
 - Must be specific to THIS company — reference their product, market, ICP, culture signals, or recent news
@@ -451,17 +497,37 @@ ${seniority}
 
 Remember: this answer will be SPOKEN, not read. It's a story being told to a person in real time.
 
-FOUR-LAYER ANSWER STRUCTURE (the research-backed pattern that separates deep answers from shallow ones):
-Layer 1 — CLAIM (1 sentence): The direct headline. What this story is about.
-  "I'm really strong at bouncing back from a bad patch — and I've had to prove that."
-Layer 2 — CONTEXT (2–3 sentences): Set the scene fast. Stakes, role, moment in time.
-  Situation + Task compressed together. Don't over-explain.
-Layer 3 — SPECIFIC EXAMPLE (bulk of the answer): What I did, in sequence, with specifics.
-  Actions, decisions, tools, conversations — this is where the story lives.
-Layer 4 — REFLECTION (1–2 sentences): What I learned or would do differently.
-  NOT just the result. Self-awareness here is more credible than a perfect outcome.
-  "What that taught me is..." / "I'd do one thing differently..." / "That changed how I approach..."
-  This layer is REQUIRED — answers that end on the result alone feel rehearsed.
+FOUR-LAYER ANSWER STRUCTURE — every experience-based answer must have all four layers:
+
+LAYER 1 — THE HEADLINE (1 sentence): The claim or conclusion, stated upfront. This is what the interviewer will remember. State the result first, then prove it in the layers below.
+  EXAMPLE: "I took our team's outbound response rate from 3% to 11% in about two months."
+
+LAYER 2 — THE CONTEXT (2–3 sentences): Set the scene with PHYSICAL and ORGANIZATIONAL specifics. Answer three things: Where were you (company, team size, your role)? What was the specific problem or goal? What were the concrete stakes — not abstract importance, but real consequences if it failed.
+  EXAMPLE: "This was at [Company], a Series B SaaS platform — we had a team of four BDRs and our sequences were basically getting ignored. The VP of Sales had just set a mandate that we needed to double pipeline in Q3 or the team was gonna get restructured."
+
+LAYER 3 — THE SPECIFIC ACTIONS (3–5 sentences): This is where depth lives. MUST include ALL of:
+  - SEQUENCED actions (first I did X, then Y, then Z — not "I handled it")
+  - NAMED tools and methods (not "I analyzed data" but "I pulled a report in Salesforce and cross-referenced with Gong recordings")
+  - A DECISION POINT with reasoning (not just what you did, but WHY you chose that over alternatives)
+  - A COMPLICATION or obstacle (something that went wrong or was harder than expected)
+  - A SENSORY or PHYSICAL detail that grounds the story in reality ("I spent that whole weekend rebuilding sequences" / "I literally taped the ICP criteria to my monitor")
+
+LAYER 4 — THE REFLECTION (1–2 sentences): What you LEARNED, not what you ACHIEVED. The achievement is already in Layer 1. This layer shows self-awareness, which is more credible than a perfect outcome.
+  EXAMPLE: "Looking back, the biggest lesson was that personalization at scale isn't about writing custom emails for everyone — it's about finding the three or four signals that actually predict intent and building around those."
+  This layer is REQUIRED — answers that end on the result alone feel rehearsed and scripted.
+
+WHY THIS STRUCTURE SURVIVES PROBING: When the interviewer asks "Tell me more about that," the candidate has nested details to access. "What tool did you use?" → Named in Layer 3. "What went wrong?" → Complication in Layer 3. "Why that approach?" → Decision point in Layer 3. "What would you do differently?" → Reflection in Layer 4. "What were the numbers?" → Headline in Layer 1. Flat answers collapse under probing. Layered answers get RICHER under probing.
+
+REQUIRED DETAILS IN EVERY BEHAVIORAL ANSWER (check all four):
+1. PHYSICAL SETTING DETAIL: Where exactly were you when this happened? "I was in the office late that Thursday" / "I'd just gotten off a call with my manager" / "It was end of quarter and we were down on the board" — grounds the story in a real moment
+2. QUOTED DIALOGUE: At least one paraphrased quote from someone in the story. Even imprecise: "my manager said something like, 'we can't keep doing this'" / "the prospect literally said, 'I've never had a rep do that before'" — quotes make stories feel witnessed, not summarized
+3. INTERNAL THOUGHT PROCESS during the key decision: What were you weighing? What did you almost do instead? "Part of me wanted to just let it go, but..." / "I remember thinking, if I don't do this now, I never will..." / "My first instinct was to escalate it, but then I realized..."
+4. A COMPLICATION that made it harder: One thing that went wrong, arrived late, pushed back, or complicated the path. Stories without complications feel rehearsed. Complications feel real.
+
+PROBE-READINESS — this answer must survive:
+- "Walk me through that step by step" — Layer 3 must be detailed enough to narrate slowly without inventing new details
+- "What was the hardest part?" — the complication in Layer 3 is the answer; it must be specific enough to expand on
+- "What would you do differently?" — the reflection in Layer 4 is the answer; it must show genuine learning, not just restating the win
 
 SHOW, DON'T TELL — five techniques that make a story feel experienced vs. invented:
 1. SPECIFIC NUMBERS: Not "a lot of calls" → "about 80 dials a day, maybe 12 connects"
@@ -527,6 +593,7 @@ BENCHMARK RANGES (calibrate to seniority):
 - Senior BDR/SDR: $70K–$100K OTE
 - AE: $80K–$150K+ OTE — anchor to OTE + upside, not just base
 
+IMPORTANT: This is a DEFLECTION answer, not a depth answer. NO nested details, NO storytelling, NO proof points. The goal is to give a range without killing the deal, then redirect forward. Keep it SHORT.
 60–80 words max. This is a screening question, not a negotiation.
 ${jlc ? `\n${jlc}` : ""}
 Return ONLY the answer text.`,
@@ -617,7 +684,9 @@ The candidate is applying for ${ctx.targetRole} at ${ctx.company.name}.
 ${seniority}
 ${jlc ? `\n${jlc}\n` : ""}
 SCRIPT STRUCTURE (required):
-1. Opener: Pattern interrupt, direct, brief. Reference company product + prospect pain. 2–3 sentences.
+1. Opener: PATTERN INTERRUPT + PERMISSION-BASED TRANSITION. 2–3 sentences total.
+   PATTERN INTERRUPT: The first sentence must break the expected cold call rhythm. NOT "Hi [name], I'm calling from [Company] and we help companies like yours..." — that's the pattern every prospect is defending against. Instead: lead with an unexpected observation, a direct question, or a specific reference to their world. Examples: "I'll be upfront — this is a cold call. Got 30 seconds?" / "I was looking at [company] and noticed [specific thing] — I might be completely off, but it made me think of [pain]." / "[Name], I know you weren't expecting this — I'll be quick."
+   PERMISSION-BASED TRANSITION: After the interrupt, ask permission before pitching: "Can I take 30 seconds to tell you why I called?" / "Is now a terrible time?" — this isn't weakness, it's a control technique. Prospects who say "sure, go ahead" are 3x more likely to stay on the call.
 2. Discovery questions: 3 open-ended questions. Go from broad → specific → urgency/priority.
 3. Value prop: 1–2 sentences. Problem-first: "Based on what you said about [pain], that's exactly why [Company] exists..."
 4. Objection responses: Handle each of these 5 objections:
@@ -971,6 +1040,20 @@ ${seniority}
 ${jlc ? `\n${jlc}\n` : ""}
 Context: ${STAGE_QUESTION_CONTEXT[ctx.stage]}
 
+CONTEXT + QUESTION FORMAT — REQUIRED FOR EVERY QUESTION:
+Each question must have two parts: a "context" sentence and the "question" itself.
+The context sentence does one of three things:
+- References something specific about the company, role, or listing: "I saw you're expanding into mid-market this year —"
+- Reflects something the interviewer likely just said: "You mentioned the team is still pretty early-stage —"
+- Shows the candidate has thought about the role from the inside: "The way I've been thinking about the first 90 days —"
+
+This format turns interrogation into conversation. The question flows naturally from the context.
+BAD question alone: "What does success look like in the first 90 days?"
+GOOD: context "You mentioned ramp timelines vary a lot —", question "what does hitting your stride actually look like at the 90-day mark for this role?"
+
+FOLLOW-UP QUESTIONS (Harvard research):
+Candidates who ask follow-up questions — ones that respond to what the interviewer just said, not pre-planned questions read off a list — are rated significantly higher on likeability, engagement, and communication quality. Include exactly 1 question designed as a dynamic follow-up: it responds to something the interviewer is *likely* to have said during this specific stage conversation (not advance research). Mark it "followUp": true. The context sentence for this question should explicitly reference what the interviewer probably said: "Earlier you mentioned...", "When you talked about...", "You brought up..."
+
 VOICE: Questions must sound like a real person asking, not a business textbook.
 BAD: "Could you elaborate on how this position interfaces with cross-functional stakeholders?"
 GOOD: "How does the team actually work together day to day — like would I be working closely with [function] regularly?"
@@ -979,17 +1062,22 @@ REQUIREMENTS:
 - At least 2 questions should only work for THIS company — not generic enough to ask anywhere
 - If job description is available, reference specific requirements in at least 2 questions (signals they read it)
 - Vary the type: team structure, role expectations, company direction, management style
-- Format as natural speech, not bullet-point interrogation
 
-CLOSING QUESTION (always include as the final question — the power move):
-End with: "Based on what we've talked about, is there anything that gives you pause about moving me forward?" or "Is there anything about my background you'd want me to address before the next step?"${ctx.jobListingSignals?.careerPath ? `\n\nCAREER PATH: The listing mentions a path to ${ctx.jobListingSignals.careerPath}. Include one question about how quickly that transition typically happens and what it takes.` : ""}${jdSnippet}
+FOLLOW-UP CHAIN — required for every question:
+Each question must have a "followUpChain" — a natural second question that extends the first based on the most likely short or deflecting interviewer response. This is NOT a backup question; it's the natural continuation of the conversation thread. The follow-up chain trains the candidate to stay in the thread instead of jumping to the next prepared question.
+EXAMPLE: question "what does success look like in the first 90 days?", followUpChain "and when you say [whatever they answer] — is that typically about activity metrics, or more about pipeline built?"
+The follow-up chain should feel like the candidate heard the answer and wants to go one layer deeper.
+
+CLOSING QUESTION (always the final question — the power move):
+End with: "Based on what we've talked about, is there anything that gives you pause about moving me forward?" or a close that fits the stage naturally.${ctx.jobListingSignals?.careerPath ? `\n\nCAREER PATH: The listing mentions a path to ${ctx.jobListingSignals.careerPath}. Include one question about how quickly that transition typically happens and what it takes.` : ""}${jdSnippet}
 
 COMPANY:
 ${buildCompanyContext(ctx.company)}
 
 Return JSON:
-{"questions": [{"question": "...", "why": "why this question signals strong thinking"}]}`,
-    maxTokens: 700,
+{"questions": [{"context": "one sentence of setup/framing", "question": "the actual question", "followUpChain": "natural second question if they give a short answer", "why": "why this signals strong thinking", "followUp": false}]}
+Set "followUp": true on the 1 dynamic follow-up question.`,
+    maxTokens: 900,
   };
 }
 
