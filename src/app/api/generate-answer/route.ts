@@ -1,0 +1,128 @@
+import { NextRequest, NextResponse } from "next/server";
+import { anthropic, SONNET, HAIKU } from "@/lib/ai";
+import { GenerateAnswerInputSchema } from "@/lib/types/schemas";
+import { buildPromptForAnswerType } from "@/lib/ai/prompts";
+import { detectRoleSeniority } from "@/lib/ai/seniority";
+import { parseJobListing } from "@/lib/ai/job-listing";
+import { fetchRagContext, logAnswerVersion } from "@/lib/ai/rag-context";
+import type { AnswerType, PrepSession } from "@/types";
+
+// Answer types that use Haiku (lighter/cheaper tasks)
+const HAIKU_ANSWER_TYPES: AnswerType[] = [
+  "company_brief",
+  "cheat_sheet",
+  "comp_expectations",
+];
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+
+    // Validate answer type and session
+    const validation = GenerateAnswerInputSchema.safeParse({
+      sessionId: body.sessionId ?? "00000000-0000-0000-0000-000000000000",
+      answerType: body.answerType,
+      customInstructions: body.customInstructions,
+    });
+
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: validation.error.message },
+        { status: 400 }
+      );
+    }
+
+    const { answerType, customInstructions } = validation.data;
+    const sessionId = body.sessionId ?? "anon";
+    const session = body.session as PrepSession;
+
+    if (!session) {
+      return NextResponse.json({ error: "Session data required" }, { status: 400 });
+    }
+
+    // Build base prompt
+    const { system: baseSystem, user, maxTokens } = buildPromptForAnswerType(
+      answerType as AnswerType,
+      {
+        resume: session.resume,
+        company: session.company,
+        relevanceMap: session.relevanceMap,
+        jobDescription: session.jobDescription,
+        targetRole: session.targetRole,
+        roleType: session.roleType,
+        stage: session.stage,
+        seniority: detectRoleSeniority(session.targetRole, session.jobDescription),
+        jobListingSignals: session.jobDescription ? parseJobListing(session.jobDescription) : undefined,
+      },
+      {
+        question: body.question,
+        objection: body.objection,
+      }
+    );
+
+    // Fetch RAG context (non-blocking fallback if it fails)
+    const queryText = `${answerType} ${session.targetRole} ${session.company?.name ?? ""} ${session.roleType ?? ""}`;
+    const rag = await fetchRagContext(
+      answerType as AnswerType,
+      queryText,
+      session.roleType,
+      session.stage
+    );
+
+    // Use active prompt version if available, otherwise use base system
+    const system = rag.activePromptText
+      ? rag.activePromptText + rag.systemSuffix
+      : baseSystem + rag.systemSuffix;
+
+    const userContent = customInstructions
+      ? `${user}\n\nAdditional instructions: ${customInstructions}`
+      : user;
+
+    // Route to appropriate model
+    const model = HAIKU_ANSWER_TYPES.includes(answerType as AnswerType)
+      ? HAIKU
+      : SONNET;
+
+    const response = await anthropic.messages.create({
+      model,
+      max_tokens: maxTokens,
+      system,
+      messages: [{ role: "user", content: userContent }],
+    });
+
+    const content = response.content[0];
+    if (content.type !== "text") throw new Error("Unexpected response type");
+
+    // Strip markdown wrapping if present
+    const rawContent = content.text
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+
+    const answerId = crypto.randomUUID();
+
+    // Log generation (fire-and-forget)
+    logAnswerVersion({
+      sessionId,
+      answerType: answerType as AnswerType,
+      content: rawContent,
+      generationType: "initial",
+      promptVersionId: rag.activePromptVersionId,
+      knowledgeChunkIds: rag.knowledgeChunkIds,
+      goldenExampleIds: rag.goldenExampleIds,
+    });
+
+    return NextResponse.json({
+      answerId,
+      answerType,
+      content: rawContent,
+      model,
+    });
+  } catch (err) {
+    console.error("Generate answer error:", err);
+    return NextResponse.json(
+      { error: "Failed to generate answer. Please try again." },
+      { status: 500 }
+    );
+  }
+}
