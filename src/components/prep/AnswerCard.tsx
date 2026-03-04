@@ -384,11 +384,70 @@ function ContentRenderer({
   // ─ cheat_sheet ─
   if (slot.type === "cheat_sheet") {
     const data = parsed as {
+      // New format
+      testing?: string[];
+      oneThingThatMatters?: string;
+      timing?: string;
+      commonMistakes?: string[];
+      closer?: string;
+      // Old format (backward compat)
       keyPoints?: string[];
       companyFacts?: string[];
       strongestStory?: string;
       criticalTip?: string;
     };
+    const isNewFormat = Array.isArray(data.testing);
+    if (isNewFormat) {
+      return (
+        <div className="bg-gradient-to-br from-[#1e40af] to-[#2563eb] rounded-xl p-5 space-y-4">
+          {data.testing?.length ? (
+            <div>
+              <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-2">What They&apos;re Testing For</p>
+              <ul className="space-y-1.5">
+                {data.testing.map((t, i) => (
+                  <li key={i} className="text-sm text-white flex items-start gap-2">
+                    <span className="text-blue-300 flex-shrink-0 mt-0.5">•</span>
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {data.oneThingThatMatters && (
+            <div className="border border-yellow-300/40 bg-yellow-400/15 rounded-lg px-3 py-2.5">
+              <p className="text-xs font-semibold text-yellow-300 mb-1">The One Thing That Matters</p>
+              <p className="text-sm font-semibold text-yellow-50">{data.oneThingThatMatters}</p>
+            </div>
+          )}
+          {data.timing && (
+            <div className="flex items-start gap-2">
+              <span className="text-blue-300 text-sm flex-shrink-0">⏱</span>
+              <p className="text-sm text-blue-100">{data.timing}</p>
+            </div>
+          )}
+          {data.commonMistakes?.length ? (
+            <div>
+              <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-2">Common Mistakes</p>
+              <ul className="space-y-1.5">
+                {data.commonMistakes.map((m, i) => (
+                  <li key={i} className="text-sm text-white/90 flex items-start gap-2">
+                    <span className="text-red-300 flex-shrink-0 mt-0.5">✕</span>
+                    {m}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {data.closer && (
+            <div className="border-t border-blue-400/30 pt-3">
+              <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-1.5">Your Closer</p>
+              <p className="text-sm text-white italic">&ldquo;{data.closer.replace(/^["']|["']$/g, "")}&rdquo;</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+    // Old format fallback
     return (
       <div className="bg-gradient-to-br from-[#1e40af] to-[#2563eb] rounded-xl p-5 space-y-4">
         {data.keyPoints?.length ? (

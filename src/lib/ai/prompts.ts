@@ -688,44 +688,158 @@ Return JSON:
 
 // ─── 9. Cheat Sheet ───────────────────────────────────────────────────────────
 
-const STAGE_CHEAT_FOCUS_SDR: Record<InterviewStage, string> = {
-  recruiter:
-    "Phone presence, motivation, basic fit, salary alignment, why sales, why this company",
-  hiring_manager:
-    "Behavioral STAR stories, grit, resilience, quota attainment, coachability",
-  role_play:
-    "Cold call structure, objection handling, discovery questions before pitching, coachability after feedback",
-  panel:
-    "Executive presence, cultural fit, career trajectory, questions to ask, closing the interviewer",
-  take_home:
-    "Cold email quality, ICP research depth, pain point specificity, submission polish, and showing you think like a rep not a job applicant",
+const STAGE_CHEAT_TESTING_SDR: Record<InterviewStage, string> = {
+  recruiter: `Example bullets: "Can you explain what you do and why sales in under 90 seconds?" / "Did they research us, or are they mass-applying?" / "Can they have a confident, natural phone conversation with a stranger?"`,
+  hiring_manager: `Example bullets: "Do they have real STAR stories with specific numbers?" / "Are they coachable when I push back — or do they get defensive?" / "Is their quota attainment story consistent and believable?"`,
+  role_play: `Example bullets: "Do they ask discovery questions before pitching, or lead with features?" / "How do they handle an objection — do they fight it or acknowledge and redirect?" / "When I give feedback at the end, do they implement it immediately or defend themselves?"`,
+  panel: `Example bullets: "Are they still sharp and composed after 45+ minutes of pressure?" / "Do they have genuine curiosity about where the company is going, or just prepared answers?" / "Can they handle a curveball question without losing composure?"`,
+  take_home: `Example bullets: "Did they research our actual ICP, or use generic targeting?" / "Is this something I'd actually open in my inbox?" / "Do they understand the real problem we solve, or just describe the product?"`,
 };
 
-const STAGE_CHEAT_FOCUS_AE: Record<InterviewStage, string> = {
-  recruiter:
-    "Numbers check: quota attainment, deal sizes, sales cycle, reason for moving, why this company",
-  hiring_manager:
-    "Deal depth: largest deal walkthrough, deal you lost, multi-threading, quota narrative, methodology name",
-  role_play:
-    "Discovery before pitching, qualifying questions, pivot to demo after pain is established, executive objection handling, coachability",
-  panel:
-    "Executive presence, 90-day plan, stakeholder management, career trajectory, close the hiring process",
-  take_home:
-    "Cold email quality, ICP research depth, pain point specificity, submission polish, and showing you think like a rep not a job applicant",
+const STAGE_CHEAT_TESTING_AE: Record<InterviewStage, string> = {
+  recruiter: `Example bullets: "Can they speak to real numbers — quota attainment, deal sizes, sales cycle — without vagueness?" / "Is their reason for leaving credible and forward-looking?" / "Do they understand what we sell and who buys it?"`,
+  hiring_manager: `Example bullets: "Can they walk me through a complex deal from first call to close — not just the highlights?" / "When I probe on a loss, do they show self-awareness or make excuses?" / "Do they know their methodology well enough to name it and apply it?"`,
+  role_play: `Example bullets: "Do they run discovery before pitching — or pitch the moment they smell interest?" / "Can they qualify an executive objection without getting rattled?" / "After my feedback, do they visibly adjust — or just say 'got it' and repeat themselves?"`,
+  panel: `Example bullets: "Do they have a credible 30/60/90-day plan — or a generic ramp framework?" / "Can they hold their own when a VP pushes back hard on their deal history?" / "Are they closing the process, or just hoping to pass?"`,
+  take_home: `Example bullets: "Does the target account show real ICP thinking — or did they just Google the company?" / "Is the email specific enough that I'd forward it to our best rep?" / "Do they understand our competitive position, or describe us generically?"`,
+};
+
+const STAGE_CHEAT_ONE_THING: Record<InterviewStage, { sdr: string; ae: string }> = {
+  recruiter: {
+    sdr: "Did you research us? 50–70% of SDR candidates are cut in round 1 because they clearly didn't.",
+    ae: "Can you back up your numbers? Vague quota talk ('I performed well') kills AE candidates in the recruiter screen.",
+  },
+  hiring_manager: {
+    sdr: "Are you coachable? They're watching how you respond to probing questions — not just the answers themselves.",
+    ae: "Can you show self-awareness on a deal you lost? HMs trust reps who own their losses more than ones who only share wins.",
+  },
+  role_play: {
+    sdr: "Can you improve after feedback? The re-run after coaching is what they actually evaluate — not the first attempt.",
+    ae: "Do you listen before you pitch? AEs who ask 2+ discovery questions before presenting anything advance at 3× the rate.",
+  },
+  panel: {
+    sdr: "Can you handle pressure from multiple people without losing your composure or overexplaining?",
+    ae: "Are you closing the process — or just surviving it? The panel expects you to ask for the job at the end.",
+  },
+  take_home: {
+    sdr: "Did you show ICP thinking — or just write a cold email? Research depth is what separates finalists from rejections.",
+    ae: "Is this submission something you'd send to a real prospect? Treat it like a live deal, not an assignment.",
+  },
+};
+
+const STAGE_CHEAT_TIMING: Record<InterviewStage, string> = {
+  recruiter: "This call will be 20–30 minutes. Keep answers under 90 seconds. If they want more, they'll ask.",
+  hiring_manager: "Expect 45–60 minutes. STAR answers should be 2–3 minutes max — situation fast, your actions slow.",
+  role_play: "Cold call: 3–5 minutes. Debrief: 10–15 minutes. The debrief is as important as the call itself.",
+  panel: "90+ minutes, back-to-back rounds. Pace yourself — energy at minute 80 matters as much as minute 5.",
+  take_home: "Submission turnaround: 24–48 hours unless specified. Quality over speed — one polished deliverable beats three rushed ones.",
+};
+
+const STAGE_CHEAT_MISTAKES_SDR: Record<InterviewStage, string[]> = {
+  recruiter: [
+    "Giving a 5-minute answer to 'Tell me about yourself' — 90 seconds is the target",
+    "Saying 'I don't have any questions' when asked",
+    "Not knowing what the company actually does or who it sells to",
+  ],
+  hiring_manager: [
+    "Telling a STAR story without a single specific number",
+    "Getting defensive when the interviewer pushes back or asks 'but why?'",
+    "Answering 'what's your weakness' with a strength in disguise — they've heard it a thousand times",
+  ],
+  role_play: [
+    "Pitching before establishing any pain — leading with features instead of questions",
+    "Caving immediately when the prospect objects instead of acknowledging and redirecting",
+    "Not implementing the feedback visibly in the second run — they're watching for this specifically",
+  ],
+  panel: [
+    "Running out of questions to ask — bring at least 3, more than you think you'll need",
+    "Rambling under pressure from a tough question — shorter, more confident is always better",
+    "Not closing the process at the end: 'I'd love to join this team — what are the next steps?'",
+  ],
+  take_home: [
+    "Generic ICP targeting — 'mid-market SaaS companies' instead of a named account with a specific pain",
+    "A cold email that could have been sent to anyone — no personalization signal",
+    "Submitting without asking 'what would make this an A+ submission?' first",
+  ],
+};
+
+const STAGE_CHEAT_MISTAKES_AE: Record<InterviewStage, string[]> = {
+  recruiter: [
+    "Giving a soft number — 'around 100%' instead of 'I hit 112% in Q3 and 97% for the year'",
+    "Saying 'I left for more opportunity' without explaining what specifically you were growing toward",
+    "Not knowing the company's ICP, deal size, or sales cycle — they'll ask",
+  ],
+  hiring_manager: [
+    "Walking through a deal win without acknowledging what nearly went wrong",
+    "Saying you use 'MEDDIC' without being able to walk through a real deal using the framework",
+    "Answering 'tell me about a deal you lost' by blaming the prospect or timing",
+  ],
+  role_play: [
+    "Opening with a product pitch before establishing any business pain",
+    "Folding on a discount request without understanding why they want it — 'sure, I can do that'",
+    "Saying 'good feedback, I'll remember that' after coaching, then running the same play",
+  ],
+  panel: [
+    "A 90-day plan that's all ramp and no pipeline activity — they want to see day 1 instincts",
+    "Not having a clear answer to 'why are you leaving?' — it should be a forward-looking decision",
+    "Leaving without explicitly asking for the job — panels respect candidates who close",
+  ],
+  take_home: [
+    "Targeting a company that doesn't match the ICP without explaining the logic",
+    "An email focused on your product instead of their problem",
+    "A polished submission that shows zero competitive awareness",
+  ],
+};
+
+const STAGE_CHEAT_CLOSER: Record<InterviewStage, { sdr: string; ae: string }> = {
+  recruiter: {
+    sdr: "'What will the hiring manager be focused on in the next round? I want to make sure I'm prepared.'",
+    ae: "'Can you tell me what the hiring manager interview typically focuses on — specifically for AE candidates at this level?'",
+  },
+  hiring_manager: {
+    sdr: "'Based on our conversation, is there anything about my background that gives you pause?'",
+    ae: "'Based on everything we've covered — is there anything that would prevent you from moving me forward?'",
+  },
+  role_play: {
+    sdr: "'What specifically were you looking for in that exercise — and did you see it?'",
+    ae: "'What did the candidates who advanced do differently in that scenario that I should know for next time?'",
+  },
+  panel: {
+    sdr: "'I'm genuinely excited about this role and this team. What are the next steps from here?'",
+    ae: "'I'd love to be part of what you're building. Is there anything preventing you from moving me to the next step?'",
+  },
+  take_home: {
+    sdr: "'What would make this submission stand out as an A+ from your perspective?'",
+    ae: "'Before I finalize — is there a specific element of the assignment that matters most to your team?'",
+  },
 };
 
 export function buildCheatSheetPrompt(ctx: PromptContext): PromptResult {
   const kb = getKnowledgeForStage(ctx.stage, ctx.resume.backgroundType);
   const isAE = ctx.roleType === "account_executive";
-  const focusAreas = isAE ? STAGE_CHEAT_FOCUS_AE[ctx.stage] : STAGE_CHEAT_FOCUS_SDR[ctx.stage];
   const seniority = getSeniorityInstructions(ctx.seniority);
   const jlc = buildJobListingContext(ctx.jobListingSignals);
+
+  const testingExamples = isAE
+    ? STAGE_CHEAT_TESTING_AE[ctx.stage]
+    : STAGE_CHEAT_TESTING_SDR[ctx.stage];
+  const oneThingExample = isAE
+    ? STAGE_CHEAT_ONE_THING[ctx.stage].ae
+    : STAGE_CHEAT_ONE_THING[ctx.stage].sdr;
+  const timingExample = STAGE_CHEAT_TIMING[ctx.stage];
+  const mistakesExamples = isAE
+    ? STAGE_CHEAT_MISTAKES_AE[ctx.stage]
+    : STAGE_CHEAT_MISTAKES_SDR[ctx.stage];
+  const closerExample = isAE
+    ? STAGE_CHEAT_CLOSER[ctx.stage].ae
+    : STAGE_CHEAT_CLOSER[ctx.stage].sdr;
+
   return {
     system: `${BASE_SYSTEM}
 
 ${kb}`,
-    user: `Generate a pre-interview cheat sheet for ${ctx.targetRole} at ${ctx.company.name}.
-Stage: ${ctx.stage} — Focus areas: ${focusAreas}
+    user: `Generate a stage-specific cheat sheet for ${ctx.targetRole} at ${ctx.company.name}.
+Stage: ${ctx.stage} | Role type: ${isAE ? "Account Executive" : "SDR/BDR"}
 
 ${seniority}
 ${jlc ? `\n${jlc}\n` : ""}
@@ -735,20 +849,43 @@ ${buildResumeContext(ctx.resume)}
 COMPANY:
 ${buildCompanyContext(ctx.company)}
 
-CHEAT SHEET MUST INCLUDE:
-- 4–5 key points to remember for this specific stage
-- 3–4 company facts to reference (show research without sounding rehearsed)
-- The single strongest story/bullet from their background to deploy in this round
-- The critical tip — the #1 thing most candidates get wrong in this stage that this candidate should avoid
+Generate EXACTLY this structure — concise, no filler, fits on one mobile screen:
+
+1. WHAT THEY'RE TESTING FOR (2–3 bullets, 1 sentence each):
+   Specific evaluation criteria for THIS stage — not generic "communication skills."
+   Use the candidate's background to make these feel personal, not textbook.
+   ${testingExamples}
+
+2. THE ONE THING THAT MATTERS MOST (1 sentence):
+   The single highest-signal behavior for this stage.
+   Example: ${oneThingExample}
+
+3. TIMING (1 line):
+   How long, how long to talk.
+   Example: ${timingExample}
+
+4. COMMON MISTAKES AT THIS STAGE (exactly 3 bullets):
+   Stage-specific, not generic. Adapt to this candidate's background.
+   Examples: ${mistakesExamples.map((m) => `\n   - "${m}"`).join("")}
+
+5. YOUR CLOSER (1 sentence, in quotes — something they can actually say):
+   What to say at the END of the call to advance the process.
+   Example: ${closerExample}
+
+Seniority calibration:
+- Entry-level: coaching tone, briefly explain WHY each point matters
+- Mid-level: direct, assumes basic interview knowledge
+- Senior: brief and strategic, skip the obvious
 
 Return JSON:
 {
-  "keyPoints": ["...", "...", "...", "..."],
-  "companyFacts": ["...", "...", "...", "..."],
-  "strongestStory": "...",
-  "criticalTip": "..."
+  "testing": ["...", "...", "..."],
+  "oneThingThatMatters": "...",
+  "timing": "...",
+  "commonMistakes": ["...", "...", "..."],
+  "closer": "..."
 }`,
-    maxTokens: 600,
+    maxTokens: 700,
   };
 }
 
