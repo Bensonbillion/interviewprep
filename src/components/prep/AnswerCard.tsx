@@ -401,6 +401,7 @@ function ContentRenderer({
   // ─ company_brief ─
   if (slot.type === "company_brief") {
     const data = parsed as {
+      sayThis?: string;
       oneLiner?: string;
       productExplainer?: string;
       icpSummary?: string;
@@ -411,6 +412,17 @@ function ContentRenderer({
     };
     return (
       <div className="space-y-4">
+        {data.sayThis && (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+            <p className="text-[10px] font-semibold text-green-700 uppercase tracking-wide mb-2 flex items-center gap-1">
+              <span>🗣️</span> Say This
+            </p>
+            <p className="text-sm text-green-900 leading-relaxed">{data.sayThis}</p>
+          </div>
+        )}
+        {(data.oneLiner || data.productExplainer || data.icpSummary || data.salesMotionSummary || data.competitiveLandscape || data.talkingPoints?.length || data.likelyCompanyQuestions?.length) && (
+          <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wide pt-1">Deep Research</p>
+        )}
         {data.oneLiner && (
           <p className="text-sm font-semibold text-ink border-l-4 border-primary-500 pl-3">
             {data.oneLiner}

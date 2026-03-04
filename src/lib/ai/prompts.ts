@@ -659,17 +659,21 @@ ${buildCompanyContext(ctx.company)}
 JOB DESCRIPTION:
 ${ctx.jobDescription.slice(0, 800)}
 
-BRIEF SHOULD INCLUDE:
-1. Company in one sentence (what they do, who for, why it matters)
-2. The product/platform — what problem it solves and how (2–3 sentences)
-3. Their ICP — who buys it, why, what pain it addresses
-4. Sales motion — inbound vs outbound vs PLG, what reps actually do
-5. Competitive landscape — top 2–3 competitors and how ${ctx.company.name} differentiates
-6. 3–4 things to mention in the interview (recent news, culture signals, growth signals)
-7. Questions the candidate should be ready to answer about their knowledge of the company
+Generate the company research in TWO sections:
+
+SECTION 1 — "WHAT TO SAY" (put this FIRST in the JSON as "sayThis"):
+Write a 3–4 sentence conversational summary of what the company does, written as if the candidate were SAYING it aloud to an interviewer who asked "So what do you know about what we do?"
+
+This must sound like a confident person EXPLAINING the company to a friend, not a Wikipedia summary. Use natural, spoken language — contractions, casual transitions, specific details.
+
+Example structure: "So basically, [Company] is building [X] for [Y customers] — think of it as [simple analogy]. What makes them interesting is [differentiator or traction signal]. They're [funding/stage detail] and [growth/momentum signal]."
+
+SECTION 2 — "DEEP RESEARCH" (the remaining fields):
+The full company research brief: product details, competitors, recent news, ICP, sales motion, funding. This is REFERENCE material for studying — formatted for reading, not speaking.
 
 Return JSON:
 {
+  "sayThis": "3–4 sentence spoken summary — natural, conversational, confident",
   "oneLiner": "...",
   "productExplainer": "...",
   "icpSummary": "...",
