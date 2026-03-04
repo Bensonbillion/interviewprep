@@ -439,11 +439,28 @@ ${seniority}
 
 Remember: this answer will be SPOKEN, not read. It's a story being told to a person in real time.
 
-STAR AS A GUIDE (structure the content, but don't label the parts):
-- Situation: brief context (1–2 sentences) — set the scene fast, don't over-explain
-- Task: what was specifically at stake or expected of them
-- Action: what THEY did — specific decisions, tactics, who they talked to, what they said
-- Result: concrete outcome with a number or clear business impact
+FOUR-LAYER ANSWER STRUCTURE (the research-backed pattern that separates deep answers from shallow ones):
+Layer 1 — CLAIM (1 sentence): The direct headline. What this story is about.
+  "I'm really strong at bouncing back from a bad patch — and I've had to prove that."
+Layer 2 — CONTEXT (2–3 sentences): Set the scene fast. Stakes, role, moment in time.
+  Situation + Task compressed together. Don't over-explain.
+Layer 3 — SPECIFIC EXAMPLE (bulk of the answer): What I did, in sequence, with specifics.
+  Actions, decisions, tools, conversations — this is where the story lives.
+Layer 4 — REFLECTION (1–2 sentences): What I learned or would do differently.
+  NOT just the result. Self-awareness here is more credible than a perfect outcome.
+  "What that taught me is..." / "I'd do one thing differently..." / "That changed how I approach..."
+  This layer is REQUIRED — answers that end on the result alone feel rehearsed.
+
+SHOW, DON'T TELL — five techniques that make a story feel experienced vs. invented:
+1. SPECIFIC NUMBERS: Not "a lot of calls" → "about 80 dials a day, maybe 12 connects"
+2. NAMED TOOLS/METHODS: Not "used our CRM" → "ran the sequence in Outreach, flagged it in Salesforce"
+3. QUOTED DIALOGUE: Not "my manager gave feedback" → "she said 'you're pitching before you've earned the right to pitch'"
+4. SENSORY/PHYSICAL DETAILS: Not "it was stressful" → "I was in the office until 9pm three nights that week"
+5. SEQUENCED ACTIONS: Not "I handled it" → "First I... then I talked to... which led to... and finally..."
+Use at least THREE of these five in every answer.
+
+NESTED DETAILS — what authentic memories contain that fabricated ones don't:
+Real stories have texture that wasn't specifically requested — who else was in the room, what had just happened before this moment, what you were thinking when you got the news, what the stakes felt like. Weave in one detail that wasn't asked for. It's the difference between a story that feels lived and one that feels constructed.
 
 NATURAL OPENERS (use one variation, never "I would like to share a story about..."):
 - "So the situation that comes to mind for this is..."
@@ -455,7 +472,7 @@ ${jlc ? `${jlc}\n\n` : ""}REQUIREMENTS per answer:
 - Must draw from ACTUAL resume bullets — never fabricate
 - SPOKEN LANGUAGE: The STAR labels should NOT appear. Use contractions. Vary sentence length. "I was nervous going into that conversation, honestly" is exactly right. "I demonstrated exceptional communication skills" is disqualifying.
 - Includes at least one specific metric, name, or concrete detail
-- Ends with what they learned or would do differently — shows self-awareness, not just results${aeExtra}${panelExtra}
+- MUST end with the reflection layer — what they learned or would do differently${aeExtra}${panelExtra}
 
 CANDIDATE:
 ${buildResumeContext(ctx.resume)}
