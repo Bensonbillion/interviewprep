@@ -129,11 +129,11 @@ export function buildTmayPrompt(ctx: PromptContext): PromptResult {
 4. Bridge forward: "Which is why I'm excited to bring that enterprise motion to [Company] as [Role]."
 
 SPECIFIC REQUIREMENTS for AE:
-- Opens with a number ("Over the past X years, I've closed $Xm across Y companies")
-- Mentions quota attainment specifically (e.g., "115% of quota in 3 of 4 years")
+- CRITICAL: First sentence must hook with a number immediately — "Over the last [X] years I've closed just over $[X] million across [Y] accounts, mostly in [segment]..." — lead with the metric, not the backstory
+- Mentions quota attainment specifically (e.g., "115% in 3 of my 4 years there")
 - Shows deal complexity / multi-threading / enterprise motion if present
-- Does NOT apologize for moving companies — frames it as strategic growth
-- Bridge connects their deal experience to what THIS company needs`
+- Does NOT apologize for moving companies — frames every transition as a deliberate strategic step
+- Closes by connecting deal experience to exactly what THIS company is building`
     : ctx.stage === "hiring_manager"
     ? `STRUCTURE for SDR/BDR — Hiring Manager "Walk me through your resume" variant:
 This is NOT the recruiter pitch. The hiring manager has already seen the resume.
@@ -162,18 +162,22 @@ GOOD OPENERS:
 - "The short version is..." (then give the interesting version)
 - "My path to tech sales isn't traditional, which I think is actually an advantage."
 - Lead with the most compelling part of the arc, not the chronological beginning`
-    : `STRUCTURE for SDR/BDR (chronological):
-1. Start at their earliest relevant role — not their childhood or "ever since I was young"
-2. Walk chronologically through their career — each role in 1–2 sentences with a specific outcome
-3. Land at their most recent role — what they do/did and a concrete result
-4. Bridge forward: "Which is why I'm here talking to [Company] about the [Role]."
+    : `STRUCTURE — Present → Past → Future (tell it like a story, not a framework):
+Present (2–3 sentences): What they're doing now + one specific metric that proves they're good at it.
+Past (2–3 sentences): The ONE experience or turning point that made this career direction click — not a chronological résumé read-through.
+Future (1–2 sentences): Why THIS role at THIS company is the natural next chapter.
 
-SPECIFIC REQUIREMENTS for SDR/BDR:
-- If career switcher: normalize the transition naturally — frame it as logical progression, not pivot
-- Include one specific metric or achievement per role
-- Energy and enthusiasm should come through — this person wants to be in sales`;
+CRITICAL — First sentence must hook. Not "I am currently at..." but something with energy:
+- "So right now I'm at [Company] doing [role], and honestly the thing I love most about it is [specific thing]..."
+- "The quick version — I've been in [field] for about X years and I basically live for the part most people dread..."
+- Start with what makes their story interesting, not the most boring chronological fact about them
 
-  const wordTarget = ctx.stage === "hiring_manager" ? "225–300 words (90–120 seconds spoken)" : "175–225 words (60–90 seconds spoken)";
+For SDR/BDR:
+- Career switcher: the Past section should name the pivot moment directly — own it confidently, don't slide past it
+- Include one specific metric (a number, a ranking, a rate — anything concrete)
+- End with genuine forward energy: connect to THIS company specifically, not a generic "I'm excited for the opportunity"`;
+
+  const wordTarget = ctx.stage === "hiring_manager" ? "200–280 words (90–120 seconds spoken)" : "130–200 words (60–90 seconds spoken)";
   const seniority = getSeniorityInstructions(ctx.seniority);
   const jlc = buildJobListingContext(ctx.jobListingSignals);
 
@@ -250,14 +254,21 @@ Return ONLY the answer text.`,
 
 ${seniority}
 ${jlc ? `\n${jlc}\n` : ""}
+This answer must start with a MOMENT, not a statement.
+
+BAD: "I chose sales because I enjoy building relationships and solving problems."
+GOOD: "Honestly, sales kind of chose me — I was working at [place] and I realized I was having more fun figuring out what people actually needed than anything else in my day..."
+
+One specific anecdote that made sales click. Not a list of reasons. One story. Then connect that moment to why they're pursuing THIS type of sales role specifically.
+
+For entry-level: The story can be from any job — retail, food service, a campus org. What matters is the MOMENT they realized they were wired for this.
+For experienced: The story should be from their actual sales career — a specific call, a deal, a metric they hit. Show they've validated the initial instinct with real results.
+
 REQUIREMENTS:
-- 75–150 words
-- SPOKEN LANGUAGE: This will be said out loud. Use contractions. Short punchy sentences mixed with longer ones. No phrase a human wouldn't say on a phone call.
-- Must include a specific moment, story, or realization — not generic "I love people" or "I've always been a people person"
-- Should reference something from their actual background that connects to sales instinct or pressure
-- For career switchers: frame their previous role as training for sales (resilience, persuasion, quota-like pressure)
-- Ends with forward-looking energy — genuine, not desperate
-- BANNED: "I've always been passionate about...", "I believe I would thrive in sales", "I'm a natural communicator"
+- 75–150 words — tight, punchy
+- SPOKEN: contractions throughout, short sentences mixed with longer ones — no phrase a human wouldn't say on a call
+- BANNED: "I've always been passionate about...", "I'm a natural communicator", "I believe I would thrive in sales", "I'm a people person"
+- End by connecting the story to why THIS specific type of sales role (SDR, SaaS, B2B — whatever the target is)
 
 CANDIDATE:
 ${buildResumeContext(ctx.resume)}
@@ -297,10 +308,19 @@ ${seniority}
 ${jlc ? `\n${jlc}\n` : ""}
 ${depthInstruction}
 
+THREE-LAYER STRUCTURE (every stage, every depth level):
+1. The PROBLEM (1–2 sentences): Show you understand the market pain they're solving — not just the product features.
+   BAD: "I'm excited about ${ctx.company.name} because you're a leader in this space with an innovative platform..."
+   GOOD: "What got me was the actual problem they're going after — most [buyers/teams] are dealing with [specific pain] and the way ${ctx.company.name} approaches it is..."
+2. Why THIS company's APPROACH (1–2 sentences): Product and market awareness without reciting a spec sheet.
+3. Why YOU specifically belong here (1–2 sentences): Connect their mission to your actual background or goals.
+
+If company values are in the profile: EMBODY them in the tone — don't name them. If the value is 'audacity,' the answer should sound bold. If it's 'honesty,' it should feel direct and unpolished.
+
 REQUIREMENTS (all stages):
 - Must be specific to THIS company — reference their product, market, ICP, culture signals, or recent news
-- CONVERSATIONAL INTEGRATION: Don't list research facts — weave them in naturally. Instead of "I researched your company and found that...", just say it like you already know it: "The reason I'm specifically excited about ${ctx.company.name} is..." or "What drew me in was when I looked at who actually buys this — [ICP insight]..."
-- SPOKEN LANGUAGE: This will be said out loud on a call. Use contractions. No sentence a human wouldn't say in conversation. Sound like a well-prepared seller who is genuinely excited, not someone reading off a research report.
+- DON'T list research facts — weave them in naturally. Sound like you already know this, not like you're presenting a report: "The reason I'm specifically excited about ${ctx.company.name} is..." or "What got me was when I looked at who actually buys this..."
+- SPOKEN: This will be said out loud on a call. Use contractions. No sentence a human wouldn't say in conversation.
 - Every company detail MUST come from the company profile — never hallucinate facts
 
 CANDIDATE:
@@ -404,18 +424,25 @@ ${questionOverride ? `QUESTION: ${questionOverride}` : `QUESTIONS:\n${questions.
 
 ${seniority}
 
-STAR FORMAT (each answer):
-- Situation: brief context (1–2 sentences)
-- Task: what was expected of them specifically
-- Action: what THEY did — specific, first-person, with tactics and decisions
+Remember: this answer will be SPOKEN, not read. It's a story being told to a person in real time.
+
+STAR AS A GUIDE (structure the content, but don't label the parts):
+- Situation: brief context (1–2 sentences) — set the scene fast, don't over-explain
+- Task: what was specifically at stake or expected of them
+- Action: what THEY did — specific decisions, tactics, who they talked to, what they said
 - Result: concrete outcome with a number or clear business impact
+
+NATURAL OPENERS (use one variation, never "I would like to share a story about..."):
+- "So the situation that comes to mind for this is..."
+- "Yeah, this actually happened pretty recently — about [X months] ago..."
+- "Honestly the best example I have is when..."
 
 ${jlc ? `${jlc}\n\n` : ""}REQUIREMENTS per answer:
 - 150–225 words total (60–90 seconds spoken)
 - Must draw from ACTUAL resume bullets — never fabricate
-- SPOKEN LANGUAGE: This will be said out loud. Write it as a story being told, not a template being filled. The STAR structure is a guide — the STAR labels should NOT appear in the answer itself. Use contractions. Vary sentence length. "I was nervous going into that conversation, honestly" is fine. "I demonstrated exceptional communication skills" is not.
-- Includes at least one specific metric, name, or detail
-- Ends with what they learned or would do differently${aeExtra}${panelExtra}
+- SPOKEN LANGUAGE: The STAR labels should NOT appear. Use contractions. Vary sentence length. "I was nervous going into that conversation, honestly" is exactly right. "I demonstrated exceptional communication skills" is disqualifying.
+- Includes at least one specific metric, name, or concrete detail
+- Ends with what they learned or would do differently — shows self-awareness, not just results${aeExtra}${panelExtra}
 
 CANDIDATE:
 ${buildResumeContext(ctx.resume)}
@@ -441,14 +468,24 @@ export function buildCompExpectationsPrompt(ctx: PromptContext): PromptResult {
 
 ${seniority}
 ${compCtx ? `\n${compCtx}\n` : ""}
-REQUIREMENTS:
-- 2–4 sentences
-- Confident, market-aware, leaves room for negotiation
-- Senior candidates should anchor higher and frame it around OTE + upside, not just base
-- For SDR/BDR entry: typical OTE is $50K–$80K; for senior BDR/SDR: $70K–$100K; for AE: $80K–$150K+ OTE
-- Signals understanding of sales comp structure (base + variable/commission)
-- Not desperate or apologetic
-- Does NOT give a single number — gives a range or frame
+This is the most AWKWARD question in the interview and the answer must feel natural, not rehearsed.
+
+STRUCTURE: Acknowledge → Range → Redirect
+- Acknowledge: "Yeah, so I've done some research on this..." or "Sure — based on what I've seen for similar roles in this space..."
+- Range: Give a range, never a single number. If the listing has a public comp range, acknowledge it: "I noticed the listing mentions $X–Y, and honestly that feels about right for what this involves..."
+- Redirect: Pivot to what actually matters: "...but I'm honestly more focused on the opportunity itself. I'd love to understand how the commission structure works — what does a strong performer actually take home?"
+
+NEVER SAY:
+- "My salary expectations are..." (too formal, too stiff)
+- "I'm flexible on compensation" (signals desperation)
+- A single number without a range
+
+BENCHMARK RANGES (calibrate to seniority):
+- Entry SDR/BDR: $50K–$80K OTE
+- Senior BDR/SDR: $70K–$100K OTE
+- AE: $80K–$150K+ OTE — anchor to OTE + upside, not just base
+
+60–80 words max. This is a screening question, not a negotiation.
 ${jlc ? `\n${jlc}` : ""}
 Return ONLY the answer text.`,
     maxTokens: 200,
@@ -584,18 +621,20 @@ export function buildObjectionResponsePrompt(
 ${kb}`,
     user: `Generate objection handling responses for a ${ctx.company.name} ${ctx.targetRole} cold call role play.
 
+Remember: these will be SPOKEN on a live call, not read. Every word should sound like something a confident, unflappable rep would actually say in real time.
+
 OBJECTIONS TO ADDRESS:
 ${targetObjections.map((o, i) => `${i + 1}. "${o}"`).join("\n")}
 
-FORMULA for each response: Acknowledge → Reframe → Ask a question
-- Acknowledge: validate the objection without agreeing it's fatal
-- Reframe: shift perspective without being pushy
-- Question: end with an open question that re-engages them
+FORMULA: Acknowledge → Reframe → Re-engage with a question
+- Acknowledge with warmth, not formality: "Yeah, totally fair —" or "I hear you, that makes sense..." NOT "I understand your concern."
+- Reframe as a genuine thought, not a tactic: "The thing is..." or "What I've actually found..." NOT "However, I'd like to point out..."
+- Question should be curious, not pressuring: "What does the current setup actually look like?" NOT "Would you be open to reconsidering?"
 
 REQUIREMENTS:
 - Each response 40–80 words
 - Specific to ${ctx.company.name}'s product and ICP — no generic filler
-- Natural, conversational — sounds like a confident SDR not reading a script
+- Natural and conversational — sounds like a rep who's heard this a hundred times and isn't rattled
 - Never argue, never apologize, never beg
 
 COMPANY CONTEXT:
@@ -728,19 +767,24 @@ export function buildQuestionsToAskPrompt(ctx: PromptContext): PromptResult {
 
   return {
     system: BASE_SYSTEM,
-    user: `Generate 5–6 sharp questions for this candidate to ask in their ${ctx.stage} interview at ${ctx.company.name}.
+    user: `Generate 4–5 questions for this candidate to ask in their ${ctx.stage} interview at ${ctx.company.name}.
 
 ${seniority}
 ${jlc ? `\n${jlc}\n` : ""}
 Context: ${STAGE_QUESTION_CONTEXT[ctx.stage]}
 
+VOICE: Questions must sound like a real person asking, not a business textbook.
+BAD: "Could you elaborate on how this position interfaces with cross-functional stakeholders?"
+GOOD: "How does the team actually work together day to day — like would I be working closely with [function] regularly?"
+
 REQUIREMENTS:
-- Each question demonstrates genuine curiosity AND sales-savvy thinking
-- NOT generic ("What does success look like?") unless made very specific to this company and role
-- Reference specific things from the company profile — product, ICP, sales motion, competitors — at least 2 questions should only work for THIS company, not any company
-- If the job description is available, reference specific requirements or expectations from it in at least 2 questions — it signals the candidate actually read the listing
-- Vary the type: some about the team, some about the company/market, some about the role/expectations
-- Panel round MUST include a close: language to express genuine intent and ask where things stand${ctx.jobListingSignals?.careerPath ? `\n- CAREER PATH: The job listing explicitly mentions a path to ${ctx.jobListingSignals.careerPath}. Include at least one question probing how quickly that transition typically happens and what it takes to earn it.` : ""}${jdSnippet}
+- At least 2 questions should only work for THIS company — not generic enough to ask anywhere
+- If job description is available, reference specific requirements in at least 2 questions (signals they read it)
+- Vary the type: team structure, role expectations, company direction, management style
+- Format as natural speech, not bullet-point interrogation
+
+CLOSING QUESTION (always include as the final question — the power move):
+End with: "Based on what we've talked about, is there anything that gives you pause about moving me forward?" or "Is there anything about my background you'd want me to address before the next step?"${ctx.jobListingSignals?.careerPath ? `\n\nCAREER PATH: The listing mentions a path to ${ctx.jobListingSignals.careerPath}. Include one question about how quickly that transition typically happens and what it takes.` : ""}${jdSnippet}
 
 COMPANY:
 ${buildCompanyContext(ctx.company)}
@@ -780,7 +824,14 @@ COACHING MUST COVER:
 COMPANY:
 ${buildCompanyContext(ctx.company)}
 
-Return 3–5 sentences of specific, actionable coaching. Include at least one example of what to SAY in the moment.
+TONE: Write this coaching advice like a friend who has prepped a lot of people for this specific moment — direct, informal, specific. Not a training manual. Not corporate HR language.
+
+EXAMPLE LANGUAGE for the candidate to actually use in the moment:
+- When feedback is delivered: "Got it — so you want me to lead with a question about [X] before I get into the pitch. Let me try that again..."
+- NOT: "Thank you for that valuable feedback. I will incorporate your suggestions into my next attempt."
+- The candidate should sound like they absorbed the feedback in 5 seconds and want to immediately try again — because that's what winning candidates do.
+
+Return 3–5 sentences of specific, actionable coaching. Include at least one example of what to SAY in the exact moment feedback is given.
 Return ONLY the coaching text (no JSON, no headers).`,
     maxTokens: 400,
   };
@@ -805,14 +856,21 @@ Goal: make the transition feel logical and inevitable — not apologetic or desp
 
 FOR EACH PREVIOUS ROLE/EXPERIENCE, generate:
 1. The transferable skill most relevant to sales
-2. The exact bridge phrasing ("In [X role], I [did Y] — which is essentially the same as [sales skill Z]. For example, [specific instance].")
+2. The bridge phrasing — what the candidate would actually SAY out loud
 3. The sales scenario where this experience applies in this role
 
+SPOKEN LANGUAGE: These bridges will be used verbally in an interview. The bridgePhrasing should sound like something a person would actually say — not a polished LinkedIn post.
+
+GOOD BRIDGE PHRASING STYLE:
+- "Honestly, the way I think about it — working [retail/hospitality/etc.] taught me to read a room in about 30 seconds. Every customer was a different kind of prospect. I was basically doing discovery calls without knowing what they were called."
+- "In [previous role] I was basically hitting a quota every [day/week] — not in a sales context, but the pressure and the rhythm were identical."
+NOT: "My experience in [role] provided me with transferable skills that align closely with the requirements of a sales position."
+
 REQUIREMENTS:
-- 3–5 bridges covering the most impactful career experiences
-- Each bridge should work as a standalone answer in an interview question
+- 3–5 bridges covering the most impactful experiences
+- Each bridge should work as a standalone answer in an interview
 - Never say "even though I don't have direct sales experience" — reframe as "different path, same skills"
-- Specific: mention actual job titles, industries, and situations
+- Specific: actual job titles, industries, situations, and numbers where available
 
 Return JSON:
 {
@@ -887,6 +945,10 @@ GOOD OPENER EXAMPLES (use one as inspiration, don't copy verbatim):
 - "My path here isn't the typical SDR story, which I think is actually why I'd be good at this."
 - "Two years ago I was the top revenue producer on a retail floor — and I realized I was doing consultative selling without knowing the term for it."
 
+TRANSITIONS BETWEEN ROLES: Use natural connective language — not formal chronology.
+- "So from there I moved to..." / "Which led me to..." / "And that's what brought me to..."
+- NOT: "Subsequently I transitioned to..." / "Following that experience I pursued..." / "At this juncture in my career...""
+
 CANDIDATE:
 ${buildResumeContext(ctx.resume)}
 
@@ -917,6 +979,11 @@ ${kb}`,
 ${seniority}
 ${jlc ? `\n${jlc}\n` : ""}
 This question tests the #1 SDR trait hiring managers hire for: coachability.
+
+Remember: this answer will be SPOKEN, not read. Start in the middle of the story — not at the administrative beginning of it.
+
+BAD OPENER: "The last piece of constructive feedback I received was from my manager approximately six months ago regarding my [X]..."
+GOOD OPENER: "So about six months ago my manager pulled me aside and basically said..." or "Honestly the most useful feedback I've gotten recently was kind of hard to hear at first..."
 
 STRUCTURE:
 1. WHO gave the feedback and WHEN (specific person + context — recent, last 6–12 months)
