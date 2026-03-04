@@ -573,6 +573,18 @@ REQUIREMENTS:
 - Objection responses: acknowledge validity → reframe without dismissing → advance the conversation
 - Use ACTUAL product details and ICP from company profile — no generic descriptions
 
+TALK-TO-LISTEN RATIO — the most important mechanic interviewers test for:
+Top AEs have a 46:54 talk-to-listen ratio — they speak LESS than their prospect. The script must be written so the prospect talks more than the AE. Discovery questions should be open-ended enough to generate a 60–90 second response. Build in backchanneling after each answer ("Yeah, that tracks..." / "Got it, and when you say X, do you mean...?") to signal listening before asking the next question. A rep who pitches 70% of the time fails — the evaluator is specifically watching for this.
+
+PAIN FUNNEL PROGRESSION — discovery must drill, not skim:
+Each discovery question should go one layer deeper than the last. The Sandler model: broad → specific → quantify → urgency.
+- Q1: "What's your current process for [X]?" (broad, get them talking)
+- Q2: "Where does that break down?" (identify the crack)
+- Q3: "How long has that been a friction point?" (establish duration = seriousness)
+- Q4: "What have you tried to fix it?" (qualify effort already invested)
+- Q5: "What does it actually cost you when [pain] happens?" (quantify stakes)
+Do NOT jump from Q1 to the product. The pivot only earns credibility after the prospect has confirmed real pain.
+
 COMPANY:
 ${buildCompanyContext(ctx.company)}
 
@@ -616,11 +628,14 @@ SCRIPT STRUCTURE (required):
    - "I'm busy / I have to go"
 5. Close: Specific ask for next step. Assumptive but not pushy.
 
-REQUIREMENTS:
-- Use ACTUAL product details from company profile — no generic descriptions
-- Objection responses: acknowledge → reframe → ask a question (don't just push harder)
-- Script should work as an actual mock call — natural, not robotic
-- Prospect persona: draw from company's ICP
+THE HARD RULE — discovery before pitch, no exceptions:
+The rep must ask a minimum of 2 discovery questions AND receive a substantive answer before any value prop. Discovery question 1 should be broad enough that the prospect talks for 30–60 seconds. Only after the prospect has confirmed a real pain point does the value prop appear. A script that pitches before this moment is the #1 failure mode interviewers test for.
+
+TALK-TO-LISTEN RATIO:
+Write the script so the rep talks less than the prospect. The discovery questions should generate long answers. Add a brief backchannel before each follow-up question ("Got it — so when you say X, do you mean...?" / "That's interesting, because a lot of teams we talk to say the same thing...") to show the rep is processing, not just waiting to talk.
+
+OBJECTION RESPONSES — the formula: acknowledge → isolate → question:
+Never fight the objection. Never immediately push harder. The structure: acknowledge it as reasonable ("That's fair, a lot of people I talk to say that") → isolate it ("Is that the main concern, or is there something else?") → redirect with a question that advances the conversation. The question at the end is critical — it shifts control back to the rep without pressure.
 
 COMPANY:
 ${buildCompanyContext(ctx.company)}
