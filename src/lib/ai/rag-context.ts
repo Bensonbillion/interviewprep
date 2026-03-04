@@ -51,8 +51,8 @@ export async function fetchRagContext(
   try {
     const db = adminDb();
 
-    // Run all lookups in parallel (voice/rules, active prompt, embeddings, probe data)
-    const [voiceRes, promptRes, queryEmbedding, questionBankRes] = await Promise.all([
+    // Run all lookups in parallel (voice/rules, active prompt, embeddings, probe data, voice patterns)
+    const [voiceRes, promptRes, queryEmbedding, questionBankRes, voicePatternsRes] = await Promise.all([
       db.from("voice_profile").select("id, description, tone_keywords").eq("is_active", true).limit(1).single(),
       db.from("prompt_versions").select("id, prompt_text").eq("question_key", answerType).eq("is_active", true).limit(1).maybeSingle(),
       generateEmbedding(queryText).catch(() => null),
@@ -65,7 +65,20 @@ export async function fetchRagContext(
         .order("frequency_score", { ascending: false })
         .limit(1)
         .maybeSingle(),
+      db.from("voice_patterns")
+        .select("pattern_name, pattern_type, examples, usage_context, frequency_guidance, bad_alternative")
+        .eq("is_active", true)
+        .order("pattern_type"),
     ]);
+
+    const voicePatterns = (voicePatternsRes.data ?? []) as Array<{
+      pattern_name: string;
+      pattern_type: string;
+      examples: string[];
+      usage_context: string | null;
+      frequency_guidance: string | null;
+      bad_alternative: string | null;
+    }>;
 
     // Fetch detection pattern coaching note if we have a technique
     const detectionTechniqueValue = (questionBankRes.data as { detection_technique?: string } | null)?.detection_technique;
@@ -158,7 +171,32 @@ export async function fetchRagContext(
       );
     }
 
-    // 3. Knowledge chunks
+    // 3. Voice patterns (structural language patterns)
+    if (voicePatterns.length > 0) {
+      const patternsByType: Record<string, typeof voicePatterns> = {};
+      for (const p of voicePatterns) {
+        if (!patternsByType[p.pattern_type]) patternsByType[p.pattern_type] = [];
+        patternsByType[p.pattern_type].push(p);
+      }
+      const typeOrder = ["opener", "transition", "vulnerability", "closer", "recovery", "cognitive_marker", "emphasis"];
+      const patternBlocks = typeOrder
+        .filter((t) => patternsByType[t]?.length)
+        .map((t) => {
+          return patternsByType[t].map((p) => {
+            const lines = [`${p.pattern_type.toUpperCase()} — ${p.pattern_name}:`];
+            if (p.usage_context) lines.push(`When: ${p.usage_context}`);
+            if (p.frequency_guidance) lines.push(`How often: ${p.frequency_guidance}`);
+            lines.push(`Examples: ${p.examples.slice(0, 4).map((e) => `"${e}"`).join(" | ")}`);
+            if (p.bad_alternative) lines.push(`Never use instead: ${p.bad_alternative}`);
+            return lines.join("\n");
+          }).join("\n");
+        });
+      if (patternBlocks.length > 0) {
+        parts.push(`VOICE PATTERNS — use these structural phrases, never their AI alternatives:\n\n${patternBlocks.join("\n\n")}`);
+      }
+    }
+
+    // 4. Knowledge chunks
     if (knowledgeChunks.length > 0) {
       parts.push(
         `RELEVANT KNOWLEDGE:\n${knowledgeChunks.map((c, i) => `[${i + 1}] ${c.content.slice(0, 400)}`).join("\n\n")}`
