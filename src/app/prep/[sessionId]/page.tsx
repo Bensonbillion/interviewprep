@@ -28,6 +28,18 @@ import {
   X,
 } from "lucide-react";
 
+// ─── Reference types (for section grouping) ───────────────────────────────────
+
+const PAGE_REFERENCE_TYPES = new Set<AnswerType>([
+  "company_brief",
+  "cheat_sheet",
+  "competitor_battle_card",
+  "questions_to_ask",
+  "cold_email",
+  "pain_point_analysis",
+  "assignment_guide",
+]);
+
 // ─── Round config ──────────────────────────────────────────────────────────────
 
 const ROUNDS = [
@@ -599,6 +611,8 @@ export default function PrepSessionPage() {
   const unpreppedRounds = ROUNDS.filter(
     (r) => r.key !== session.stage && !completedStages[r.key]
   );
+  const speakingSlots = slots.filter((s) => !PAGE_REFERENCE_TYPES.has(s.type));
+  const referenceSlots = slots.filter((s) => PAGE_REFERENCE_TYPES.has(s.type));
 
   return (
     <div className="space-y-5 pb-20 md:pb-8">
@@ -757,21 +771,52 @@ export default function PrepSessionPage() {
       )}
 
       {/* ── Answer cards ────────────────────────────────────────────────── */}
-      <div className="space-y-3">
-        {slots.map((slot) => (
-          <div key={slot.type} data-question-type={slot.type}>
-            <AnswerCard
-              slot={slot}
-              session={session}
-              creditBalance={creditsLoading ? 0 : creditBalance}
-              onSlotUpdate={handleSlotUpdate}
-              onUnlock={() => handleUnlock(slot.type)}
-              isPrimaryForRound={ROUND_PRIORITY[session.stage] === slot.type}
-              onReview={() => handleMarkReviewed(slot.type)}
-            />
-          </div>
-        ))}
-      </div>
+
+      {/* YOUR ANSWERS — spoken cards */}
+      {speakingSlots.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider">
+            Your Answers
+          </p>
+          {speakingSlots.map((slot) => (
+            <div key={slot.type} data-question-type={slot.type}>
+              <AnswerCard
+                slot={slot}
+                session={session}
+                creditBalance={creditsLoading ? 0 : creditBalance}
+                onSlotUpdate={handleSlotUpdate}
+                onUnlock={() => handleUnlock(slot.type)}
+                isPrimaryForRound={ROUND_PRIORITY[session.stage] === slot.type}
+                onReview={() => handleMarkReviewed(slot.type)}
+                defaultExpanded={true}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* REFERENCE MATERIAL — collapsed on mobile by default */}
+      {referenceSlots.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider mt-2">
+            Reference Material
+          </p>
+          {referenceSlots.map((slot) => (
+            <div key={slot.type} data-question-type={slot.type}>
+              <AnswerCard
+                slot={slot}
+                session={session}
+                creditBalance={creditsLoading ? 0 : creditBalance}
+                onSlotUpdate={handleSlotUpdate}
+                onUnlock={() => handleUnlock(slot.type)}
+                isPrimaryForRound={ROUND_PRIORITY[session.stage] === slot.type}
+                onReview={() => handleMarkReviewed(slot.type)}
+                defaultExpanded={false}
+              />
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── Closing coach card ──────────────────────────────────────────── */}
       {allGenerated && (
@@ -783,6 +828,9 @@ export default function PrepSessionPage() {
       )}
 
       {/* ── Follow-up email generator ────────────────────────────────────── */}
+      <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider mt-2">
+        After the Interview
+      </p>
       <FollowUpSection session={session} sessionId={sessionId} />
 
       {/* ── Prep next round CTA ─────────────────────────────────────────── */}

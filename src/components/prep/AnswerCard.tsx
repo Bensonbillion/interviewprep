@@ -11,6 +11,8 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Edit3,
   X,
   Send,
@@ -73,6 +75,14 @@ const REFERENCE_TYPES = new Set<AnswerType>([
   "assignment_guide",
 ]);
 
+// Reference cards that collapse on mobile by default (subset of REFERENCE_TYPES)
+const COLLAPSIBLE_REFERENCE_TYPES = new Set<AnswerType>([
+  "company_brief",
+  "cheat_sheet",
+  "competitor_battle_card",
+  "assignment_guide",
+]);
+
 // Answer types that are SPOKEN — show speaking time estimate
 const SPOKEN_TYPES = new Set<AnswerType>([
   "tell_me_about_yourself",
@@ -85,6 +95,14 @@ const SPOKEN_TYPES = new Set<AnswerType>([
   "constructive_feedback",
   "behavioral_star",
 ]);
+
+function extractSayThis(content: string | undefined): string | undefined {
+  if (!content) return undefined;
+  try {
+    const parsed = JSON.parse(content);
+    return typeof parsed?.sayThis === "string" ? parsed.sayThis : undefined;
+  } catch { return undefined; }
+}
 
 function getSpeakingTime(text: string): { words: number; timeDisplay: string } | null {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
@@ -111,74 +129,90 @@ function countQuestions(content: string | undefined): number {
 
 const QUESTION_COACHING: Partial<Record<AnswerType, Partial<Record<string, string>>>> = {
   tell_me_about_yourself: {
-    recruiter: "90 seconds max. Lead with your strongest result, not where you went to school. Recruiters are screening for energy, clarity, and a clear reason why sales — not your full life story.",
-    hiring_manager: "This is NOT the recruiter pitch. The HM wants your DECISION-MAKING ARC — why you made each move. Own every transition. End with why this specific role at this specific company is the logical next step.",
-    role_play: "Frame every part of your background around discovery and pressure. What in your history proves you can handle rejection and keep going? Lead with that.",
-    panel: "Multiple people, one shot. Keep it tight — 90 seconds, 3 proof points, a clear close. Hit it and stop. Don't ramble.",
+    recruiter: "60–90 seconds max. Hook them in the first sentence — don't start with where you went to school.",
+    hiring_manager: "This is your career story, not your resume. The HM wants your DECISIONS — why each move, why now, why this role.",
+    role_play: "60 seconds, then flip it to them. Frame your background around discovery and handling rejection.",
+    panel: "Keep it under 90 seconds — they've read your resume. Three proof points, a clear trajectory, then stop.",
   },
   why_sales: {
-    recruiter: "You have one sentence to prove this isn't a fallback. Include a specific moment or realization — not 'I love people' or 'I'm competitive.' What happened that made you choose this?",
-    hiring_manager: "HMs want to see intentionality. You didn't fall into sales — you chose it. Make it clear why, and connect it to what you want to build in this role.",
-    role_play: "If this comes up, connect your motivation to the act of selling itself — the conversation, the qualification, the close. Not just the money.",
+    recruiter: "Start with a MOMENT, not a statement. One specific experience that made sales click for you.",
+    hiring_manager: "Show intentionality. You chose sales — connect that decision to what you want to build in this role.",
+    role_play: "Connect your motivation to the conversation itself — discovery, qualification, the close.",
   },
   why_this_company: {
-    recruiter: "Show basic research. Pick ONE specific thing — a product feature, a customer segment, a news item — and connect it to why you're excited. Not the mission statement.",
-    hiring_manager: "This is where most candidates fail. Go deep: name the product, name a competitor, show you understand who buys this and why. Vague answers ('I love the culture') disqualify you at this stage.",
-    panel: "Connect the company's market trajectory to your career ambitions. Show you understand where they're going, not just where they are. The panel is asking 'do they get it?'",
-    role_play: "If this comes up: connect your excitement about the product to how you'd actually sell it. 'What drew me to this is that the pain it solves is real — I've seen it firsthand at [experience].'",
+    recruiter: "They're testing if you did your homework. Mention the PROBLEM they solve, not just the product.",
+    hiring_manager: "Name the product, name a competitor, show you understand who buys it and why. 'I love the culture' disqualifies you here.",
+    panel: "Connect their market trajectory to your long-term ambitions — the panel is asking: does this person get where we're going?",
+    role_play: "Connect your excitement about the product to how you'd actually sell it.",
   },
   behavioral_star: {
-    recruiter: "One story, one metric, under 90 seconds. 'I went from X to Y by doing Z' is all you need. Punch above your experience level with specificity.",
-    hiring_manager: "HMs have heard a thousand answers that start with 'I worked really hard.' What they remember: specific numbers, real stakes, and honest self-awareness. Structure: situation (fast) → what YOU did (slow, specific) → result (quantified) → what you learned.",
-    panel: "Final round — your strongest story leads. Think about which story has the best metric, the clearest outcome, and shows the trait they care about most. Make each story distinct: resilience, achievement, influence.",
-    role_play: "Pick a story about recovering from failure or performing under pressure. These map directly to what they're evaluating in the role play itself.",
+    recruiter: "Pick your STRONGEST story. Include a specific number. End with what you learned, not what you accomplished.",
+    hiring_manager: "Use numbers and real stakes. 'I went from X to Y by doing Z' is memorable. 'I worked hard' is not.",
+    panel: "Lead with your strongest metric and clearest outcome. Make each story you tell in this round distinct.",
+    role_play: "Pick a recovery story — bouncing back from a bad call. It maps directly to what they're watching for.",
   },
   comp_expectations: {
-    recruiter: "Give a range — not a single number. Anchor slightly above your target so there's room to negotiate down. Stay calm; they're checking budget fit, not making you an offer.",
-    hiring_manager: "HMs rarely lead with this. If asked: redirect quickly to total package and what matters most to you in the opportunity — OTE structure, ramp period, trajectory.",
-  },
-  cheat_sheet: {
-    recruiter: "Skim 10 minutes before the call. Focus on the company facts and the critical tip — those are what you actually need for this stage.",
-    hiring_manager: "This is your playbook. Read the key points and your strongest story before you log on — not during the call.",
-    role_play: "Read the coachability section twice. How you receive feedback in the debrief is being evaluated as carefully as the role play itself.",
-    panel: "Memorize your 2–3 questions and the close language. Asking nothing or asking generic questions at the final round is a real red flag.",
-    take_home: "Use the checklist before you submit. The difference between a pass and an offer is almost always one layer of research or personalization most people skip.",
-  },
-  company_brief: {
-    recruiter: "Skim the one-liner and 2–3 talking points. Deep company knowledge isn't the bar for a recruiter screen — knowing enough to sound prepared is.",
-    hiring_manager: "Study this. HMs expect you to name their product, know who buys it, and have an opinion on their competitive position. 'I did my research' is not enough — show the research in your answers.",
-    panel: "Know the trajectory, not just the current state. Panels ask about where the company is going — make sure you have a point of view on that.",
-    role_play: "Know the product cold. The script only works if you can talk about it naturally — not like you're reading off a spec sheet.",
-    take_home: "Use this as the foundation for your cold email and pain point analysis. Everything in your submission should be grounded in real facts about this company.",
-  },
-  resume_walkthrough: {
-    hiring_manager: "This is your CAREER STORY, not a bullet-point list. The hiring manager is testing your decision-making — why you made each move. Own every transition. Never say 'I was let go' without adding what you learned. Never say 'I left because I was bored' — say what you were growing toward. 2–3 minutes spoken.",
-    panel: "Keep it tight. The panel has read your resume. Hit your 3 biggest moves, connect them to where you're going, and stop. Don't over-explain.",
-  },
-  constructive_feedback: {
-    hiring_manager: "This is the COACHABILITY TEST. Pick real feedback — not a humble-brag. Show you heard it, changed a specific behavior, and have evidence it worked. The candidates who get offers sound honest, not polished.",
-    panel: "Senior interviewers probe for self-awareness. Lead with the feedback itself, not the outcome — show you sat with it before you acted on it.",
-  },
-  cold_email: {
-    take_home: "Lead with a specific trigger — hiring signal, funding round, LinkedIn post — not 'I came across your profile.' Subject line: specific enough that the hiring manager would actually open it. Body: under 150 words.",
-  },
-  pain_point_analysis: {
-    take_home: "Anchor your whole assignment on one pain point — not three vague ones. Operational and specific: 'their SDRs spend 3 hours a day on manual research' beats 'they struggle with efficiency.'",
-  },
-  assignment_guide: {
-    take_home: "Read the checklist before you submit, not after. The most common failure mode: great cold email, zero research depth behind it.",
-  },
-  competitor_battle_card: {
-    role_play: "When a prospect names a competitor mid-call: 'Yeah, I know them well.' → acknowledge one thing they do well → use the discovery question. Bashing the competition makes you look defensive.",
-    hiring_manager: "HMs test this directly. Know 2 specific reasons customers switch TO this company, not just generic differentiators. 'We're better' is not an answer.",
-    panel: "Competitive awareness signals market IQ. Have one clear, confident positioning statement for each major competitor — not a memorized list of features.",
+    recruiter: "Give a range, not a number. Then redirect: 'I'm more curious about the commission structure.'",
+    hiring_manager: "Redirect quickly to total package and opportunity — OTE structure, ramp period, what success looks like.",
   },
   questions_to_ask: {
-    recruiter: "Two goals: get intel for the HM round, and prove you think like a rep who qualifies. Ask what the HM interview focuses on — almost no one does. It immediately makes you memorable.",
-    hiring_manager: "Your questions are the last thing they remember. Make at least one show you've read the job description and one show you understand their market. 'What does success look like?' is fine only if it's specific to this role.",
-    panel: "Close the process. After your last question: 'Based on everything I've heard, I'm genuinely excited about this. Is there anything that would prevent you from moving me forward?' Most candidates won't say this. The ones who get offers usually do.",
-    role_play: "Asking sharp questions after the debrief signals you're already a coachable rep. Ask what the top performers did differently on their first attempt — not what YOU did wrong.",
-    take_home: "Ask 'what would make this an A+ submission?' before you finalize. It's the same qualifying instinct you'll use with prospects — and it usually reveals exactly what they care about.",
+    recruiter: "Not asking questions is an instant fail signal. End with: 'Is there anything about my background that concerns you?'",
+    hiring_manager: "Ask what success looks like in 90 days, and what separates the top reps. These signal you think like a rep.",
+    panel: "Close the process: 'Is there anything that gives you pause about moving me forward?' Most candidates won't. The ones who get offers do.",
+    role_play: "After the debrief, ask what top performers did differently on their first attempt — signals coachability.",
+    take_home: "Ask 'what would make this an A+ submission?' Same qualifying instinct you'd use with a real prospect.",
+  },
+  role_play_script: {
+    role_play: "They're testing coachability, NOT perfection. When they coach you after round 1, implement it visibly in round 2.",
+    hiring_manager: "If they give feedback mid-interview: take it fast, say 'I'll do that' — not 'yeah but.' Then adjust.",
+  },
+  objection_response: {
+    role_play: "Don't fight objections — acknowledge, isolate, redirect. 'That's fair, let me ask...' beats any counter-argument.",
+    hiring_manager: "Name the framework, give one example, connect it to a result. Don't just describe how you handle it.",
+  },
+  company_brief: {
+    recruiter: "You don't need to memorize everything. Know the 3-sentence pitch and 2–3 key product names.",
+    hiring_manager: "Study this. HMs expect you to name their product, know who buys it, and have an opinion on their competitive position.",
+    panel: "Know the trajectory, not just the current state. Panels ask where the company is going — have a point of view.",
+    role_play: "Know the product cold. The script only works if you can talk about it naturally.",
+    take_home: "Use this as the foundation for your cold email and pain point analysis.",
+  },
+  cheat_sheet: {
+    recruiter: "Skim the key points 10 minutes before the call — that's all you need for this stage.",
+    hiring_manager: "Read the key points and your strongest story before you log on, not during.",
+    role_play: "Read the coachability section twice. How you take feedback in the debrief is evaluated as much as the roleplay itself.",
+    panel: "Memorize your 2–3 questions and the close language. Asking nothing at the final round is a real red flag.",
+    take_home: "Use the checklist before you submit. The difference is almost always one layer of research most people skip.",
+  },
+  resume_walkthrough: {
+    hiring_manager: "This is your career story, not a bullet list. Own every transition — 'I moved because I was growing toward X' beats 'I left because I was bored.' 2–3 minutes spoken.",
+    panel: "Keep it under 2 minutes. They've read your resume. Hit your 3 biggest moves, connect them to this role, and stop.",
+  },
+  constructive_feedback: {
+    hiring_manager: "Pick REAL feedback — not a humble-brag. Show you heard it, changed a specific behavior, and have evidence it worked.",
+    panel: "Lead with the feedback itself, not the outcome. Senior interviewers probe for self-awareness, not polish.",
+  },
+  coachability_coaching: {
+    role_play: "75% of candidates lose on coachability, not the roleplay. Take feedback fast, implement it visibly — that's what they're watching.",
+    hiring_manager: "If they give you feedback mid-interview: pause, acknowledge it specifically, then adjust. That IS the test.",
+  },
+  career_switcher_bridge: {
+    recruiter: "Don't explain your background — reframe it. 'I've been doing the hard part of sales without the title.'",
+    hiring_manager: "Use your bridge phrasing naturally. If it sounds rehearsed, it reads as insecure. Own the transition.",
+  },
+  cold_email: {
+    take_home: "Lead with a specific trigger — hiring signal, funding round — not 'I came across your profile.' Under 150 words.",
+  },
+  pain_point_analysis: {
+    take_home: "Anchor on ONE specific pain point, not three vague ones. Operational and specific beats broad and safe.",
+  },
+  assignment_guide: {
+    take_home: "Read the checklist before you submit, not after. The most common failure is great writing with zero research depth.",
+  },
+  competitor_battle_card: {
+    role_play: "When they name a competitor mid-call: acknowledge one strength, then use the discovery question. Bashing them makes you look defensive.",
+    hiring_manager: "Know 2 specific reasons customers switch TO this company, not just generic differentiators.",
+    panel: "Have one clear, confident positioning statement for each major competitor — not a feature list.",
   },
 };
 
@@ -192,6 +226,7 @@ export interface AnswerCardProps {
   onUnlock?: () => Promise<void>;
   isPrimaryForRound?: boolean;
   onReview?: () => void;
+  defaultExpanded?: boolean;
 }
 
 // ─── Content renderer ─────────────────────────────────────────────────────────
@@ -593,6 +628,7 @@ export function AnswerCard({
   onUnlock,
   isPrimaryForRound,
   onReview,
+  defaultExpanded,
 }: AnswerCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editDraft, setEditDraft] = useState("");
@@ -616,6 +652,7 @@ export function AnswerCard({
     if (prevStatusRef.current === "locked" && slot.status === "unlocked") {
       setJustUnlocked(true);
       setActionBarVisible(false);
+      if (isCollapsible) setIsExpanded(true); // always show full content after paying to unlock
       // Action bar slides in after content clears (~400ms into reveal)
       const actionTimer = setTimeout(() => setActionBarVisible(true), 400);
       // Reset justUnlocked after CSS animations finish (800ms unlock-flash)
@@ -645,6 +682,8 @@ export function AnswerCard({
   const isLocked = slot.status === "locked";
   const isCheatSheet = slot.type === "cheat_sheet";
   const isReference = REFERENCE_TYPES.has(slot.type);
+  const isCollapsible = COLLAPSIBLE_REFERENCE_TYPES.has(slot.type);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded !== false);
   const canUnlock = creditBalance > 0 && !isUnlocking && !!onUnlock;
 
   // ─── Loading state ──────────────────────────────────────────────────────────
@@ -833,12 +872,14 @@ export function AnswerCard({
 
   return (
     <div
-      className={`rounded-2xl border bg-white overflow-hidden shadow-sm ${
+      className={`rounded-2xl border overflow-hidden shadow-sm ${
         justUnlocked
-          ? "animate-unlock-flash"
+          ? "animate-unlock-flash bg-white border-[#DBEAFE]"
+          : isCollapsible && !isExpanded && !isLocked
+          ? "bg-gray-50 border-gray-200 md:bg-amber-50/30 md:border-amber-200"
           : isReference && !isLocked
-          ? "border-amber-200 bg-amber-50/30"
-          : "border-[#DBEAFE]"
+          ? "bg-amber-50/30 border-amber-200"
+          : "bg-white border-[#DBEAFE]"
       }`}
     >
       {/* ── Header (always visible) ─────────────────────────────────────── */}
@@ -964,6 +1005,37 @@ export function AnswerCard({
         )}
       </div>
 
+      {/* ── Mobile toggle strip — collapsible reference cards, unlocked ── */}
+      {isCollapsible && !isLocked && (
+        <button
+          onClick={() => setIsExpanded((o) => !o)}
+          className="md:hidden w-full flex items-center justify-between px-5 py-2.5 border-b border-gray-100 bg-gray-50/50 hover:bg-gray-100/70 transition-colors text-left"
+        >
+          <span className="text-xs text-ink-muted font-medium">
+            {isExpanded ? "Collapse" : "Tap to expand"}
+          </span>
+          {isExpanded
+            ? <ChevronUp className="w-3.5 h-3.5 text-ink-muted" />
+            : <ChevronDown className="w-3.5 h-3.5 text-ink-muted" />
+          }
+        </button>
+      )}
+
+      {/* ── Say This preview — mobile only, company_brief collapsed ───── */}
+      {isCollapsible && !isExpanded && !isLocked && slot.type === "company_brief" && (() => {
+        const sayThis = extractSayThis(displayContent);
+        return sayThis ? (
+          <div className="md:hidden px-5 py-3">
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+              <p className="text-[10px] font-semibold text-green-700 uppercase tracking-wide mb-2 flex items-center gap-1">
+                <span>🗣️</span> Say This
+              </p>
+              <p className="text-sm text-green-900 leading-relaxed">{sayThis}</p>
+            </div>
+          </div>
+        ) : null;
+      })()}
+
       {/* ══════════════════════════════════════════════════════════════════
           LOCKED STATE
           Entire content zone is ONE clickable unlock button.
@@ -1041,7 +1113,7 @@ export function AnswerCard({
           Content gets blur-reveal animation on first render after unlock.
           ══════════════════════════════════════════════════════════════ */}
       {!isLocked && (
-        <>
+        <div className={isCollapsible && !isExpanded ? "hidden md:block" : undefined}>
           {/* ── Credit warning banner (regen) ─────────────────────────── */}
           {pendingAction !== null && (
             <div className="px-5 py-3 bg-amber-50 border-b border-amber-100 flex items-center justify-between gap-3">
@@ -1216,7 +1288,7 @@ export function AnswerCard({
               )}
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
