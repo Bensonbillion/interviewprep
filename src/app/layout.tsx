@@ -2,9 +2,13 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Suspense } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { softwareApplicationSchema } from "@/lib/seo/structured-data";
+import { AnalyticsScripts, GTMNoScript } from "@/components/tracking/AnalyticsScripts";
+import { GTMPageViewTracker } from "@/components/tracking/GTMProvider";
+import { ConsentBanner } from "@/components/tracking/ConsentBanner";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -65,10 +69,16 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <JsonLd data={softwareApplicationSchema()} />
+        <AnalyticsScripts />
       </head>
       <body className={`${jakarta.variable} ${geistMono.variable} antialiased`}>
+        <GTMNoScript />
+        <Suspense fallback={null}>
+          <GTMPageViewTracker />
+        </Suspense>
         <Navbar />
         {children}
+        <ConsentBanner />
       </body>
     </html>
   );
