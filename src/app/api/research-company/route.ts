@@ -1,0 +1,113 @@
+import { NextRequest, NextResponse } from "next/server";
+import { anthropic, SONNET, FIRECRAWL_API_KEY } from "@/lib/ai";
+import { createClient } from "@/lib/supabase/server";
+import { isUrlSafe } from "@/lib/security/validate-url";
+import { ResearchCompanyInputSchema } from "@/lib/types/schemas";
+import type { CompanyProfile } from "@/types";
+
+async function scrapeWithFirecrawl(url: string): Promise<string> {
+  const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+    },
+    body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`Firecrawl error: ${res.status}`);
+  const data = await res.json();
+  return (data.data?.markdown ?? "").slice(0, 4000);
+}
+
+async function scrapeWithFetch(url: string): Promise<string> {
+  const res = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; ResearchBot/1.0)" },
+    signal: AbortSignal.timeout(5000),
+  });
+  const html = await res.text();
+  return html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 3000);
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    // Auth check
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const parsed = ResearchCompanyInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+    }
+    const { companyName, companyUrl, jobDescription } = parsed.data;
+
+    let websiteContent = "";
+    if (companyUrl && isUrlSafe(companyUrl)) {
+      try {
+        websiteContent = FIRECRAWL_API_KEY
+          ? await scrapeWithFirecrawl(companyUrl)
+          : await scrapeWithFetch(companyUrl);
+      } catch {
+        // Non-fatal — continue without website content
+      }
+    }
+
+    const response = await anthropic.messages.create({
+      model: SONNET,
+      max_tokens: 1500,
+      messages: [
+        {
+          role: "user",
+          content: `Research ${companyName} and generate a structured company profile for a sales interview candidate.
+
+${websiteContent ? `Website content:\n${websiteContent}\n\n` : ""}${jobDescription ? `Job Description:\n${jobDescription.slice(0, 2000)}\n\n` : ""}
+IMPORTANT: Only include facts you can infer from the provided content. For anything uncertain, use "unknown" or an empty array. Do NOT hallucinate company facts.
+
+Return ONLY valid JSON (no markdown):
+{
+  "name": "${companyName}",
+  "productDescription": "What they sell — 2-3 sentences",
+  "icp": {
+    "companySizes": ["SMB", "Mid-market", "Enterprise"],
+    "industries": ["relevant industries"],
+    "buyerPersonas": ["VP of Sales", "RevOps Manager"]
+  },
+  "salesMotion": "inbound"|"outbound"|"plg"|"hybrid"|"channel"|"unknown",
+  "competitors": ["competitor names"],
+  "techStack": ["CRM/outreach tools from JD"],
+  "stage": "startup"|"scale_up"|"public"|"enterprise"|"unknown",
+  "recentNews": ["2-3 recent items — funding, launches, partnerships"],
+  "cultureSignals": ["3-4 culture signals from JD or careers page"]
+}`,
+        },
+      ],
+    });
+
+    const content = response.content[0];
+    if (content.type !== "text") throw new Error("Unexpected response type");
+
+    const jsonText = content.text
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+
+    const company = JSON.parse(jsonText) as CompanyProfile;
+    return NextResponse.json({ company });
+  } catch (err) {
+    console.error("Company research error:", err);
+    return NextResponse.json(
+      { error: "Failed to generate company profile" },
+      { status: 500 }
+    );
+  }
+}
