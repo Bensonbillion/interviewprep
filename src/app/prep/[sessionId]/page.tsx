@@ -944,13 +944,16 @@ export default function PrepSessionPage() {
       )}
 
       {/* ── Report back CTA ─────────────────────────────────────────────── */}
-      <div className="text-center pt-4 border-t border-gray-100">
-        <p className="text-xs text-ink-muted mb-1.5">After your interview</p>
+      <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center">
+        <p className="text-sm font-semibold text-ink mb-1">Just finished your interview?</p>
+        <p className="text-xs text-ink-muted mb-3">
+          Tell us how it went — your report helps future candidates at {session.companyName}.
+        </p>
         <Link
-          href={`/dashboard/report?sessionId=${sessionId}&company=${encodeURIComponent(session.companyName)}&stage=${session.stage}`}
-          className="text-xs font-medium text-primary-500 hover:text-primary-600"
+          href={`/report/${sessionId}`}
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold text-sm rounded-xl transition-colors"
         >
-          Report back → what actually happened
+          Report Interview →
         </Link>
       </div>
 
