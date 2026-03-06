@@ -10,7 +10,9 @@ import { QuickRoundModal } from "@/components/prep/QuickRoundModal";
 import { InterviewerIntelCard } from "@/components/prep/InterviewerIntelCard";
 import { ClosingCoachCard } from "@/components/prep/ClosingCoachCard";
 import { FollowUpSection } from "@/components/prep/FollowUpSection";
+import { ConfidenceModal } from "@/components/prep/ConfidenceModal";
 import { useCredits } from "@/hooks/useCredits";
+import { tracker } from "@/lib/feedback/implicit-tracker";
 import {
   Loader2,
   Phone,
@@ -362,8 +364,10 @@ export default function PrepSessionPage() {
   const [copiedAll, setCopiedAll] = useState(false);
   const [extraDossiers, setExtraDossiers] = useState<InterviewerDossier[]>([]);
   const [reviewedAnswers, setReviewedAnswers] = useState<Set<AnswerType>>(new Set());
+  const [showConfidenceModal, setShowConfidenceModal] = useState(false);
   const generatingRef = useRef<Set<AnswerType>>(new Set());
   const reviewTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const entryTimestampsRef = useRef<Record<string, number>>({});
   const { balance: creditBalance, loading: creditsLoading, refresh: refreshCredits } = useCredits();
 
   // ─── Load session ────────────────────────────────────────────────────────────
@@ -381,6 +385,13 @@ export default function PrepSessionPage() {
       setNotFound(true);
     }
   }, [sessionId]);
+
+  // ─── Init implicit tracker ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!session) return;
+    tracker.init(sessionId);
+    return () => tracker.dispose();
+  }, [session, sessionId]);
 
   // ─── Sync slots → sessionStorage ─────────────────────────────────────────────
   useEffect(() => {
@@ -489,15 +500,38 @@ export default function PrepSessionPage() {
     if (unlockedTypes.size === 0) return;
 
     const timers = reviewTimersRef.current;
+    const entryTimestamps = entryTimestampsRef.current;
+    const sid = sessionId;
+    const slotMap = new Map(slots.map((s) => [s.type, s]));
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           const type = entry.target.getAttribute("data-question-type") as AnswerType;
           if (!type || !unlockedTypes.has(type)) continue;
           if (entry.isIntersecting) {
+            tracker.trackCardView(type, slotMap.get(type)?.answerId);
             timers[type] = setTimeout(() => handleMarkReviewed(type), 10_000);
+            entryTimestamps[type] = Date.now();
           } else {
+            tracker.trackCardHide(type);
             clearTimeout(timers[type]);
+            const entered = entryTimestamps[type];
+            if (entered) {
+              const durationMs = Date.now() - entered;
+              if (durationMs > 5000) {
+                fetch("/api/feedback/event", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    sessionId: sid,
+                    answerType: type,
+                    eventType: "time_on_card",
+                    durationMs,
+                  }),
+                }).catch(() => {});
+              }
+              delete entryTimestamps[type];
+            }
           }
         }
       },
@@ -511,7 +545,7 @@ export default function PrepSessionPage() {
       observer.disconnect();
       Object.values(timers).forEach(clearTimeout);
     };
-  }, [slots, session, handleMarkReviewed]);
+  }, [slots, session, handleMarkReviewed, sessionId]);
 
   // ─── Unlock a single answer (costs 1 credit) ─────────────────────────────────
   const handleUnlock = useCallback(
@@ -580,6 +614,17 @@ export default function PrepSessionPage() {
     setCopiedAll(true);
     setTimeout(() => setCopiedAll(false), 2200);
   }, [session, slots]);
+
+  // ─── ConfidenceModal: show once after all answers ready ──────────────────────
+  const allReady = slots.length > 0 && slots.every((s) => s.status !== "loading");
+  useEffect(() => {
+    if (!allReady || !session) return;
+    const key = `confidence-shown-${sessionId}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+    const timer = setTimeout(() => setShowConfidenceModal(true), 3000);
+    return () => clearTimeout(timer);
+  }, [allReady, session, sessionId]);
 
   // ─── Not found / loading states ───────────────────────────────────────────────
   if (notFound) {
@@ -859,6 +904,17 @@ export default function PrepSessionPage() {
         </div>
       )}
 
+      {/* ── Report back CTA ─────────────────────────────────────────────── */}
+      <div className="text-center pt-4 border-t border-gray-100">
+        <p className="text-xs text-ink-muted mb-1.5">After your interview</p>
+        <Link
+          href={`/dashboard/report?sessionId=${sessionId}&company=${encodeURIComponent(session.companyName)}&stage=${session.stage}`}
+          className="text-xs font-medium text-primary-500 hover:text-primary-600"
+        >
+          Report back → what actually happened
+        </Link>
+      </div>
+
       {/* Footer hint */}
       <p className="text-xs text-center text-ink-muted pb-2">
         Answers personalized from your resume · Edits are free · First 3 refinements per answer are free
@@ -872,6 +928,16 @@ export default function PrepSessionPage() {
           creditBalance={creditsLoading ? 0 : creditBalance}
           initialRound={modalInitialRound}
           onClose={() => setShowRoundModal(false)}
+        />
+      )}
+
+      {/* ── Confidence modal ─────────────────────────────────────────────── */}
+      {showConfidenceModal && (
+        <ConfidenceModal
+          sessionId={sessionId}
+          stage={session.stage}
+          companyName={session.companyName}
+          onClose={() => setShowConfidenceModal(false)}
         />
       )}
     </div>

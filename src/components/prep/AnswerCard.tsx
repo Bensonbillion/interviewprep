@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useLayoutEffect } from "react";
+import { useState, useRef, useLayoutEffect, useEffect } from "react";
 import Link from "next/link";
 import {
   Loader2,
@@ -23,6 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import type { AnswerSlot, AnswerType, PrepSession } from "@/types";
+import { tracker } from "@/lib/feedback/implicit-tracker";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ const EMOJIS: Record<AnswerType, string> = {
   cheat_sheet: "⚡",
   questions_to_ask: "🙋",
   coachability_coaching: "🎓",
+  coachability_game_plan: "🗺️",
   career_switcher_bridge: "🌉",
   resume_walkthrough: "🗂️",
   constructive_feedback: "🔄",
@@ -104,17 +106,73 @@ function extractSayThis(content: string | undefined): string | undefined {
   } catch { return undefined; }
 }
 
-function getSpeakingTime(text: string): { words: number; timeDisplay: string } | null {
+function getSpeakingTime(text: string): {
+  words: number;
+  rawSeconds: number;
+  withPauses: number;
+  display: string;
+} | null {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
   if (words < 10) return null;
-  const totalSeconds = Math.round((words / 130) * 60);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  const timeDisplay = minutes > 0
-    ? `~${minutes}:${seconds.toString().padStart(2, "0")} spoken`
-    : `~${seconds}s spoken`;
-  return { words, timeDisplay };
+  // 150 wpm baseline (middle of optimal 140–160 wpm range)
+  const rawSeconds = Math.round((words / 150) * 60);
+  // +18% for natural pauses (middle of 15–20% range)
+  const withPauses = Math.round(rawSeconds * 1.18);
+  const minutes = Math.floor(withPauses / 60);
+  const seconds = withPauses % 60;
+  const display = minutes > 0
+    ? `~${minutes}:${seconds.toString().padStart(2, "0")}`
+    : `~${seconds}s`;
+  return { words, rawSeconds, withPauses, display };
 }
+
+interface WordTarget { min: number; max: number; }
+
+// Per-stage targets for answer types where length varies by round
+const STAGE_WORD_TARGETS: Partial<Record<AnswerType, Partial<Record<string, WordTarget>>>> = {
+  tell_me_about_yourself: {
+    recruiter:      { min: 130, max: 195 },
+    hiring_manager: { min: 210, max: 280 },
+    role_play:      { min: 130, max: 195 },
+    panel:          { min: 130, max: 195 },
+  },
+  why_this_company: {
+    recruiter:      { min: 150, max: 190 },
+    hiring_manager: { min: 200, max: 250 },
+    panel:          { min: 175, max: 225 },
+    role_play:      { min: 150, max: 200 },
+  },
+};
+
+// Universal targets (same across all stages)
+const UNIVERSAL_WORD_TARGETS: Partial<Record<AnswerType, WordTarget>> = {
+  why_sales:             { min: 130, max: 195 },
+  behavioral_star:       { min: 250, max: 370 },
+  comp_expectations:     { min: 60,  max: 80  },
+  resume_walkthrough:    { min: 300, max: 400 },
+  constructive_feedback: { min: 200, max: 300 },
+  coachability_coaching: { min: 150, max: 250 },
+  career_switcher_bridge:{ min: 130, max: 200 },
+};
+
+function getWordTarget(answerType: AnswerType, stage: string): WordTarget | null {
+  return STAGE_WORD_TARGETS[answerType]?.[stage] ?? UNIVERSAL_WORD_TARGETS[answerType] ?? null;
+}
+
+function getWordCountStatus(words: number, target: WordTarget): {
+  color: "green" | "amber" | "red";
+  flag: string | null;
+} {
+  if (words <= target.max) return { color: "green", flag: null };
+  if (words <= Math.round(target.max * 1.2)) return { color: "amber", flag: "Consider trimming" };
+  return { color: "red", flag: "Too long — interviewers will tune out" };
+}
+
+const WORD_STATUS_CLASSES: Record<"green" | "amber" | "red", string> = {
+  green: "text-green-600",
+  amber: "text-amber-600",
+  red:   "text-red-500",
+};
 
 function countQuestions(content: string | undefined): number {
   if (!content) return 0;
@@ -195,6 +253,9 @@ const QUESTION_COACHING: Partial<Record<AnswerType, Partial<Record<string, strin
   coachability_coaching: {
     role_play: "75% of candidates lose on coachability, not the roleplay. Take feedback fast, implement it visibly — that's what they're watching.",
     hiring_manager: "If they give you feedback mid-interview: pause, acknowledge it specifically, then adjust. That IS the test.",
+  },
+  coachability_game_plan: {
+    role_play: "Read this before anything else. The game plan is your mental framework — the actual script comes after you know how to take feedback.",
   },
   career_switcher_bridge: {
     recruiter: "Don't explain your background — reframe it. 'I've been doing the hard part of sales without the title.'",
@@ -279,18 +340,106 @@ function ContentRenderer({
   // ─ role_play_script ─
   if (slot.type === "role_play_script") {
     const data = parsed as {
-      opener?: string;
-      discoveryQuestions?: string[];
-      valueProp?: string;
+      // New SDR conversation framework fields
+      coachingNote?: string;
+      patternInterruptOpener?: string;
+      valueHypothesis?: string;
+      bridgeToNextStep?: string;
+      // AE discovery demo fields
       pivotToDemo?: string;
-      objectionResponses?: Array<{ objection: string; response: string }>;
-      close?: string;
       nextStepsClose?: string;
+      // Shared fields
+      opener?: string; // legacy SDR compat
+      discoveryQuestions?: string[];
+      valueProp?: string; // legacy SDR compat
+      objectionResponses?: Array<{ objection: string; response: string }>;
+      close?: string; // legacy SDR compat
     };
     const isAEFormat = !!data.pivotToDemo || !!data.nextStepsClose;
+    const isNewSDRFormat = !!data.patternInterruptOpener || !!data.valueHypothesis || !!data.bridgeToNextStep;
+
+    // New SDR conversation framework renderer
+    if (isNewSDRFormat) {
+      return (
+        <div className="space-y-5">
+          {/* Coaching note — framework reminder, rendered prominently at top */}
+          {data.coachingNote && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+              <p className="text-xs font-bold text-amber-800 uppercase tracking-wide mb-1">💡 How to Use This</p>
+              <p className="text-sm text-amber-900 leading-relaxed">{data.coachingNote}</p>
+            </div>
+          )}
+          {/* Step 1: Pattern interrupt opener */}
+          {data.patternInterruptOpener && (
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+                <span className="text-xs font-bold text-ink uppercase tracking-wide">1 · Pattern Interrupt Opener</span>
+                <span className="text-xs text-ink-muted ml-auto">~10 sec</span>
+              </div>
+              <p className="px-4 py-3 text-sm text-ink-light leading-relaxed">{data.patternInterruptOpener}</p>
+            </div>
+          )}
+          {/* Step 2: Value hypothesis */}
+          {data.valueHypothesis && (
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+                <span className="text-xs font-bold text-ink uppercase tracking-wide">2 · Value Hypothesis</span>
+                <span className="text-xs text-ink-muted ml-auto">~15–20 sec</span>
+              </div>
+              <p className="px-4 py-3 text-sm text-ink-light leading-relaxed">{data.valueHypothesis}</p>
+            </div>
+          )}
+          {/* Step 3: Discovery questions */}
+          {data.discoveryQuestions?.length ? (
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+                <span className="text-xs font-bold text-ink uppercase tracking-wide">3 · Discovery Questions</span>
+                <span className="text-xs text-ink-muted ml-auto">bulk of call — prospect talks 54%+</span>
+              </div>
+              <ol className="px-4 py-3 space-y-2">
+                {data.discoveryQuestions.map((q, i) => (
+                  <li key={i} className="flex items-start gap-2.5">
+                    <span className="text-xs font-bold text-primary-500 mt-0.5 flex-shrink-0">Q{i + 1}</span>
+                    <p className="text-sm text-ink-light">{q}</p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
+          {/* Objection responses */}
+          {data.objectionResponses?.length ? (
+            <div>
+              <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-2">
+                Objection Responses
+              </p>
+              <div className="space-y-3">
+                {data.objectionResponses.map((o, i) => (
+                  <div key={i} className="bg-[#F0F7FF] rounded-lg p-3">
+                    <p className="text-xs font-medium text-ink mb-1.5">&ldquo;{o.objection}&rdquo;</p>
+                    <p className="text-sm text-ink-light leading-relaxed">{o.response}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {/* Step 4: Bridge to next step */}
+          {data.bridgeToNextStep && (
+            <div className="border border-primary-200 rounded-xl overflow-hidden">
+              <div className="px-4 py-2 bg-primary-50 border-b border-primary-100 flex items-center gap-2">
+                <span className="text-xs font-bold text-primary-700 uppercase tracking-wide">4 · Bridge to Next Step</span>
+                <span className="text-xs text-primary-500 ml-auto">~10 sec</span>
+              </div>
+              <p className="px-4 py-3 text-sm text-ink-light leading-relaxed">{data.bridgeToNextStep}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Legacy SDR format + AE discovery demo format
     return (
       <div className="space-y-5">
-        {data.opener && (
+        {(data.opener) && (
           <div>
             <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-1.5">
               {isAEFormat ? "Opening / Agenda Setting" : "Opener"}
@@ -366,33 +515,92 @@ function ContentRenderer({
 
   // ─ questions_to_ask ─
   if (slot.type === "questions_to_ask") {
-    const data = parsed as { questions?: Array<{ context?: string; question: string; followUpChain?: string; why: string; followUp?: boolean }> };
+    const data = parsed as {
+      coachingNote?: string;
+      questions?: Array<{
+        questionType?: string;
+        primary?: string;
+        followUp?: string | null;
+        why?: string;
+        // legacy fields (backward compat)
+        context?: string;
+        question?: string;
+        followUpChain?: string;
+      }>;
+    };
+    const TYPE_LABELS: Record<string, string> = {
+      role_mechanics: "Role mechanics",
+      performance: "Performance",
+      growth_path: "Growth path",
+      close: "Close",
+    };
     return (
       <div className="space-y-4">
-        {(data.questions ?? []).map((q, i) => (
-          <div key={i} className={q.followUp ? "bg-primary-50/60 rounded-lg px-3 py-2.5 -mx-1" : undefined}>
-            {q.followUp && (
-              <p className="text-[10px] font-semibold text-primary-500 uppercase tracking-wide mb-1">Follow-up question</p>
-            )}
-            {q.context && (
-              <p className="text-xs text-ink-muted mb-0.5">{q.context}</p>
-            )}
-            <p className="text-sm font-medium text-ink">
-              {i + 1}. {q.question}
-            </p>
-            {q.followUpChain && (
-              <p className="text-xs text-ink-muted mt-1 pl-3 border-l-2 border-gray-200">
-                <span className="font-medium text-ink-light">If they give a short answer:</span> {q.followUpChain}
-              </p>
-            )}
-            <p className="text-xs text-ink-muted mt-0.5 italic">{q.why}</p>
+        {data.coachingNote && (
+          <div className="bg-amber-50/60 border-l-2 border-amber-300 px-2.5 py-1.5 rounded-r-lg">
+            <p className="text-xs text-amber-800 leading-snug">💡 {data.coachingNote}</p>
           </div>
-        ))}
+        )}
+        {(data.questions ?? []).map((q, i) => {
+          const primaryText = q.primary ?? q.question ?? "";
+          const followUpText = q.followUp ?? q.followUpChain;
+          const typeLabel = q.questionType ? TYPE_LABELS[q.questionType] : undefined;
+          const isClose = q.questionType === "close";
+          return (
+            <div key={i} className={isClose ? "bg-primary-50/60 rounded-lg px-3 py-2.5 -mx-1" : undefined}>
+              {typeLabel && (
+                <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wide mb-1">{typeLabel}</p>
+              )}
+              <p className="text-sm font-medium text-ink">{i + 1}. {primaryText}</p>
+              {followUpText && (
+                <p className="text-xs text-ink-muted mt-1 pl-3 border-l-2 border-gray-200">
+                  <span className="font-medium text-ink-light">If they give a short answer:</span> {followUpText}
+                </p>
+              )}
+              {q.why && <p className="text-xs text-ink-muted mt-0.5 italic">{q.why}</p>}
+            </div>
+          );
+        })}
       </div>
     );
   }
 
   // ─ cheat_sheet ─
+
+  // Stage-specific detection technique coaching — deterministic, not AI-generated.
+  // Source of truth for "what the interviewer is actually watching for."
+  const STAGE_DETECTION_COACHING: Record<string, {
+    technique: string;
+    testing: string;
+    coach: string;
+  }> = {
+    recruiter: {
+      technique: "SCREENING FILTER",
+      testing: "Can you communicate clearly in under 90 seconds? Did you research the company? Are you serious or spray-and-praying?",
+      coach: "They're making a yes/no decision in the first 2 minutes. Be concise. Show you know what the company does. Ask at least one sharp question.",
+    },
+    hiring_manager: {
+      technique: "DETAIL DRILL + OWNERSHIP TEST",
+      testing: "Did you actually DO the things on your resume? Can you go deeper than the headline? Do you think like someone ready for more ownership?",
+      coach: "They WILL probe your stories. Be ready to go one level deeper on any claim you make. Use 'I' not 'we' when describing your actions. Have a specific number for every achievement.",
+    },
+    role_play: {
+      technique: "COACHABILITY TEST",
+      testing: "Can you take feedback and immediately implement it? This is the #1 predictor of SDR success — not the roleplay itself.",
+      coach: "The first roleplay is a baseline. The SECOND one is the actual test. When they give feedback, absorb it visibly — nod, paraphrase it back, then implement it even if imperfectly. Effort > perfection.",
+    },
+    panel: {
+      technique: "MULTI-STAKEHOLDER PRESSURE",
+      testing: "Can you adapt your communication style across seniority levels? Can you handle being challenged by multiple people simultaneously?",
+      coach: "Different panelists care about different things. VP wants strategic thinking. SDR Manager wants tactical detail. AE wants to know you'll generate quality pipeline. Read the room and adjust.",
+    },
+    take_home: {
+      technique: "RESEARCH DEPTH TEST",
+      testing: "Did you actually understand the ICP and market, or did you Google the company for 10 minutes? Can you think like a rep, not a job applicant?",
+      coach: "Every good submission has one specific, non-obvious insight about the buyer. Find the thing that proves you did the work. Generic submissions look identical to each other.",
+    },
+  };
+
   if (slot.type === "cheat_sheet") {
     const data = parsed as {
       // New format
@@ -408,12 +616,28 @@ function ContentRenderer({
       criticalTip?: string;
     };
     const isNewFormat = Array.isArray(data.testing);
+    const detectionCoaching = STAGE_DETECTION_COACHING[session.stage];
     if (isNewFormat) {
       return (
         <div className="bg-gradient-to-br from-[#1e40af] to-[#2563eb] rounded-xl p-5 space-y-4">
+          {/* Detection technique coaching — hardcoded per stage */}
+          {detectionCoaching && (
+            <div className="bg-white/10 border border-white/20 rounded-lg p-3.5 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">What They&apos;re Actually Testing For</span>
+                <span className="ml-auto text-[10px] font-bold bg-white/15 text-white px-2 py-0.5 rounded-full tracking-wide">
+                  {detectionCoaching.technique}
+                </span>
+              </div>
+              <p className="text-xs text-white/80 leading-relaxed">{detectionCoaching.testing}</p>
+              <div className="border-l-2 border-yellow-300/60 pl-2.5">
+                <p className="text-xs text-yellow-100 leading-relaxed">{detectionCoaching.coach}</p>
+              </div>
+            </div>
+          )}
           {data.testing?.length ? (
             <div>
-              <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-2">What They&apos;re Testing For</p>
+              <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-2">Personalized for You</p>
               <ul className="space-y-1.5">
                 {data.testing.map((t, i) => (
                   <li key={i} className="text-sm text-white flex items-start gap-2">
@@ -461,6 +685,20 @@ function ContentRenderer({
     // Old format fallback
     return (
       <div className="bg-gradient-to-br from-[#1e40af] to-[#2563eb] rounded-xl p-5 space-y-4">
+        {detectionCoaching && (
+          <div className="bg-white/10 border border-white/20 rounded-lg p-3.5 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">What They&apos;re Actually Testing For</span>
+              <span className="ml-auto text-[10px] font-bold bg-white/15 text-white px-2 py-0.5 rounded-full tracking-wide">
+                {detectionCoaching.technique}
+              </span>
+            </div>
+            <p className="text-xs text-white/80 leading-relaxed">{detectionCoaching.testing}</p>
+            <div className="border-l-2 border-yellow-300/60 pl-2.5">
+              <p className="text-xs text-yellow-100 leading-relaxed">{detectionCoaching.coach}</p>
+            </div>
+          </div>
+        )}
         {data.keyPoints?.length ? (
           <div>
             <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-2">Key Points</p>
@@ -681,6 +919,40 @@ function ContentRenderer({
     );
   }
 
+  // ─ coachability_game_plan ─
+  if (slot.type === "coachability_game_plan") {
+    const data = parsed as {
+      beforeRoleplay?: string;
+      selfAssessment?: string;
+      receivingFeedback?: string;
+      theRedo?: string;
+      metaSignal?: string;
+    };
+    const sections: Array<{ key: keyof typeof data; emoji: string; label: string; accent: string }> = [
+      { key: "beforeRoleplay", emoji: "🧠", label: "Before the Roleplay", accent: "border-primary-300 bg-primary-50" },
+      { key: "selfAssessment", emoji: "🔎", label: "The Self-Assessment (Test #1)", accent: "border-amber-300 bg-amber-50" },
+      { key: "receivingFeedback", emoji: "👂", label: "Receiving Feedback", accent: "border-blue-300 bg-blue-50" },
+      { key: "theRedo", emoji: "🔁", label: "The Redo (Where the Job is Won)", accent: "border-green-300 bg-green-50" },
+      { key: "metaSignal", emoji: "⚡", label: "The Meta-Signal", accent: "border-red-300 bg-red-50" },
+    ];
+    return (
+      <div className="space-y-4">
+        {sections.map(({ key, emoji, label, accent }) => {
+          const text = data[key];
+          if (!text) return null;
+          return (
+            <div key={key} className={`border-l-4 rounded-r-xl px-4 py-3 ${accent}`}>
+              <p className="text-xs font-bold text-ink uppercase tracking-wide mb-1.5">
+                {emoji} {label}
+              </p>
+              <p className="text-sm text-ink-light leading-relaxed whitespace-pre-wrap">{text}</p>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <pre className="text-xs text-ink-light whitespace-pre-wrap overflow-auto bg-[#F0F7FF] rounded-lg p-3">
       {JSON.stringify(parsed, null, 2)}
@@ -706,6 +978,8 @@ export function AnswerCard({
   const [customInstruction, setCustomInstruction] = useState("");
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showFeedbackFollowup, setShowFeedbackFollowup] = useState(false);
+  const [voiceSampleStep, setVoiceSampleStep] = useState(false);
+  const [voiceSampleText, setVoiceSampleText] = useState("");
   const [copied, setCopied] = useState(false);
   const [pendingAction, setPendingAction] = useState<{ quickAction: string | null; custom: string } | null>(null);
   const [isUnlocking, setIsUnlocking] = useState(false);
@@ -714,6 +988,7 @@ export function AnswerCard({
   const [actionBarVisible, setActionBarVisible] = useState(slot.status === "unlocked");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const prevStatusRef = useRef(slot.status);
+  const regenSequenceRef = useRef(0);
 
   // ─── Detect locked → unlocked for reveal animations ─────────────────────────
   // useLayoutEffect is synchronous before paint — ensures animation starts from
@@ -756,6 +1031,27 @@ export function AnswerCard({
   const [isExpanded, setIsExpanded] = useState(defaultExpanded !== false);
   const canUnlock = creditBalance > 0 && !isUnlocking && !!onUnlock;
 
+  // ─── Card expansion tracking ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isCollapsible || slot.status !== "unlocked") return;
+    if (isExpanded) {
+      tracker.trackExpand(slot.type);
+    } else {
+      tracker.trackCollapse(slot.type);
+    }
+    fetch("/api/feedback/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: session.id,
+        answerType: slot.type,
+        eventType: isExpanded ? "card_expanded" : "card_collapsed",
+      }),
+    }).catch(() => {});
+  // Only fire when isExpanded changes, not on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isExpanded]);
+
   // ─── Loading state ──────────────────────────────────────────────────────────
   if (slot.status === "loading") {
     return (
@@ -782,6 +1078,29 @@ export function AnswerCard({
         </div>
       </div>
     );
+  }
+
+  // ─── Helpers ───────────────────────────────────────────────────────────────
+
+  function wordEditDistance(original: string, edited: string) {
+    const origWords = new Set(original.trim().split(/\s+/));
+    const editWords = edited.trim().split(/\s+/);
+    const changed = editWords.filter((w) => !origWords.has(w)).length;
+    const pct = Math.round((changed / Math.max(origWords.size, 1)) * 100);
+    return { distance: changed, pct };
+  }
+
+  function logEvent(eventType: string, extras?: Record<string, number>) {
+    fetch("/api/feedback/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: session.id,
+        answerType: slot.type,
+        eventType,
+        ...extras,
+      }),
+    }).catch(() => {});
   }
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
@@ -814,6 +1133,8 @@ export function AnswerCard({
     await navigator.clipboard.writeText(displayContent);
     setCopied(true);
     setTimeout(() => setCopied(false), 2200);
+    regenSequenceRef.current = 0;
+    tracker.trackCopy(slot.type);
     onReview?.();
     if (slot.rating !== "up") {
       onSlotUpdate(slot.type, { rating: "up" });
@@ -823,24 +1144,31 @@ export function AnswerCard({
 
   const handleRate = (rating: "up" | "down") => {
     const next = slot.rating === rating ? undefined : rating;
+    regenSequenceRef.current = 0;
     onSlotUpdate(slot.type, { rating: next });
     if (rating === "down" && next === "down") {
       onReview?.();
       setShowFeedbackFollowup(true);
+      setVoiceSampleStep(false);
       logFeedback("thumbs_down");
     } else if (rating === "up" && next === "up") {
       onReview?.();
       logFeedback("thumbs_up");
       setShowFeedbackFollowup(false);
+      setVoiceSampleStep(false);
     } else {
       setShowFeedbackFollowup(false);
+      setVoiceSampleStep(false);
     }
   };
 
   const handleStartEdit = () => {
     onReview?.();
+    regenSequenceRef.current = 0;
     setEditDraft(displayContent ?? "");
     setIsEditing(true);
+    tracker.trackEditStart(slot.type, displayContent ?? "");
+    logEvent("edit_started");
     setTimeout(() => {
       textareaRef.current?.focus();
       textareaRef.current?.setSelectionRange(0, 0);
@@ -853,6 +1181,9 @@ export function AnswerCard({
       setIsEditing(false);
       return;
     }
+    tracker.trackEditEnd(slot.type, trimmed);
+    const { distance, pct } = wordEditDistance(slot.content ?? "", trimmed);
+    logEvent("edit_saved", { editDistance: distance, wordsChangedPct: pct });
     const newVersions = [...versions, slot.content ?? ""].filter(Boolean);
     onSlotUpdate(slot.type, { content: trimmed, versions: newVersions });
     setVersionIndex(0);
@@ -866,6 +1197,11 @@ export function AnswerCard({
 
   const triggerRegen = async (quickAction: string | null, customInstr: string) => {
     if (isRegenerating) return;
+    regenSequenceRef.current += 1;
+    tracker.trackRegeneration(slot.type, !!(quickAction || customInstr));
+    if (regenSequenceRef.current > 1) {
+      logEvent("regen_consecutive", { regenSequence: regenSequenceRef.current });
+    }
     setIsRegenerating(true);
     setActiveQuickAction(null);
     setCustomInstruction("");
@@ -1230,12 +1566,15 @@ export function AnswerCard({
                   </button>
                   {SPOKEN_TYPES.has(slot.type) && (() => {
                     const st = getSpeakingTime(editDraft);
-                    return st ? (
-                      <span className="text-xs text-ink-muted tabular-nums ml-auto">
-                        {st.words} words · {st.timeDisplay}
+                    if (!st) return <span className="text-xs text-ink-muted ml-auto">Edits are free &amp; saved locally</span>;
+                    const target = getWordTarget(slot.type, session.stage);
+                    const status = target ? getWordCountStatus(st.words, target) : null;
+                    const colorClass = status ? WORD_STATUS_CLASSES[status.color] : "text-ink-muted";
+                    return (
+                      <span className={`text-xs tabular-nums ml-auto ${colorClass}`}>
+                        {st.words} words · {st.display} spoken · aim for 140–160 wpm
+                        {status?.flag && ` · ${status.flag}`}
                       </span>
-                    ) : (
-                      <span className="text-xs text-ink-muted ml-auto">Edits are free &amp; saved locally</span>
                     );
                   })()}
                   {!SPOKEN_TYPES.has(slot.type) && (
@@ -1248,11 +1587,16 @@ export function AnswerCard({
                 <ContentRenderer content={displayContent} slot={slot} session={session} />
                 {SPOKEN_TYPES.has(slot.type) && displayContent && (() => {
                   const st = getSpeakingTime(displayContent);
-                  return st ? (
-                    <p className="text-xs text-ink-muted mt-3 tabular-nums">
-                      {st.words} words · {st.timeDisplay}
+                  if (!st) return null;
+                  const target = getWordTarget(slot.type, session.stage);
+                  const status = target ? getWordCountStatus(st.words, target) : null;
+                  const colorClass = status ? WORD_STATUS_CLASSES[status.color] : "text-ink-muted";
+                  return (
+                    <p className={`text-xs mt-3 tabular-nums ${colorClass}`}>
+                      {st.words} words · {st.display} spoken · aim for 140–160 wpm
+                      {status?.flag && <span> · {status.flag}</span>}
                     </p>
-                  ) : null;
+                  );
                 })()}
                 {slot.type === "questions_to_ask" && displayContent && (() => {
                   const n = countQuestions(displayContent);
@@ -1269,24 +1613,79 @@ export function AnswerCard({
           {/* ── Feedback follow-up ─────────────────────────────────────── */}
           {showFeedbackFollowup && !isEditing && (
             <div className="px-5 pb-3 -mt-1">
-              <p className="text-xs text-ink-muted mb-2">What was wrong with this answer?</p>
-              <div className="flex flex-wrap gap-1.5">
-                {FEEDBACK_ISSUES.map((issue) => {
-                  const categoryKey = issue.toLowerCase().replace(/ /g, "_");
-                  return (
-                    <button
-                      key={issue}
-                      onClick={() => { logFeedback("thumbs_down", categoryKey); setShowFeedbackFollowup(false); }}
-                      className="text-xs px-2.5 py-1 rounded-full border border-gray-200 text-ink-muted hover:border-red-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                    >
-                      {issue}
+              {!voiceSampleStep ? (
+                <>
+                  <p className="text-xs text-ink-muted mb-2">What was wrong with this answer?</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {FEEDBACK_ISSUES.map((issue) => {
+                      const categoryKey = issue.toLowerCase().replace(/ /g, "_");
+                      return (
+                        <button
+                          key={issue}
+                          onClick={() => {
+                            logFeedback("thumbs_down", categoryKey);
+                            setVoiceSampleStep(true);
+                          }}
+                          className="text-xs px-2.5 py-1 rounded-full border border-gray-200 text-ink-muted hover:border-red-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        >
+                          {issue}
+                        </button>
+                      );
+                    })}
+                    <button onClick={() => setShowFeedbackFollowup(false)} className="p-1 rounded-full text-ink-muted hover:text-ink transition-colors">
+                      <X className="w-3 h-3" />
                     </button>
-                  );
-                })}
-                <button onClick={() => setShowFeedbackFollowup(false)} className="p-1 rounded-full text-ink-muted hover:text-ink transition-colors">
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-ink-muted">How would you actually say this? <span className="opacity-60">(optional)</span></p>
+                  <textarea
+                    value={voiceSampleText}
+                    onChange={(e) => setVoiceSampleText(e.target.value)}
+                    placeholder="Write your version, out loud phrasing…"
+                    rows={3}
+                    className="w-full text-sm border border-[#DBEAFE] rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-[#FAFCFF] placeholder:text-ink-muted resize-none"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const trimmed = voiceSampleText.trim();
+                        if (trimmed.length >= 10 && displayContent) {
+                          fetch("/api/feedback/voice-sample", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              sessionId: session.id,
+                              answerType: slot.type,
+                              aiContentSnapshot: displayContent,
+                              userVersion: trimmed,
+                              stage: session.stage,
+                              roleType: session.roleType,
+                            }),
+                          }).catch(() => {});
+                        }
+                        setShowFeedbackFollowup(false);
+                        setVoiceSampleStep(false);
+                        setVoiceSampleText("");
+                      }}
+                      className="text-xs font-medium px-3 py-1.5 rounded-full bg-primary-50 text-primary-600 border border-primary-200 hover:bg-primary-100 transition-colors"
+                    >
+                      Save my version
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowFeedbackFollowup(false);
+                        setVoiceSampleStep(false);
+                        setVoiceSampleText("");
+                      }}
+                      className="text-xs px-3 py-1.5 rounded-full border border-gray-200 text-ink-muted hover:text-ink transition-colors"
+                    >
+                      Skip
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
