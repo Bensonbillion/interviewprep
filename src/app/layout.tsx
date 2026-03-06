@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 import { Suspense } from "react";
 import { Navbar } from "@/components/layout/Navbar";
@@ -28,21 +29,40 @@ export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title: {
     template: "%s | SalesPrep AI",
-    default: "SalesPrep AI — AI Interview Prep for Tech Sales Professionals",
+    default: "SalesPrep AI — AI Interview Prep for Tech Sales",
   },
   description:
-    "Ace your tech sales interview with AI-powered practice. Company-specific questions, real-time feedback, and proven frameworks for SDR, BDR, and AE candidates.",
-  keywords:
-    "sales interview prep, SDR interview questions, BDR interview questions, AE interview preparation, tech sales interview, cold call role play prep, sales interview answers, mock sales interview",
+    "Nail your SDR, BDR, or AE interview with AI-powered prep kits. Company-specific questions, mock cold call practice, and personalized answers. Free to start.",
+  keywords: [
+    "SDR interview prep",
+    "BDR interview questions",
+    "sales interview preparation",
+    "tech sales interview",
+    "mock cold call practice",
+    "sales development representative",
+    "AI interview prep",
+    "SaaS sales interview",
+  ],
   openGraph: {
     type: "website",
-    siteName: "SalesPrep AI",
     locale: "en_US",
-    images: [{ url: "/opengraph-image", width: 1200, height: 630 }],
+    siteName: "SalesPrep AI",
+    title: "SalesPrep AI — AI Interview Prep for Tech Sales",
+    description:
+      "Nail your SDR, BDR, or AE interview with AI-powered prep kits. Company-specific questions, mock cold call practice, and personalized answers.",
+    images: [
+      {
+        url: "/og-default.png",
+        width: 1200,
+        height: 630,
+        alt: "SalesPrep AI — AI Interview Prep for Tech Sales",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     site: "@SalesPrepAI",
+    creator: "@SalesPrepAI",
   },
   robots: {
     index: true,
@@ -56,20 +76,26 @@ export const metadata: Metadata = {
     },
   },
   alternates: {
-    canonical: "/",
+    canonical: BASE_URL,
+  },
+  verification: {
+    google: "GOOGLE_SITE_VERIFICATION_CODE",
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headersList = await headers();
+  const nonce = headersList.get("x-nonce") ?? "";
+
   return (
     <html lang="en">
       <head>
         <JsonLd data={softwareApplicationSchema()} />
-        <AnalyticsScripts />
+        <AnalyticsScripts nonce={nonce} />
       </head>
       <body className={`${jakarta.variable} ${geistMono.variable} antialiased`}>
         <GTMNoScript />

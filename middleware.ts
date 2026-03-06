@@ -10,8 +10,42 @@ const ADMIN_EMAILS = [
   "paulhills566@gmail.com", // dev access
 ];
 
+// ── CSP builder ──────────────────────────────────────────────────────────────
+
+function buildCsp(nonce: string): string {
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://www.googletagmanager.com https://connect.facebook.net https://snap.licdn.com`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data: https://*.supabase.co https://lh3.googleusercontent.com https://www.facebook.com https://px.ads.linkedin.com https://www.googletagmanager.com https://www.google-analytics.com",
+    "font-src 'self'",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com https://www.facebook.com https://px.ads.linkedin.com https://vitals.vercel-insights.com",
+    "frame-src 'self' https://accounts.google.com https://challenges.cloudflare.com https://www.googletagmanager.com",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+}
+
+// ── Middleware ────────────────────────────────────────────────────────────────
+
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
+  // Generate a per-request CSP nonce
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const csp = buildCsp(nonce);
+
+  // Inject nonce + CSP into forwarded request headers so Next.js
+  // can apply the nonce to its own inline scripts, and server
+  // components can read it via headers().get('x-nonce').
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", csp);
+
+  let supabaseResponse = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,7 +59,13 @@ export async function middleware(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
-          supabaseResponse = NextResponse.next({ request });
+          // Re-create request headers with updated cookies + our custom headers
+          const updatedHeaders = new Headers(request.headers);
+          updatedHeaders.set("x-nonce", nonce);
+          updatedHeaders.set("Content-Security-Policy", csp);
+          supabaseResponse = NextResponse.next({
+            request: { headers: updatedHeaders },
+          });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           );
@@ -46,16 +86,21 @@ export async function middleware(request: NextRequest) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/auth/login";
     loginUrl.searchParams.set("redirectTo", validateRedirectUrl(pathname));
-    return NextResponse.redirect(loginUrl);
+    const response = NextResponse.redirect(loginUrl);
+    response.headers.set("Content-Security-Policy", csp);
+    return response;
   }
 
   // Admin routes: additional email allowlist check
   if (pathname.startsWith("/admin") && user) {
     if (!ADMIN_EMAILS.includes(user.email ?? "")) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      const response = NextResponse.redirect(new URL("/dashboard", request.url));
+      response.headers.set("Content-Security-Policy", csp);
+      return response;
     }
   }
 
+  supabaseResponse.headers.set("Content-Security-Policy", csp);
   return supabaseResponse;
 }
 

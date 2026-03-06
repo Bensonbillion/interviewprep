@@ -1,0 +1,4 @@
+Contact: mailto:security@salesprep.ai
+Preferred-Languages: en
+Canonical: https://salesprep.ai/.well-known/security.txt
+Expires: 2027-03-06T00:00:00.000Z
