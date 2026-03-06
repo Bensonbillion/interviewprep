@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * POST /api/user/spend-credit
@@ -28,10 +28,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Use the atomic spend_credit() function with FOR UPDATE locking
-    const admin = createAdminClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
+    const admin = createAdminClient();
 
     const { data, error } = await admin.rpc("spend_credit", {
       p_user_id: user.id,

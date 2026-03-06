@@ -10,14 +10,11 @@
  * 6. Recalculate playbook aggregates after deletion
  */
 
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { updateCompanyPlaybooks } from "@/lib/feedback/prompt-optimizer";
 
 function adminDb() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  return createAdminClient();
 }
 
 export interface DeletionResult {

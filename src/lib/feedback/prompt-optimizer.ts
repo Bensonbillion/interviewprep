@@ -5,16 +5,13 @@
  * for improving answer generation prompts.
  */
 
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { FailureDimension, UserAlternative, QualityAlert } from "./quality-analyzer";
 import { anonymizeText } from "@/lib/privacy/anonymizer";
 import { canShowQuestionFrequency } from "@/lib/privacy/k-anonymity";
 
 function adminDb() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  return createAdminClient();
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────

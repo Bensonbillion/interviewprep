@@ -3,13 +3,10 @@
  * into prompt_quality_metrics rows and surfaces optimization signals.
  */
 
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 function adminDb() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  return createAdminClient();
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────

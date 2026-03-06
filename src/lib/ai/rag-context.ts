@@ -18,16 +18,13 @@
  * Items 7, 9, 10 remain in the USER message (built by individual prompt builders).
  */
 
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { generateEmbedding } from "@/lib/embeddings";
 import { fetchCompanyEnrichment, formatCompanyEnrichmentSection } from "@/lib/feedback/company-enrichment";
 import type { AnswerType, RoleType, InterviewStage } from "@/types";
 
 function adminDb() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  return createAdminClient();
 }
 
 export interface ProbeDepthQuestions {
