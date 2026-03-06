@@ -10,7 +10,8 @@ import { QuickRoundModal } from "@/components/prep/QuickRoundModal";
 import { InterviewerIntelCard } from "@/components/prep/InterviewerIntelCard";
 import { ClosingCoachCard } from "@/components/prep/ClosingCoachCard";
 import { FollowUpSection } from "@/components/prep/FollowUpSection";
-import { ConfidenceModal } from "@/components/prep/ConfidenceModal";
+import { ConfidenceCheck } from "@/components/prep/ConfidenceCheck";
+import { getSessionList as getSessionListForCount } from "@/lib/session/session-list";
 import { useCredits } from "@/hooks/useCredits";
 import { tracker } from "@/lib/feedback/implicit-tracker";
 import {
@@ -364,7 +365,7 @@ export default function PrepSessionPage() {
   const [copiedAll, setCopiedAll] = useState(false);
   const [extraDossiers, setExtraDossiers] = useState<InterviewerDossier[]>([]);
   const [reviewedAnswers, setReviewedAnswers] = useState<Set<AnswerType>>(new Set());
-  const [showConfidenceModal, setShowConfidenceModal] = useState(false);
+  const [showConfidenceCheck, setShowConfidenceCheck] = useState(false);
   const generatingRef = useRef<Set<AnswerType>>(new Set());
   const reviewTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const entryTimestampsRef = useRef<Record<string, number>>({});
@@ -615,16 +616,41 @@ export default function PrepSessionPage() {
     setTimeout(() => setCopiedAll(false), 2200);
   }, [session, slots]);
 
-  // ─── ConfidenceModal: show once after all answers ready ──────────────────────
+  // ─── Confidence check: trigger after scroll-to-bottom, 5min timer, or button ─
   const allReady = slots.length > 0 && slots.every((s) => s.status !== "loading");
+  const pageEnteredAtRef = useRef(Date.now());
+  const confidenceTriggeredRef = useRef(false);
+
+  const triggerConfidenceCheck = useCallback(() => {
+    if (confidenceTriggeredRef.current) return;
+    const elapsed = Date.now() - pageEnteredAtRef.current;
+    if (elapsed < 60_000) return; // less than 60s on page — skip
+    const key = `confidence-check-${sessionId}`;
+    if (localStorage.getItem(key)) return;
+    confidenceTriggeredRef.current = true;
+    localStorage.setItem(key, "1");
+    setShowConfidenceCheck(true);
+  }, [sessionId]);
+
+  // Trigger: 5 minute timer
   useEffect(() => {
     if (!allReady || !session) return;
-    const key = `confidence-shown-${sessionId}`;
-    if (sessionStorage.getItem(key)) return;
-    sessionStorage.setItem(key, "1");
-    const timer = setTimeout(() => setShowConfidenceModal(true), 3000);
+    const timer = setTimeout(triggerConfidenceCheck, 5 * 60 * 1000);
     return () => clearTimeout(timer);
-  }, [allReady, session, sessionId]);
+  }, [allReady, session, triggerConfidenceCheck]);
+
+  // Trigger: scroll to bottom
+  useEffect(() => {
+    if (!allReady || !session) return;
+    function handleScroll() {
+      const scrollBottom = window.innerHeight + window.scrollY;
+      if (scrollBottom >= document.body.offsetHeight - 200) {
+        triggerConfidenceCheck();
+      }
+    }
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [allReady, session, triggerConfidenceCheck]);
 
   // ─── Not found / loading states ───────────────────────────────────────────────
   if (notFound) {
@@ -872,6 +898,19 @@ export default function PrepSessionPage() {
         />
       )}
 
+      {/* ── Done Prepping button ───────────────────────────────────────── */}
+      {allGenerated && !showConfidenceCheck && (
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={triggerConfidenceCheck}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-primary-200 bg-primary-50 text-sm font-semibold text-primary-600 hover:bg-primary-100 transition-colors"
+          >
+            <Check className="w-4 h-4" />
+            Done Prepping
+          </button>
+        </div>
+      )}
+
       {/* ── Follow-up email generator ────────────────────────────────────── */}
       <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider mt-2">
         After the Interview
@@ -931,13 +970,13 @@ export default function PrepSessionPage() {
         />
       )}
 
-      {/* ── Confidence modal ─────────────────────────────────────────────── */}
-      {showConfidenceModal && (
-        <ConfidenceModal
+      {/* ── Confidence check ─────────────────────────────────────────────── */}
+      {showConfidenceCheck && (
+        <ConfidenceCheck
           sessionId={sessionId}
-          stage={session.stage}
-          companyName={session.companyName}
-          onClose={() => setShowConfidenceModal(false)}
+          slots={slots}
+          isFirstSession={getSessionListForCount().length <= 1}
+          onDismiss={() => setShowConfidenceCheck(false)}
         />
       )}
     </div>
