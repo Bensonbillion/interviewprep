@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import type { AnswerSlot, AnswerType, PrepSession } from "@/types";
 import { tracker } from "@/lib/feedback/implicit-tracker";
+import { AnswerFeedback } from "@/components/prep/AnswerFeedback";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -984,6 +985,7 @@ export function AnswerCard({
   const [pendingAction, setPendingAction] = useState<{ quickAction: string | null; custom: string } | null>(null);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [justUnlocked, setJustUnlocked] = useState(false);
+  const [explicitFeedbackGiven, setExplicitFeedbackGiven] = useState(false);
   // Tracks whether action bar has faded in post-reveal
   const [actionBarVisible, setActionBarVisible] = useState(slot.status === "unlocked");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1609,6 +1611,16 @@ export function AnswerCard({
               </>
             )}
           </div>
+
+          {/* ── Per-answer explicit feedback ────────────────────────────── */}
+          {!isEditing && !explicitFeedbackGiven && displayContent && (
+            <AnswerFeedback
+              sessionId={session.id}
+              answerId={slot.answerId}
+              answerType={slot.type}
+              onFeedbackGiven={() => setExplicitFeedbackGiven(true)}
+            />
+          )}
 
           {/* ── Feedback follow-up ─────────────────────────────────────── */}
           {showFeedbackFollowup && !isEditing && (
