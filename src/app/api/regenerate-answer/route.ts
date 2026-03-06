@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { anthropic, SONNET, HAIKU } from "@/lib/ai";
 import { buildPromptForAnswerType } from "@/lib/ai/prompts";
-import { detectRoleSeniority } from "@/lib/ai/seniority";
-import { parseJobListing } from "@/lib/ai/job-listing";
-import { fetchRagContext, logAnswerVersion } from "@/lib/ai/rag-context";
+import { detectRoleSeniority, getSeniorityInstructions } from "@/lib/ai/seniority";
+import { parseJobListing, buildJobListingContext } from "@/lib/ai/job-listing";
+import { fetchRagContext, assembleSystemPrompt, logAnswerVersion } from "@/lib/ai/rag-context";
 import type { AnswerType, PrepSession } from "@/types";
 
 const HAIKU_ANSWER_TYPES: AnswerType[] = ["company_brief", "cheat_sheet", "comp_expectations"];
@@ -36,6 +36,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "answerType and session are required" }, { status: 400 });
     }
 
+    // Compute seniority and job listing context at route level (items 2–3 in assembly order)
+    const seniority = detectRoleSeniority(session.targetRole, session.jobDescription);
+    const jobListingSignals = session.jobDescription ? parseJobListing(session.jobDescription) : undefined;
+    const seniorityText = getSeniorityInstructions(seniority);
+    const jobListingContext = buildJobListingContext(jobListingSignals);
+
+    // Build base prompt — structural instructions + resume + company (items 7, 9, 10)
     const { system: baseSystem, user, maxTokens } = buildPromptForAnswerType(
       answerType,
       {
@@ -46,8 +53,8 @@ export async function POST(req: NextRequest) {
         targetRole: session.targetRole,
         roleType: session.roleType,
         stage: session.stage,
-        seniority: detectRoleSeniority(session.targetRole, session.jobDescription),
-        jobListingSignals: session.jobDescription ? parseJobListing(session.jobDescription) : undefined,
+        seniority,
+        jobListingSignals,
       }
     );
 
@@ -57,12 +64,16 @@ export async function POST(req: NextRequest) {
       answerType,
       queryText,
       session.roleType,
-      session.stage
+      session.stage,
+      session.company?.name
     );
 
-    const system = rag.activePromptText
-      ? rag.activePromptText + rag.systemSuffix
-      : baseSystem + rag.systemSuffix;
+    // Assemble system prompt in correct order (items 1–6, 8)
+    const system = assembleSystemPrompt(
+      rag.activePromptText ?? baseSystem,
+      rag,
+      { seniorityText, jobListingContext: jobListingContext || null }
+    );
 
     // Build modifier instruction from quickAction or customInstruction
     let modifier = "";

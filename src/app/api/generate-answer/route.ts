@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { anthropic, SONNET, HAIKU } from "@/lib/ai";
 import { GenerateAnswerInputSchema } from "@/lib/types/schemas";
 import { buildPromptForAnswerType } from "@/lib/ai/prompts";
-import { detectRoleSeniority } from "@/lib/ai/seniority";
-import { parseJobListing } from "@/lib/ai/job-listing";
-import { fetchRagContext, logAnswerVersion } from "@/lib/ai/rag-context";
+import { detectRoleSeniority, getSeniorityInstructions } from "@/lib/ai/seniority";
+import { parseJobListing, buildJobListingContext } from "@/lib/ai/job-listing";
+import { fetchRagContext, assembleSystemPrompt, logAnswerVersion } from "@/lib/ai/rag-context";
 import type { AnswerType, PrepSession } from "@/types";
 
 // Answer types that use Haiku (lighter/cheaper tasks)
@@ -40,7 +40,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Session data required" }, { status: 400 });
     }
 
-    // Build base prompt
+    // Compute seniority and job listing context at route level (items 2–3 in assembly order)
+    const seniority = detectRoleSeniority(session.targetRole, session.jobDescription);
+    const jobListingSignals = session.jobDescription ? parseJobListing(session.jobDescription) : undefined;
+    const seniorityText = getSeniorityInstructions(seniority);
+    const jobListingContext = buildJobListingContext(jobListingSignals);
+
+    // Build base prompt — structural instructions + resume + company (items 7, 9, 10)
     const { system: baseSystem, user, maxTokens } = buildPromptForAnswerType(
       answerType as AnswerType,
       {
@@ -51,8 +57,8 @@ export async function POST(req: NextRequest) {
         targetRole: session.targetRole,
         roleType: session.roleType,
         stage: session.stage,
-        seniority: detectRoleSeniority(session.targetRole, session.jobDescription),
-        jobListingSignals: session.jobDescription ? parseJobListing(session.jobDescription) : undefined,
+        seniority,
+        jobListingSignals,
       },
       {
         question: body.question,
@@ -66,13 +72,16 @@ export async function POST(req: NextRequest) {
       answerType as AnswerType,
       queryText,
       session.roleType,
-      session.stage
+      session.stage,
+      session.company?.name
     );
 
-    // Use active prompt version if available, otherwise use base system
-    const system = rag.activePromptText
-      ? rag.activePromptText + rag.systemSuffix
-      : baseSystem + rag.systemSuffix;
+    // Assemble system prompt in correct order (items 1–6, 8)
+    const system = assembleSystemPrompt(
+      rag.activePromptText ?? baseSystem,
+      rag,
+      { seniorityText, jobListingContext: jobListingContext || null }
+    );
 
     const userContent = customInstructions
       ? `${user}\n\nAdditional instructions: ${customInstructions}`
