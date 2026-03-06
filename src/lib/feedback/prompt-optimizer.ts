@@ -7,6 +7,8 @@
 
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import type { FailureDimension, UserAlternative, QualityAlert } from "./quality-analyzer";
+import { anonymizeText } from "@/lib/privacy/anonymizer";
+import { canShowQuestionFrequency } from "@/lib/privacy/k-anonymity";
 
 function adminDb() {
   return createAdminClient(
@@ -188,7 +190,12 @@ export async function updateCompanyPlaybooks(): Promise<number> {
       }
     }
     const topQuestions = Array.from(questionFreq.entries())
-      .map(([q, { count: freq, category }]) => ({ question: q, frequency: freq, category }))
+      .map(([q, { count: freq, category }]) => ({
+        question: anonymizeText(q),
+        frequency: freq,
+        category,
+      }))
+      .filter((q) => canShowQuestionFrequency(q.frequency))
       .sort((a, b) => b.frequency - a.frequency)
       .slice(0, 20);
 

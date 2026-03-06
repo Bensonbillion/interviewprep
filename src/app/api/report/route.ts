@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { normalizeCompanyName } from "@/lib/privacy/normalizer";
+import { anonymizeText } from "@/lib/privacy/anonymizer";
 
 function adminDb() {
   return createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
-}
-
-function normalizeCompanyName(name: string): string {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/\s*(,?\s*(inc|ltd|corp|llc|plc|co|gmbh|ag|sa|pty|limited|corporation|incorporated))\.?\s*$/i, "")
-    .replace(/\s+/g, " ");
 }
 
 function cleanQuestionText(text: string): string {
