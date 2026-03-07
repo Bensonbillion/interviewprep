@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { validateRedirectUrl } from "@/lib/security/validate-redirect";
 import { authLimiter, checkRateLimit } from "@/lib/security/rate-limit";
+import { auditLog } from "@/lib/security/audit";
 
 export async function GET(request: NextRequest) {
   // Rate limit auth attempts by IP
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const userAgent = request.headers.get("user-agent") ?? undefined;
   const { allowed } = await checkRateLimit(authLimiter, `ip:${ip}`);
   if (!allowed) {
+    auditLog({ eventType: "auth_rate_limited", ip, userAgent, severity: "warning" });
     const tooManyUrl = new URL("/auth/login", request.url);
     tooManyUrl.searchParams.set("error", "Too many login attempts. Please wait 15 minutes.");
     return NextResponse.redirect(tooManyUrl.toString());
@@ -31,6 +34,12 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error && data.session) {
+      auditLog({
+        eventType: "auth_login",
+        userId: data.session.user.id,
+        ip,
+        userAgent,
+      });
       // Detect new user (created within last 60 seconds)
       const createdAt = new Date(data.session.user.created_at).getTime();
       const isNewUser = Date.now() - createdAt < 60_000;
@@ -44,11 +53,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${origin}${redirectTo}`);
     }
     // Code exchange failed — surface the real error
+    auditLog({
+      eventType: "auth_failed",
+      ip,
+      userAgent,
+      severity: "warning",
+      details: { error: error.message },
+    });
     const loginUrl = new URL(`${origin}/auth/login`);
     loginUrl.searchParams.set("error", error.message);
     loginUrl.searchParams.set("redirectTo", redirectTo);
     return NextResponse.redirect(loginUrl.toString());
   }
 
+  auditLog({ eventType: "auth_failed", ip, userAgent, severity: "warning", details: { reason: "no_code" } });
   return NextResponse.redirect(`${origin}/auth/login?error=auth_failed`);
 }

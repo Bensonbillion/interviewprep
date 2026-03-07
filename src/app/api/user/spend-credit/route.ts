@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyApiAuth } from "@/lib/auth/verify";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { auditLog } from "@/lib/security/audit";
 
 /**
  * POST /api/user/spend-credit
@@ -36,8 +37,20 @@ export async function POST(req: NextRequest) {
     }
 
     if (data === false) {
+      auditLog({
+        eventType: "credit_consumed",
+        userId: auth.userId,
+        severity: "warning",
+        details: { sessionId, result: "insufficient" },
+      });
       return NextResponse.json({ error: "Insufficient credits" }, { status: 402 });
     }
+
+    auditLog({
+      eventType: "credit_consumed",
+      userId: auth.userId,
+      details: { sessionId, result: "success" },
+    });
 
     return NextResponse.json({ ok: true });
   } catch (err) {

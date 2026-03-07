@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyApiAuth } from "@/lib/auth/verify";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { deleteUserData } from "@/lib/privacy/account-deletion";
+import { auditLog } from "@/lib/security/audit";
 
 /**
  * POST /api/user/delete-account
@@ -29,6 +30,13 @@ export async function POST() {
       console.error("Failed to delete auth user:", deleteError);
       // Data is already deleted — log but don't fail the request
     }
+
+    auditLog({
+      eventType: "account_deleted",
+      userId: auth.userId,
+      severity: "warning",
+      details: { deleted: result },
+    });
 
     return NextResponse.json({
       ok: true,

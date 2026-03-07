@@ -8,6 +8,7 @@ import { detectRoleSeniority, getSeniorityInstructions } from "@/lib/ai/seniorit
 import { parseJobListing, buildJobListingContext } from "@/lib/ai/job-listing";
 import { fetchRagContext, assembleSystemPrompt, logAnswerVersion } from "@/lib/ai/rag-context";
 import type { AnswerType, PrepSession } from "@/types";
+import { auditLog } from "@/lib/security/audit";
 
 // Answer types that use Haiku (lighter/cheaper tasks)
 const HAIKU_ANSWER_TYPES: AnswerType[] = [
@@ -25,6 +26,12 @@ export async function POST(req: NextRequest) {
 
     const { allowed, headers: rlHeaders } = await checkRateLimit(aiLimiter, auth.userId);
     if (!allowed) {
+      auditLog({
+        eventType: "api_rate_limited",
+        userId: auth.userId,
+        severity: "warning",
+        details: { endpoint: "/api/generate-answer", limiterType: "ai" },
+      });
       return NextResponse.json(
         { error: "Too many requests. Please wait a moment." },
         { status: 429, headers: rlHeaders }
@@ -134,6 +141,14 @@ export async function POST(req: NextRequest) {
       promptVersionId: rag.activePromptVersionId,
       knowledgeChunkIds: rag.knowledgeChunkIds,
       goldenExampleIds: rag.goldenExampleIds,
+    });
+
+    auditLog({
+      eventType: "generation_completed",
+      userId: auth.userId,
+      resourceType: "answer",
+      resourceId: answerId,
+      details: { answerType, model, company: session.company?.name },
     });
 
     return NextResponse.json({

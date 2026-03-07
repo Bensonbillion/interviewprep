@@ -5,6 +5,7 @@ import { aiLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 import { CreateSessionInputSchema } from "@/lib/types/schemas";
 import { buildAnswerSlots } from "@/lib/session/answer-slots";
 import type { ParsedResume, CompanyProfile, RelevanceMap, PrepSession } from "@/types";
+import { auditLog } from "@/lib/security/audit";
 
 // Inline cross-reference (was /api/cross-reference)
 async function buildRelevanceMap(
@@ -145,6 +146,14 @@ export async function POST(req: NextRequest) {
       answerSlots,
       createdAt: Date.now(),
     };
+
+    auditLog({
+      eventType: "generation_requested",
+      userId: auth.userId,
+      resourceType: "session",
+      resourceId: session.id,
+      details: { company: companyName, targetRole, stage },
+    });
 
     return NextResponse.json({ session });
   } catch (err) {
