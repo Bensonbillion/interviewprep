@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function adminDb() {
@@ -10,8 +10,14 @@ function adminDb() {
  *
  * Called by a daily cron job. Auto-sets outcome to 'ghosted' for
  * any interview_report where outcome = 'pending' and created_at > 21 days ago.
+ * Protected by CRON_SECRET header.
  */
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret || req.headers.get("authorization") !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const db = adminDb();
     const cutoff = new Date();

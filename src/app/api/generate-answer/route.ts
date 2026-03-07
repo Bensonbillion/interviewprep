@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { anthropic, SONNET, HAIKU } from "@/lib/ai";
-import { createClient } from "@/lib/supabase/server";
+import { verifyApiAuth } from "@/lib/auth/verify";
 import { GenerateAnswerInputSchema } from "@/lib/types/schemas";
 import { buildPromptForAnswerType } from "@/lib/ai/prompts";
 import { detectRoleSeniority, getSeniorityInstructions } from "@/lib/ai/seniority";
@@ -17,10 +17,8 @@ const HAIKU_ANSWER_TYPES: AnswerType[] = [
 
 export async function POST(req: NextRequest) {
   try {
-    // Auth check
-    const supabase = await createClient();
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (!authUser) {
+    const auth = await verifyApiAuth();
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

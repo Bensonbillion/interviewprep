@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifyApiAuth } from "@/lib/auth/verify";
+import { reportSchema } from "@/lib/validation/schemas";
 import { normalizeCompanyName } from "@/lib/privacy/normalizer";
-import { anonymizeText } from "@/lib/privacy/anonymizer";
 
 function adminDb() {
   return createAdminClient();
@@ -25,61 +26,41 @@ function autoCategorize(text: string): string | null {
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = (await req.json()) as {
-      prepSessionId?: string;
-      companyName: string;
-      roleTitle: string;
-      stage: string;
-      interviewFormat?: string;
-      durationMinutes?: number;
-      difficultyRating?: number;
-      experienceRating?: string;
-      overallNotes?: string;
-      interviewerTitle?: string;
-      totalStagesInProcess?: number;
-      currentStageNumber?: number;
-      daysSinceApplication?: number;
-      outcome?: string;
-      questions?: Array<{
-        questionText: string;
-        questionCategory?: string;
-        wasExpected?: boolean;
-        feltPrepared?: boolean;
-        ourAnswerWasHelpful?: boolean | null;
-        whatIActuallySaid?: string;
-        whatIWishISaid?: string;
-        matchedAnswerType?: string;
-      }>;
-    };
+  const auth = await verifyApiAuth();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    const { companyName, roleTitle, stage } = body;
-    if (!companyName?.trim() || !roleTitle?.trim() || !stage?.trim()) {
-      return NextResponse.json({ error: "companyName, roleTitle, stage required" }, { status: 400 });
+  try {
+    const body = await req.json();
+    const parsed = reportSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
 
-    const companyNameNormalized = normalizeCompanyName(companyName);
+    const data = parsed.data;
+    const companyNameNormalized = normalizeCompanyName(data.companyName);
     const db = adminDb();
 
     // Insert the report
     const { data: report, error: reportErr } = await db
       .from("interview_reports")
       .insert({
-        prep_session_id: body.prepSessionId ?? null,
-        company_name: companyName.trim(),
+        prep_session_id: data.prepSessionId ?? null,
+        company_name: data.companyName.trim(),
         company_name_normalized: companyNameNormalized,
-        role_title: roleTitle.trim(),
-        stage,
-        interview_format: body.interviewFormat ?? null,
-        duration_minutes: body.durationMinutes ?? null,
-        difficulty: body.difficultyRating ?? null,
-        experience: body.experienceRating ?? null,
-        notes: body.overallNotes?.trim() ?? null,
-        interviewer_title: body.interviewerTitle?.trim() ?? null,
-        total_stages_in_process: body.totalStagesInProcess ?? null,
-        current_stage_number: body.currentStageNumber ?? null,
-        days_since_application: body.daysSinceApplication ?? null,
-        outcome: body.outcome ?? "pending",
+        role_title: data.roleTitle.trim(),
+        stage: data.stage,
+        interview_format: data.interviewFormat ?? null,
+        duration_minutes: data.durationMinutes ?? null,
+        difficulty: data.difficultyRating ?? null,
+        experience: data.experienceRating ?? null,
+        notes: data.overallNotes?.trim() ?? null,
+        interviewer_title: data.interviewerTitle?.trim() ?? null,
+        total_stages_in_process: data.totalStagesInProcess ?? null,
+        current_stage_number: data.currentStageNumber ?? null,
+        days_since_application: data.daysSinceApplication ?? null,
+        outcome: data.outcome ?? "pending",
       })
       .select("id")
       .single();
@@ -88,8 +69,8 @@ export async function POST(req: NextRequest) {
     const reportId = report?.id;
 
     // Insert questions if provided
-    if (reportId && body.questions?.length) {
-      const questionRows = body.questions
+    if (reportId && data.questions?.length) {
+      const questionRows = data.questions
         .filter((q) => q.questionText?.trim())
         .slice(0, 10)
         .map((q) => {
@@ -98,7 +79,7 @@ export async function POST(req: NextRequest) {
             report_id: reportId,
             question_text: cleaned,
             question_category: q.questionCategory || autoCategorize(cleaned),
-            interview_stage: stage,
+            interview_stage: data.stage,
             was_expected: q.wasExpected ?? null,
             felt_prepared: q.feltPrepared ?? null,
             our_answer_was_helpful: q.ourAnswerWasHelpful ?? null,

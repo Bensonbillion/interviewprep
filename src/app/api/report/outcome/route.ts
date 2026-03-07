@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifyApiAuth } from "@/lib/auth/verify";
+import { outcomeUpdateSchema } from "@/lib/validation/schemas";
 
 function adminDb() {
   return createAdminClient();
@@ -9,28 +11,19 @@ function adminDb() {
  * PATCH /api/report/outcome — update interview outcome
  */
 export async function PATCH(req: NextRequest) {
+  const auth = await verifyApiAuth();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const body = (await req.json()) as {
-      reportId: string;
-      outcome: string;
-      offerBaseSalary?: number;
-      offerOte?: number;
-      offerCurrency?: string;
-      rejectionFeedback?: string;
-      whatWouldDoDifferently?: string;
-      nextStage?: string;
-    };
-
-    const { reportId, outcome } = body;
-    if (!reportId || !outcome) {
-      return NextResponse.json({ error: "reportId and outcome required" }, { status: 400 });
+    const body = await req.json();
+    const parsed = outcomeUpdateSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
 
-    const validOutcomes = ["offer", "advanced", "rejected", "ghosted", "withdrew", "pending"];
-    if (!validOutcomes.includes(outcome)) {
-      return NextResponse.json({ error: "Invalid outcome" }, { status: 400 });
-    }
-
+    const { reportId, outcome, ...rest } = parsed.data;
     const db = adminDb();
 
     const updateData: Record<string, unknown> = {
@@ -39,14 +32,14 @@ export async function PATCH(req: NextRequest) {
     };
 
     if (outcome === "offer") {
-      if (body.offerBaseSalary) updateData.offer_base_salary = body.offerBaseSalary;
-      if (body.offerOte) updateData.offer_ote = body.offerOte;
-      if (body.offerCurrency) updateData.offer_currency = body.offerCurrency;
+      if (rest.offerBaseSalary) updateData.offer_base_salary = rest.offerBaseSalary;
+      if (rest.offerOte) updateData.offer_ote = rest.offerOte;
+      if (rest.offerCurrency) updateData.offer_currency = rest.offerCurrency;
     }
 
     if (outcome === "rejected" || outcome === "advanced") {
-      if (body.rejectionFeedback?.trim()) {
-        updateData.notes = body.rejectionFeedback.trim();
+      if (rest.rejectionFeedback?.trim()) {
+        updateData.notes = rest.rejectionFeedback.trim();
       }
     }
 
@@ -67,7 +60,12 @@ export async function PATCH(req: NextRequest) {
 /**
  * GET /api/report/outcome?pending=true — fetch pending reports for nudge cards
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
+  const auth = await verifyApiAuth();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const db = adminDb();
 

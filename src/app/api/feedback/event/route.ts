@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifyApiAuth } from "@/lib/auth/verify";
+import { eventFeedbackSchema } from "@/lib/validation/schemas";
 
 function adminDb() {
   return createAdminClient();
@@ -11,22 +13,19 @@ function adminDb() {
  * Fire-and-forget — never blocks the user.
  */
 export async function POST(req: NextRequest) {
+  const auth = await verifyApiAuth();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const body = await req.json() as {
-      sessionId: string;
-      answerType?: string;
-      eventType: string;
-      durationMs?: number;
-      editDistance?: number;
-      wordsChangedPct?: number;
-      regenSequence?: number;
-    };
-
-    const { sessionId, answerType, eventType, durationMs, editDistance, wordsChangedPct, regenSequence } = body;
-
-    if (!sessionId || !eventType) {
+    const body = await req.json();
+    const parsed = eventFeedbackSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json({ ok: true });
     }
+
+    const { sessionId, answerType, eventType, durationMs, editDistance, wordsChangedPct, regenSequence } = parsed.data;
 
     const db = adminDb();
     await db.from("session_events").insert({

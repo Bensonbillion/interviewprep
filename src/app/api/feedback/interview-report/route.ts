@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifyApiAuth } from "@/lib/auth/verify";
+import { interviewReportFeedbackSchema } from "@/lib/validation/schemas";
 
 function adminDb() {
   return createAdminClient();
@@ -11,53 +13,42 @@ function adminDb() {
  * Required: companyName, roleTitle, stage.
  */
 export async function POST(req: NextRequest) {
+  const auth = await verifyApiAuth();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const body = await req.json() as {
-      prepSessionId?: string;
-      companyName: string;
-      roleTitle: string;
-      stage: string;
-      interviewDate?: string;
-      outcome?: string;
-      durationMinutes?: number;
-      numInterviewers?: number;
-      interviewerRoles?: string[];
-      questionsAsked?: Array<{ question: string; type: string; notes?: string }>;
-      includedRoleplay?: boolean;
-      roleplayScenario?: string;
-      difficulty?: number;
-      experience?: string;
-      notes?: string;
-    };
-
-    const { companyName, roleTitle, stage } = body;
-
-    if (!companyName || !roleTitle || !stage) {
-      return NextResponse.json({ error: "companyName, roleTitle, stage required" }, { status: 400 });
+    const body = await req.json();
+    const parsed = interviewReportFeedbackSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
 
+    const data = parsed.data;
+
     const db = adminDb();
-    const { data, error } = await db.from("interview_reports").insert({
-      prep_session_id: body.prepSessionId ?? null,
-      company_name: companyName,
-      role_title: roleTitle,
-      stage,
-      interview_date: body.interviewDate ?? null,
-      outcome: body.outcome ?? null,
-      duration_minutes: body.durationMinutes ?? null,
-      num_interviewers: body.numInterviewers ?? null,
-      interviewer_roles: body.interviewerRoles ?? [],
-      questions_asked: body.questionsAsked ?? [],
-      included_roleplay: body.includedRoleplay ?? false,
-      roleplay_scenario: body.roleplayScenario ?? null,
-      difficulty: body.difficulty ?? null,
-      experience: body.experience ?? null,
-      notes: body.notes ?? null,
+    const { data: result, error } = await db.from("interview_reports").insert({
+      prep_session_id: data.prepSessionId ?? null,
+      company_name: data.companyName,
+      role_title: data.roleTitle,
+      stage: data.stage,
+      interview_date: data.interviewDate ?? null,
+      outcome: data.outcome ?? null,
+      duration_minutes: data.durationMinutes ?? null,
+      num_interviewers: data.numInterviewers ?? null,
+      interviewer_roles: data.interviewerRoles ?? [],
+      questions_asked: data.questionsAsked ?? [],
+      included_roleplay: data.includedRoleplay ?? false,
+      roleplay_scenario: data.roleplayScenario ?? null,
+      difficulty: data.difficulty ?? null,
+      experience: data.experience ?? null,
+      notes: data.notes ?? null,
     }).select("id").single();
 
     if (error) throw error;
 
-    return NextResponse.json({ id: data?.id, ok: true });
+    return NextResponse.json({ id: result?.id, ok: true });
   } catch (err) {
     console.warn("Interview report submission failed:", err);
     return NextResponse.json({ ok: true });

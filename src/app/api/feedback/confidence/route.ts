@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifyApiAuth } from "@/lib/auth/verify";
+import { confidenceFeedbackSchema } from "@/lib/validation/schemas";
 
 function adminDb() {
   return createAdminClient();
@@ -12,24 +14,19 @@ function adminDb() {
  * Fire-and-forget — never blocks the user.
  */
 export async function POST(req: NextRequest) {
+  const auth = await verifyApiAuth();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const body = await req.json() as {
-      sessionId: string;
-      stage: string;
-      companyName?: string;
-      score: number;
-      blockerText?: string;
-    };
-
-    const { sessionId, stage, companyName, score, blockerText } = body;
-
-    if (!sessionId || !stage || typeof score !== "number") {
+    const body = await req.json();
+    const parsed = confidenceFeedbackSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json({ ok: true });
     }
 
-    if (score < 1 || score > 5) {
-      return NextResponse.json({ ok: true });
-    }
+    const { sessionId, stage, companyName, score, blockerText } = parsed.data;
 
     const db = adminDb();
     await db.from("session_confidence_scores").upsert(

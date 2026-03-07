@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { verifyApiAuth } from "@/lib/auth/verify";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -17,13 +17,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
     }
 
-    // Auth check
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const auth = await verifyApiAuth();
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -31,7 +26,7 @@ export async function POST(req: NextRequest) {
     const admin = createAdminClient();
 
     const { data, error } = await admin.rpc("spend_credit", {
-      p_user_id: user.id,
+      p_user_id: auth.userId,
       p_answer_id: sessionId,
       p_description: "Prep kit generation",
     });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { anthropic, HAIKU } from "@/lib/ai";
-import { createClient } from "@/lib/supabase/server";
+import { verifyApiAuth } from "@/lib/auth/verify";
 import { CreateSessionInputSchema } from "@/lib/types/schemas";
 import { buildAnswerSlots } from "@/lib/session/answer-slots";
 import type { ParsedResume, CompanyProfile, RelevanceMap, PrepSession } from "@/types";
@@ -68,10 +68,8 @@ strongMatches: 3–5 items. gaps: 2–3 items. leadStories: 2–3 items. careerS
 
 export async function POST(req: NextRequest) {
   try {
-    // Auth check
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const auth = await verifyApiAuth();
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

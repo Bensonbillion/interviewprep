@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { anthropic, SONNET, FIRECRAWL_API_KEY } from "@/lib/ai";
+import { verifyApiAuth } from "@/lib/auth/verify";
+import { interviewerResearchSchema } from "@/lib/validation/schemas";
 import type { InterviewerDossier } from "@/types";
-
-interface RequestBody {
-  name: string;
-  linkedinUrl?: string;
-  roleTitle?: string;
-  companyName: string;
-  sessionId: string;
-}
 
 async function scrapeLinkedIn(url: string): Promise<string> {
   if (!FIRECRAWL_API_KEY) return "";
@@ -35,13 +29,19 @@ async function scrapeLinkedIn(url: string): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const body: RequestBody = await req.json();
-    const { name, linkedinUrl, roleTitle, companyName, sessionId } = body;
+  const auth = await verifyApiAuth();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    if (!name?.trim()) {
-      return NextResponse.json({ error: "Interviewer name required" }, { status: 400 });
+  try {
+    const body = await req.json();
+    const parsed = interviewerResearchSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
+
+    const { name, linkedinUrl, roleTitle, companyName, sessionId } = parsed.data;
 
     // Scrape LinkedIn profile if URL provided
     let profileContent = "";

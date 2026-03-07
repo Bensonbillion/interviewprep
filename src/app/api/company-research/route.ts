@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { anthropic, SONNET, FIRECRAWL_API_KEY } from "@/lib/ai";
-import { createClient } from "@/lib/supabase/server";
+import { verifyApiAuth } from "@/lib/auth/verify";
 import { isUrlSafe } from "@/lib/security/validate-url";
 import { CompanyProfile } from "@/types";
 
@@ -48,10 +48,8 @@ async function scrapeWithFetch(url: string): Promise<string> {
 
 export async function POST(req: NextRequest) {
   try {
-    // Auth check
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const auth = await verifyApiAuth();
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

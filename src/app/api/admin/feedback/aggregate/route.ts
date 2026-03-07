@@ -1,12 +1,31 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { ADMIN_EMAILS } from "@/lib/admin-config";
 import { aggregateWeeklyMetrics } from "@/lib/feedback/quality-analyzer";
 import { updateCompanyPlaybooks } from "@/lib/feedback/prompt-optimizer";
+
+async function requireAdmin() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !ADMIN_EMAILS.includes(user.email ?? "")) return null;
+  return user;
+}
 
 /**
  * POST /api/admin/feedback/aggregate
  * Triggers weekly aggregation. Call from a cron job or manually.
+ * Protected by admin auth or CRON_SECRET.
  */
-export async function POST() {
+export async function POST(req: NextRequest) {
+  // Allow either admin auth or cron secret
+  const cronSecret = process.env.CRON_SECRET;
+  const isCron = cronSecret && req.headers.get("authorization") === `Bearer ${cronSecret}`;
+
+  if (!isCron) {
+    const user = await requireAdmin();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
   try {
     // Compute the start of the current week (Monday)
     const now = new Date();

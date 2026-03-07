@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { anthropic, SONNET, HAIKU } from "@/lib/ai";
+import { verifyApiAuth } from "@/lib/auth/verify";
+import { regenerateAnswerSchema } from "@/lib/validation/schemas";
 import { buildPromptForAnswerType } from "@/lib/ai/prompts";
 import { detectRoleSeniority, getSeniorityInstructions } from "@/lib/ai/seniority";
 import { parseJobListing, buildJobListingContext } from "@/lib/ai/job-listing";
@@ -20,21 +22,23 @@ const QUICK_ACTION_PREFIXES: Record<string, string> = {
 };
 
 export async function POST(req: NextRequest) {
+  const auth = await verifyApiAuth();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const body = await req.json() as {
-      sessionId?: string;
-      answerType: AnswerType;
-      session: PrepSession;
-      quickAction?: string;
-      customInstruction?: string;
-    };
-
-    const { answerType, session, quickAction, customInstruction } = body;
-    const sessionId = body.sessionId ?? "anon";
-
-    if (!answerType || !session) {
-      return NextResponse.json({ error: "answerType and session are required" }, { status: 400 });
+    const body = await req.json();
+    const parsed = regenerateAnswerSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
+
+    const answerType = parsed.data.answerType as AnswerType;
+    const session = parsed.data.session as unknown as PrepSession;
+    const quickAction = parsed.data.quickAction;
+    const customInstruction = parsed.data.customInstructions;
+    const sessionId = body.sessionId ?? "anon";
 
     // Compute seniority and job listing context at route level (items 2–3 in assembly order)
     const seniority = detectRoleSeniority(session.targetRole, session.jobDescription);

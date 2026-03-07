@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyApiAuth } from "@/lib/auth/verify";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { deleteUserData } from "@/lib/privacy/account-deletion";
-
-function adminDb() {
-  return createAdminClient();
-}
 
 /**
  * POST /api/user/delete-account
@@ -15,27 +12,19 @@ function adminDb() {
  *
  * Requires the user to be authenticated.
  */
-export async function POST(req: NextRequest) {
+export async function POST() {
   try {
-    // Extract user from Authorization header
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const db = adminDb();
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await db.auth.getUser(token);
-
-    if (authError || !user) {
+    const auth = await verifyApiAuth();
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Delete all user-specific data
-    const result = await deleteUserData(user.id);
+    const result = await deleteUserData(auth.userId);
 
     // Delete the auth user (admin API)
-    const { error: deleteError } = await db.auth.admin.deleteUser(user.id);
+    const db = createAdminClient();
+    const { error: deleteError } = await db.auth.admin.deleteUser(auth.userId);
     if (deleteError) {
       console.error("Failed to delete auth user:", deleteError);
       // Data is already deleted — log but don't fail the request

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyApiAuth } from "@/lib/auth/verify";
 import { parseResumeFromFile } from "@/lib/resume/parser";
 
 const ALLOWED_TYPES: Record<string, readonly number[]> = {
@@ -13,6 +14,11 @@ const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx", ".txt"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export async function POST(req: NextRequest) {
+  const auth = await verifyApiAuth();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const formData = await req.formData();
     const file = formData.get("file");

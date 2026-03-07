@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifyApiAuth } from "@/lib/auth/verify";
+import { voiceSampleSchema } from "@/lib/validation/schemas";
 
 function adminDb() {
   return createAdminClient();
@@ -11,26 +13,19 @@ function adminDb() {
  * Fire-and-forget — never blocks the user.
  */
 export async function POST(req: NextRequest) {
+  const auth = await verifyApiAuth();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const body = await req.json() as {
-      sessionId: string;
-      answerType: string;
-      aiContentSnapshot: string;
-      userVersion: string;
-      stage?: string;
-      roleType?: string;
-    };
-
-    const { sessionId, answerType, aiContentSnapshot, userVersion, stage, roleType } = body;
-
-    if (!sessionId || !answerType || !aiContentSnapshot || !userVersion) {
+    const body = await req.json();
+    const parsed = voiceSampleSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json({ ok: true });
     }
 
-    // Minimum meaningful user version
-    if (userVersion.trim().length < 10) {
-      return NextResponse.json({ ok: true });
-    }
+    const { sessionId, answerType, aiContentSnapshot, userVersion, stage, roleType } = parsed.data;
 
     const db = adminDb();
     await db.from("answer_voice_samples").insert({

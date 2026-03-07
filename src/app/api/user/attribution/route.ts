@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { verifyApiAuth } from "@/lib/auth/verify";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -10,12 +10,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
  */
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const auth = await verifyApiAuth();
+    if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -43,7 +39,7 @@ export async function POST(req: NextRequest) {
         last_touch_campaign: last_touch_campaign || null,
         first_landing_page: landing_page || null,
       })
-      .eq("id", user.id);
+      .eq("id", auth.userId);
 
     if (error) {
       console.warn("Attribution save failed:", error.message);

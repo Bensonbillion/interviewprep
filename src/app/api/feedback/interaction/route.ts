@@ -1,33 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifyApiAuth } from "@/lib/auth/verify";
+import { interactionSchema } from "@/lib/validation/schemas";
 
 function adminDb() {
   return createAdminClient();
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const { interactions } = (await req.json()) as {
-      interactions: Array<{
-        session_id: string;
-        answer_id: string | null;
-        user_id: string | null;
-        answer_type: string;
-        original_text: string | null;
-        edited_text: string | null;
-        edit_distance_chars: number | null;
-        edit_distance_words: number | null;
-        edit_type: string | null;
-        time_on_card_seconds: number | null;
-        card_expanded: boolean;
-        card_collapsed_without_reading: boolean;
-        copied_to_clipboard: boolean;
-        regeneration_count: number;
-        regeneration_with_prompt_change: boolean | null;
-      }>;
-    };
+  const auth = await verifyApiAuth();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    if (!interactions?.length) {
+  try {
+    const body = await req.json();
+    const parsed = interactionSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+    }
+
+    const { interactions } = parsed.data;
+
+    if (!interactions.length) {
       return NextResponse.json({ ok: true });
     }
 

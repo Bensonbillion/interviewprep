@@ -1,38 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifyApiAuth } from "@/lib/auth/verify";
+import { sessionFeedbackSchema } from "@/lib/validation/schemas";
 
 function adminDb() {
   return createAdminClient();
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = (await req.json()) as {
-      sessionId: string;
-      confidenceBefore?: number;
-      confidenceAfter?: number;
-      mostHelpfulCard?: string;
-      leastHelpfulCard?: string;
-      wouldRecommend?: boolean;
-      disappointmentWithout?: string;
-      whatElseWouldHelp?: string;
-    };
+  const auth = await verifyApiAuth();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    const { sessionId } = body;
-    if (!sessionId) {
-      return NextResponse.json({ error: "sessionId required" }, { status: 400 });
+  try {
+    const body = await req.json();
+    const parsed = sessionFeedbackSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
+
+    const { sessionId, ...rest } = parsed.data;
 
     const db = adminDb();
     await db.from("session_feedback").insert({
       session_id: sessionId,
-      confidence_before: body.confidenceBefore ?? null,
-      confidence_after: body.confidenceAfter ?? null,
-      most_helpful_card: body.mostHelpfulCard ?? null,
-      least_helpful_card: body.leastHelpfulCard ?? null,
-      would_recommend: body.wouldRecommend ?? null,
-      disappointment_without: body.disappointmentWithout ?? null,
-      what_else_would_help: body.whatElseWouldHelp ?? null,
+      confidence_before: rest.confidenceBefore ?? null,
+      confidence_after: rest.confidenceAfter ?? null,
+      most_helpful_card: rest.mostHelpfulCard ?? null,
+      least_helpful_card: rest.leastHelpfulCard ?? null,
+      would_recommend: rest.wouldRecommend ?? null,
+      disappointment_without: rest.disappointmentWithout ?? null,
+      what_else_would_help: rest.whatElseWouldHelp ?? null,
     });
 
     return NextResponse.json({ ok: true });

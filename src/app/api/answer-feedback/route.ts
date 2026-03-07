@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifyApiAuth } from "@/lib/auth/verify";
+import { answerFeedbackSchema } from "@/lib/validation/schemas";
 
 function adminDb() {
   return createAdminClient();
@@ -11,19 +13,19 @@ function adminDb() {
  * Used by the Quality Dashboard for aggregation.
  */
 export async function POST(req: NextRequest) {
+  const auth = await verifyApiAuth();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const body = await req.json() as {
-      sessionId: string;
-      answerType: string;
-      feedbackType: "thumbs_up" | "thumbs_down" | "copy";
-      issueCategory?: string | null;
-    };
-
-    const { sessionId, answerType, feedbackType, issueCategory } = body;
-
-    if (!sessionId || !answerType || !feedbackType) {
-      return NextResponse.json({ error: "sessionId, answerType, feedbackType required" }, { status: 400 });
+    const body = await req.json();
+    const parsed = answerFeedbackSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
+
+    const { sessionId, answerType, feedbackType, issueCategory } = parsed.data;
 
     const db = adminDb();
     await db.from("answer_feedback").insert({
