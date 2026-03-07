@@ -7,9 +7,11 @@
  *
  * Required env vars:
  *   NEXT_PUBLIC_SUPABASE_URL
+ *   NEXT_PUBLIC_SUPABASE_ANON_KEY
  *   SUPABASE_SERVICE_ROLE_KEY
- *   TEST_USER_A_EMAIL / TEST_USER_A_PASSWORD
- *   TEST_USER_B_EMAIL / TEST_USER_B_PASSWORD
+ *   TEST_USER_PASSWORD  (password for paulhills566@gmail.com)
+ *
+ * User B is created/destroyed automatically via the admin API.
  *
  * Run: npm run test:security
  */
@@ -23,10 +25,13 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+const TEST_USER_A_EMAIL = "paulhills566@gmail.com";
+const TEST_USER_B_EMAIL = "rls-test-user-b@test-only.local";
+const TEST_USER_B_PASSWORD = "RLS-test-b-" + Math.random().toString(36).slice(2);
+
 // Skip entire suite if env vars are missing (CI without Supabase)
 const canRun = supabaseUrl && serviceRoleKey && anonKey &&
-  process.env.TEST_USER_A_EMAIL && process.env.TEST_USER_A_PASSWORD &&
-  process.env.TEST_USER_B_EMAIL && process.env.TEST_USER_B_PASSWORD;
+  process.env.TEST_USER_PASSWORD;
 
 const describeRLS = canRun ? describe : describe.skip;
 
@@ -50,38 +55,50 @@ function trackForCleanup(table: string, id: string) {
 
 describeRLS("RLS Policy Verification", () => {
   beforeAll(async () => {
-    // Service role client
+    // Service role client — bypasses RLS
     admin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Sign in User A
+    // Sign in User A (paulhills566@gmail.com — real account)
     clientA = createClient(supabaseUrl, anonKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
     const { data: authA, error: errA } = await clientA.auth.signInWithPassword({
-      email: process.env.TEST_USER_A_EMAIL!,
-      password: process.env.TEST_USER_A_PASSWORD!,
+      email: TEST_USER_A_EMAIL,
+      password: process.env.TEST_USER_PASSWORD!,
     });
     if (errA) throw new Error(`User A login failed: ${errA.message}`);
     userAId = authA.user!.id;
+
+    // Create User B via admin API (ephemeral — cleaned up in afterAll)
+    const { data: createdB, error: createErr } = await admin.auth.admin.createUser({
+      email: TEST_USER_B_EMAIL,
+      password: TEST_USER_B_PASSWORD,
+      email_confirm: true,
+    });
+    if (createErr) throw new Error(`User B creation failed: ${createErr.message}`);
+    userBId = createdB.user.id;
 
     // Sign in User B
     clientB = createClient(supabaseUrl, anonKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
     const { data: authB, error: errB } = await clientB.auth.signInWithPassword({
-      email: process.env.TEST_USER_B_EMAIL!,
-      password: process.env.TEST_USER_B_PASSWORD!,
+      email: TEST_USER_B_EMAIL,
+      password: TEST_USER_B_PASSWORD,
     });
     if (errB) throw new Error(`User B login failed: ${errB.message}`);
-    userBId = authB.user!.id;
   });
 
   afterAll(async () => {
     // Clean up test data in reverse order (handle FK deps)
     for (const { table, id } of cleanupIds.reverse()) {
       await admin.from(table).delete().eq("id", id);
+    }
+    // Delete ephemeral User B (cascades to users table via FK)
+    if (userBId) {
+      await admin.auth.admin.deleteUser(userBId);
     }
   });
 
