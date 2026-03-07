@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyApiAuth } from "@/lib/auth/verify";
 import { feedbackLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 import { interviewReportFeedbackSchema } from "@/lib/validation/schemas";
+import { encrypt } from "@/lib/security/encryption";
 
 function adminDb() {
   return createAdminClient();
@@ -46,10 +47,10 @@ export async function POST(req: NextRequest) {
       interviewer_roles: data.interviewerRoles ?? [],
       questions_asked: data.questionsAsked ?? [],
       included_roleplay: data.includedRoleplay ?? false,
-      roleplay_scenario: data.roleplayScenario ?? null,
+      roleplay_scenario: data.roleplayScenario ? encrypt(data.roleplayScenario) : null,
       difficulty: data.difficulty ?? null,
       experience: data.experience ?? null,
-      notes: data.notes ?? null,
+      notes: data.notes ? encrypt(data.notes) : null,
     }).select("id").single();
 
     if (error) throw error;

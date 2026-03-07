@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyApiAuth } from "@/lib/auth/verify";
 import { feedbackLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 import { voiceSampleSchema } from "@/lib/validation/schemas";
+import { encrypt } from "@/lib/security/encryption";
 
 function adminDb() {
   return createAdminClient();
@@ -37,8 +38,8 @@ export async function POST(req: NextRequest) {
     await db.from("answer_voice_samples").insert({
       session_id: sessionId,
       answer_type: answerType,
-      ai_content_snapshot: aiContentSnapshot,
-      user_version: userVersion.trim(),
+      ai_content_snapshot: encrypt(aiContentSnapshot),
+      user_version: encrypt(userVersion.trim()),
       stage: stage ?? null,
       role_type: roleType ?? null,
     });

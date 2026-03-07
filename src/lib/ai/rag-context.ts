@@ -1,3 +1,5 @@
+import { encrypt } from "@/lib/security/encryption";
+
 /**
  * RAG context retrieval for generation pipeline.
  *
@@ -471,7 +473,7 @@ export async function logAnswerVersion(params: {
     await db.from("answer_versions").insert({
       session_id:          params.sessionId,
       answer_type:         params.answerType,
-      content:             params.content,
+      content:             encrypt(params.content),
       generation_type:     params.generationType,
       quick_action:        params.quickAction ?? null,
       prompt_version_id:   params.promptVersionId ?? null,

@@ -4,6 +4,7 @@ import { verifyApiAuth } from "@/lib/auth/verify";
 import { feedbackLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 import { reportSchema } from "@/lib/validation/schemas";
 import { normalizeCompanyName } from "@/lib/privacy/normalizer";
+import { encrypt } from "@/lib/security/encryption";
 
 function adminDb() {
   return createAdminClient();
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
         duration_minutes: data.durationMinutes ?? null,
         difficulty: data.difficultyRating ?? null,
         experience: data.experienceRating ?? null,
-        notes: data.overallNotes?.trim() ?? null,
+        notes: data.overallNotes?.trim() ? encrypt(data.overallNotes.trim()) : null,
         interviewer_title: data.interviewerTitle?.trim() ?? null,
         total_stages_in_process: data.totalStagesInProcess ?? null,
         current_stage_number: data.currentStageNumber ?? null,
@@ -92,8 +93,8 @@ export async function POST(req: NextRequest) {
             was_expected: q.wasExpected ?? null,
             felt_prepared: q.feltPrepared ?? null,
             our_answer_was_helpful: q.ourAnswerWasHelpful ?? null,
-            what_i_actually_said: q.whatIActuallySaid?.trim() ?? null,
-            what_i_wish_i_said: q.whatIWishISaid?.trim() ?? null,
+            what_i_actually_said: q.whatIActuallySaid?.trim() ? encrypt(q.whatIActuallySaid.trim()) : null,
+            what_i_wish_i_said: q.whatIWishISaid?.trim() ? encrypt(q.whatIWishISaid.trim()) : null,
             matched_answer_type: q.matchedAnswerType ?? null,
             company_name_normalized: companyNameNormalized,
           };

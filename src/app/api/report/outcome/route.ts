@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyApiAuth } from "@/lib/auth/verify";
 import { outcomeUpdateSchema } from "@/lib/validation/schemas";
+import { encryptNumber, encrypt } from "@/lib/security/encryption";
 
 function adminDb() {
   return createAdminClient();
@@ -32,14 +33,14 @@ export async function PATCH(req: NextRequest) {
     };
 
     if (outcome === "offer") {
-      if (rest.offerBaseSalary) updateData.offer_base_salary = rest.offerBaseSalary;
-      if (rest.offerOte) updateData.offer_ote = rest.offerOte;
+      if (rest.offerBaseSalary) updateData.offer_base_salary = encryptNumber(rest.offerBaseSalary);
+      if (rest.offerOte) updateData.offer_ote = encryptNumber(rest.offerOte);
       if (rest.offerCurrency) updateData.offer_currency = rest.offerCurrency;
     }
 
     if (outcome === "rejected" || outcome === "advanced") {
       if (rest.rejectionFeedback?.trim()) {
-        updateData.notes = rest.rejectionFeedback.trim();
+        updateData.notes = encrypt(rest.rejectionFeedback.trim());
       }
     }
 

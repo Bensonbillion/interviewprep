@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyApiAuth } from "@/lib/auth/verify";
 import { feedbackLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 import { explicitFeedbackSchema } from "@/lib/validation/schemas";
+import { encrypt } from "@/lib/security/encryption";
 
 function adminDb() {
   return createAdminClient();
@@ -39,8 +40,8 @@ export async function POST(req: NextRequest) {
       too_short: rest.tooShort ?? null,
       too_generic: rest.tooGeneric ?? null,
       missing_detail: rest.missingDetail ?? null,
-      how_would_you_say_it: rest.howWouldYouSayIt ?? null,
-      what_would_improve: rest.whatWouldImprove ?? null,
+      how_would_you_say_it: rest.howWouldYouSayIt ? encrypt(rest.howWouldYouSayIt) : null,
+      what_would_improve: rest.whatWouldImprove ? encrypt(rest.whatWouldImprove) : null,
     });
 
     return NextResponse.json({ ok: true });
