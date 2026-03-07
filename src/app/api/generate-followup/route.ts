@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { anthropic, SONNET } from "@/lib/ai";
 import { verifyApiAuth } from "@/lib/auth/verify";
+import { aiLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 import { generateFollowupSchema } from "@/lib/validation/schemas";
 import type { PrepSession, InterviewerDossier } from "@/types";
 
@@ -58,6 +59,14 @@ export async function POST(req: NextRequest) {
   const auth = await verifyApiAuth();
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed, headers: rlHeaders } = await checkRateLimit(aiLimiter, auth.userId);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment." },
+      { status: 429, headers: rlHeaders }
+    );
   }
 
   try {

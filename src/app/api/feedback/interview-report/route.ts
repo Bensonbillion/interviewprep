@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyApiAuth } from "@/lib/auth/verify";
+import { feedbackLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 import { interviewReportFeedbackSchema } from "@/lib/validation/schemas";
 
 function adminDb() {
@@ -16,6 +17,11 @@ export async function POST(req: NextRequest) {
   const auth = await verifyApiAuth();
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed } = await checkRateLimit(feedbackLimiter, auth.userId);
+  if (!allowed) {
+    return NextResponse.json({ ok: true });
   }
 
   try {

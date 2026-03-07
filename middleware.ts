@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { validateRedirectUrl } from "@/lib/security/validate-redirect";
+import { apiLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 
 const PROTECTED_ROUTES = ["/dashboard", "/prep", "/admin"];
 
@@ -32,6 +33,23 @@ function buildCsp(nonce: string): string {
 // ── Middleware ────────────────────────────────────────────────────────────────
 
 export async function middleware(request: NextRequest) {
+  // General rate limit for API routes (IP-based, Tier 1)
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      "unknown";
+    const { allowed, headers } = await checkRateLimit(apiLimiter, `ip:${ip}`);
+    if (!allowed) {
+      return new NextResponse(
+        JSON.stringify({ error: "Rate limit exceeded" }),
+        {
+          status: 429,
+          headers: { ...headers, "Content-Type": "application/json" },
+        }
+      );
+    }
+  }
+
   // Generate a per-request CSP nonce
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const csp = buildCsp(nonce);

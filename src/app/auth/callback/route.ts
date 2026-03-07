@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { validateRedirectUrl } from "@/lib/security/validate-redirect";
+import { authLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 
 export async function GET(request: NextRequest) {
+  // Rate limit auth attempts by IP
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const { allowed } = await checkRateLimit(authLimiter, `ip:${ip}`);
+  if (!allowed) {
+    const tooManyUrl = new URL("/auth/login", request.url);
+    tooManyUrl.searchParams.set("error", "Too many login attempts. Please wait 15 minutes.");
+    return NextResponse.redirect(tooManyUrl.toString());
+  }
+
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const redirectTo = validateRedirectUrl(searchParams.get("redirectTo"));
