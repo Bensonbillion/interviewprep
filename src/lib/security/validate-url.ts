@@ -1,6 +1,10 @@
+import "server-only";
+import dns from "dns/promises";
+import net from "net";
+
 /**
- * Validate external URLs to prevent SSRF attacks.
- * Blocks private IPs, cloud metadata endpoints, and non-HTTPS URLs.
+ * SSRF prevention for external URL fetching.
+ * Blocks private IPs, cloud metadata endpoints, non-HTTPS, and DNS rebinding.
  */
 
 const PRIVATE_IP_RANGES = [
@@ -24,28 +28,76 @@ const BLOCKED_HOSTNAMES = [
   "169.254.169.254",
 ];
 
+function isPrivateIP(ip: string): boolean {
+  if (!net.isIP(ip)) return false;
+  return PRIVATE_IP_RANGES.some((r) => r.test(ip));
+}
+
+/**
+ * Synchronous URL validation — checks protocol, credentials, port, hostname.
+ * Does NOT check DNS resolution. Use validateExternalUrl for full protection.
+ */
 export function isUrlSafe(input: string): boolean {
   try {
     const url = new URL(input);
-
-    // HTTPS only
     if (url.protocol !== "https:") return false;
-
-    // No credentials in URL
     if (url.username || url.password) return false;
-
-    // Standard ports only
     if (url.port && url.port !== "443") return false;
-
-    // Block known dangerous hostnames
     const hostname = url.hostname.toLowerCase();
     if (BLOCKED_HOSTNAMES.includes(hostname)) return false;
-
-    // Block private IP ranges
     if (PRIVATE_IP_RANGES.some((r) => r.test(hostname))) return false;
-
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Full async URL validation with DNS resolution check.
+ * Catches DNS rebinding attacks where a hostname resolves to a private IP.
+ */
+export async function validateExternalUrl(
+  urlString: string
+): Promise<{ valid: boolean; reason?: string }> {
+  try {
+    const url = new URL(urlString);
+
+    if (url.protocol !== "https:") {
+      return { valid: false, reason: "HTTPS required" };
+    }
+
+    if (url.username || url.password) {
+      return { valid: false, reason: "Credentials not allowed in URL" };
+    }
+
+    if (url.port && !["443", ""].includes(url.port)) {
+      return { valid: false, reason: "Non-standard port" };
+    }
+
+    const hostname = url.hostname.toLowerCase();
+    if (BLOCKED_HOSTNAMES.includes(hostname)) {
+      return { valid: false, reason: "Blocked hostname" };
+    }
+
+    if (isPrivateIP(hostname)) {
+      return { valid: false, reason: "Private IP in hostname" };
+    }
+
+    // DNS resolution check — catch DNS rebinding
+    try {
+      const addresses = await dns.resolve4(hostname);
+      for (const addr of addresses) {
+        if (isPrivateIP(addr)) {
+          return { valid: false, reason: "Private IP resolved" };
+        }
+      }
+    } catch {
+      // DNS resolution failed — hostname doesn't resolve
+      return { valid: false, reason: "DNS resolution failed" };
+    }
+
+    return { valid: true };
+  } catch {
+    return { valid: false, reason: "Invalid URL" };
   }
 }

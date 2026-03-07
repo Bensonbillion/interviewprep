@@ -3,6 +3,7 @@ import { anthropic, SONNET, FIRECRAWL_API_KEY } from "@/lib/ai";
 import { verifyApiAuth } from "@/lib/auth/verify";
 import { aiLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 import { interviewerResearchSchema } from "@/lib/validation/schemas";
+import { validateExternalUrl } from "@/lib/security/validate-url";
 import type { InterviewerDossier } from "@/types";
 
 async function scrapeLinkedIn(url: string): Promise<string> {
@@ -52,10 +53,13 @@ export async function POST(req: NextRequest) {
 
     const { name, linkedinUrl, roleTitle, companyName, sessionId } = parsed.data;
 
-    // Scrape LinkedIn profile if URL provided
+    // Scrape LinkedIn profile if URL provided and passes SSRF check
     let profileContent = "";
     if (linkedinUrl) {
-      profileContent = await scrapeLinkedIn(linkedinUrl);
+      const urlCheck = await validateExternalUrl(linkedinUrl);
+      if (urlCheck.valid) {
+        profileContent = await scrapeLinkedIn(linkedinUrl);
+      }
     }
 
     // Synthesize dossier with Claude

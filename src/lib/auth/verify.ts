@@ -1,4 +1,5 @@
 import "server-only";
+import "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
 export interface AuthUser {

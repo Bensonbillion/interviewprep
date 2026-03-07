@@ -3,6 +3,7 @@ import { anthropic, HAIKU, FIRECRAWL_API_KEY } from "@/lib/ai";
 import { verifyApiAuth } from "@/lib/auth/verify";
 import { aiLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 import { extractJobSchema } from "@/lib/validation/schemas";
+import { validateExternalUrl } from "@/lib/security/validate-url";
 
 interface JobExtraction {
   company_name: string | null;
@@ -261,6 +262,11 @@ export async function POST(req: NextRequest) {
     }
 
     const { url } = parsed.data;
+
+    const urlCheck = await validateExternalUrl(url);
+    if (!urlCheck.valid) {
+      return NextResponse.json({ error: `Invalid URL: ${urlCheck.reason}` }, { status: 400 });
+    }
 
     const isLinkedIn = url.includes("linkedin.com");
 

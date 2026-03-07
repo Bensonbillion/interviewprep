@@ -6,6 +6,7 @@ import { generateEmbeddings } from "@/lib/embeddings";
 import { chunkText } from "@/lib/text-chunker";
 import { extractTextFromBuffer, mimeFromFilename } from "@/lib/file-extractor";
 import { FIRECRAWL_API_KEY } from "@/lib/ai";
+import { validateExternalUrl } from "@/lib/security/validate-url";
 
 function admin() {
   return createAdminClient();
@@ -47,6 +48,11 @@ export async function POST(req: NextRequest) {
     const originalUrl = (source as { original_url: string | null }).original_url;
 
     if (sourceType === "url" && originalUrl) {
+      const urlCheck = await validateExternalUrl(originalUrl);
+      if (!urlCheck.valid) {
+        await db.from("knowledge_sources").update({ status: "error" }).eq("id", sourceId);
+        return NextResponse.json({ error: `Invalid URL: ${urlCheck.reason}` }, { status: 400 });
+      }
       // Scrape URL via Firecrawl (reuse existing pattern)
       if (FIRECRAWL_API_KEY) {
         const fcRes = await fetch("https://api.firecrawl.dev/v1/scrape", {

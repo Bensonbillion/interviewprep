@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { anthropic, SONNET, FIRECRAWL_API_KEY } from "@/lib/ai";
 import { verifyApiAuth } from "@/lib/auth/verify";
 import { aiLimiter, checkRateLimit } from "@/lib/security/rate-limit";
-import { isUrlSafe } from "@/lib/security/validate-url";
+import { validateExternalUrl } from "@/lib/security/validate-url";
 import { CompanyProfile } from "@/types";
 
 interface RequestBody {
@@ -66,7 +66,8 @@ export async function POST(req: NextRequest) {
     const { companyName, companyUrl, jobDescription, targetRole } = body;
 
     let websiteContent = "";
-    if (companyUrl && isUrlSafe(companyUrl)) {
+    const urlOk = companyUrl ? await validateExternalUrl(companyUrl) : null;
+    if (companyUrl && urlOk?.valid) {
       try {
         if (FIRECRAWL_API_KEY) {
           websiteContent = await scrapeWithFirecrawl(companyUrl);

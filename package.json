@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "security:scan": "npx gitleaks detect --source . --verbose",
+    "security:audit": "npm audit --audit-level=high",
+    "security:outdated": "npm outdated",
+    "postinstall": "echo 'Run npm audit before proceeding'"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
