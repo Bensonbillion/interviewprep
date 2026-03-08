@@ -6,10 +6,9 @@ describe("Test infrastructure smoke test", () => {
   });
 
   it("environment variables are set from setup.ts", () => {
-    expect(process.env.NEXT_PUBLIC_SUPABASE_URL).toBe(
-      "http://localhost:54321"
-    );
-    expect(process.env.ANTHROPIC_API_KEY).toBe("sk-ant-test-key");
+    // .env.local values take priority via ??= in setup.ts; fallbacks only apply when absent
+    expect(process.env.NEXT_PUBLIC_SUPABASE_URL).toBeTruthy();
+    expect(process.env.ANTHROPIC_API_KEY).toBeTruthy();
     expect(process.env.DATA_ENCRYPTION_KEY).toBeDefined();
   });
 
