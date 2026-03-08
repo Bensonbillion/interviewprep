@@ -23,6 +23,7 @@ interface StepDetailsProps {
     stage: InterviewStage;
     interviewDate?: string;
     interviewers?: InterviewerInput[];
+    personalContext?: string;
   }) => void;
 }
 
@@ -39,6 +40,7 @@ export function StepDetails({ roleType, onCompanyNameChange, onGenerate }: StepD
   const [interviewDate, setInterviewDate] = useState("");
   const [showInterviewerSection, setShowInterviewerSection] = useState(false);
   const [interviewers, setInterviewers] = useState<InterviewerInput[]>([{ name: "", linkedinUrl: "", roleTitle: "" }]);
+  const [personalContext, setPersonalContext] = useState("");
 
   // Smart default round based on role type
   useEffect(() => {
@@ -130,6 +132,7 @@ export function StepDetails({ roleType, onCompanyNameChange, onGenerate }: StepD
       stage,
       interviewDate: interviewDate || undefined,
       interviewers: filledInterviewers.length > 0 ? filledInterviewers : undefined,
+      personalContext: personalContext.trim() || undefined,
     });
   };
 
@@ -267,6 +270,30 @@ export function StepDetails({ roleType, onCompanyNameChange, onGenerate }: StepD
             )}
           </div>
         )}
+      </div>
+
+      {/* Personal context (optional) */}
+      <div>
+        <label className="text-sm font-medium text-ink mb-1.5 flex items-center gap-2">
+          Anything else that makes you stand out?
+          <span className="text-xs font-normal text-ink-muted">(optional)</span>
+        </label>
+        <p className="text-xs text-ink-muted mb-2">
+          Side projects, hobbies, volunteer work, something unexpected — the stuff that makes interviewers remember you.
+        </p>
+        <div className="relative">
+          <textarea
+            rows={3}
+            maxLength={500}
+            value={personalContext}
+            onChange={(e) => setPersonalContext(e.target.value)}
+            placeholder="I coach a youth soccer team, I run a small e-commerce business on the side, I taught myself to code..."
+            className="w-full text-sm border border-gray-200 rounded-xl px-3.5 py-2.5 text-ink focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white resize-none placeholder:text-gray-400"
+          />
+          <span className="absolute bottom-2 right-3 text-xs text-ink-muted">
+            {personalContext.length}/500
+          </span>
+        </div>
       </div>
 
       {/* Back link */}

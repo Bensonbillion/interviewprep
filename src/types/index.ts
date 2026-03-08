@@ -243,6 +243,7 @@ export interface PrepSession {
   interviewDate?: string; // ISO date string, e.g. "2025-03-06"
   interviewers?: InterviewerInput[];
   interviewerDossiers?: InterviewerDossier[];
+  personalContext?: string; // Optional "what makes you YOU" — hobbies, side projects, etc.
 }
 
 // ─── Interviewer Research ─────────────────────────────────────────────────────

@@ -28,6 +28,7 @@ interface PromptContext {
   stage: InterviewStage;
   seniority: RoleSeniority;
   jobListingSignals?: JobListingSignals;
+  personalContext?: string;
 }
 
 interface PromptResult {
@@ -94,6 +95,27 @@ function buildRelevanceContext(relevanceMap: RelevanceMap): string {
   return lines.join("\n");
 }
 
+
+function buildPersonalContextBlock(personalContext?: string): string {
+  if (!personalContext?.trim()) return "";
+  return `\nPERSONAL CONTEXT (use naturally, don't force it):
+The candidate shared this about themselves beyond their resume:
+'${personalContext.trim()}'
+
+Weave this into the answer ONLY if it adds value — don't shoehorn it in. The best placement is usually:
+- TMAY: as a memorable closing line ('Outside of work, I actually run a small e-commerce business, which honestly taught me more about cold outreach than any sales course')
+- Why Sales: if the personal detail connects to sales traits (competitive sports → competitive drive, side business → entrepreneurial hustle, coaching → leadership)
+- Behavioral STAR: if the personal context provides a relevant story that the resume doesn't cover
+- Resume walkthrough: as a brief personal touch at the end
+
+Rules for using personal context:
+- ONE mention per answer maximum — don't overuse it
+- Frame it as a STRENGTH or DIFFERENTIATOR, never random trivia
+- Connect it to a sales-relevant trait when possible
+- If the personal context doesn't naturally fit the answer type, SKIP IT entirely — forced personal details sound worse than no personal details
+- Keep it brief — one sentence, woven in naturally, not a separate paragraph
+`;
+}
 
 const BASE_SYSTEM = `You are an expert SDR/BDR/AE interview coach. Generate highly personalized, authentic interview prep content.
 
@@ -250,7 +272,7 @@ ${buildResumeContext(ctx.resume)}
 
 TARGET: ${ctx.targetRole} at ${ctx.company.name}
 COMPANY: ${buildCompanyContext(ctx.company)}
-
+${buildPersonalContextBlock(ctx.personalContext)}
 Return ONLY the narrative text. No labels, no JSON, no quotes around it.`,
     maxTokens: 600,
   };
@@ -286,7 +308,7 @@ ${buildResumeContext(ctx.resume)}
 
 COMPANY:
 ${buildCompanyContext(ctx.company)}
-
+${buildPersonalContextBlock(ctx.personalContext)}
 Return ONLY the answer text.`,
       maxTokens: 300,
     };
@@ -323,7 +345,7 @@ PROBE-READINESS — this answer must survive:
 
 CANDIDATE:
 ${buildResumeContext(ctx.resume)}
-
+${buildPersonalContextBlock(ctx.personalContext)}
 Return ONLY the answer text.`,
     maxTokens: 350,
   };
@@ -538,7 +560,7 @@ ${buildResumeContext(ctx.resume)}
 
 RELEVANCE MAP:
 ${buildRelevanceContext(ctx.relevanceMap)}
-
+${buildPersonalContextBlock(ctx.personalContext)}
 Return JSON:
 {"answers": [{"question": "...", "answer": "...", "resumeSource": "which bullet/role this draws from"}]}`,
     maxTokens: 2000,
@@ -1212,7 +1234,7 @@ REQUIREMENTS:
 - Each bridge should work as a standalone answer in an interview
 - Never say "even though I don't have direct sales experience" — reframe as "different path, same skills"
 - Specific: actual job titles, industries, situations, and numbers where available
-
+${buildPersonalContextBlock(ctx.personalContext)}
 Return JSON:
 {
   "bridges": [
@@ -1294,7 +1316,7 @@ COMPANY: ${buildCompanyContext(ctx.company)}
 
 RELEVANCE MAP:
 ${buildRelevanceContext(ctx.relevanceMap)}
-
+${buildPersonalContextBlock(ctx.personalContext)}
 Return ONLY the narrative text. No labels, no JSON, no quotes around it.`,
     maxTokens: 800,
   };

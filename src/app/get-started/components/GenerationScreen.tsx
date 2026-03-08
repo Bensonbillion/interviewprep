@@ -40,6 +40,7 @@ interface GenerationScreenProps {
   stage: InterviewStage;
   interviewDate?: string;
   interviewers?: InterviewerInput[];
+  personalContext?: string;
 }
 
 export function GenerationScreen({
@@ -52,6 +53,7 @@ export function GenerationScreen({
   stage,
   interviewDate,
   interviewers,
+  personalContext,
 }: GenerationScreenProps) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
@@ -122,6 +124,7 @@ export function GenerationScreen({
         interviewDate: interviewDate ?? undefined,
         interviewers: interviewers ?? [],
         interviewerDossiers: [],
+        personalContext: personalContext ?? undefined,
       };
 
       // Step 3 (optional): research interviewers

@@ -21,6 +21,7 @@ interface SavedDetails {
   stage: InterviewStage;
   interviewDate?: string;
   interviewers?: InterviewerInput[];
+  personalContext?: string;
 }
 
 export default function DetailsPage() {

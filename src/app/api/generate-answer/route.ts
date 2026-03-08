@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
         stage: session.stage,
         seniority,
         jobListingSignals,
+        personalContext: session.personalContext,
       },
       {
         question: body.question,

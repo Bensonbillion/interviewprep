@@ -19,6 +19,7 @@ interface SavedDetails {
   stage: InterviewStage;
   interviewDate?: string;
   interviewers?: InterviewerInput[];
+  personalContext?: string;
 }
 
 export default function BuildingPage() {
@@ -75,6 +76,7 @@ export default function BuildingPage() {
       stage={details.stage}
       interviewDate={details.interviewDate}
       interviewers={details.interviewers}
+      personalContext={details.personalContext}
     />
   );
 }
