@@ -11,35 +11,32 @@ export function ConsentBanner() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    // Small delay to avoid layout shift on first paint
-    const timer = setTimeout(() => {
-      if (!hasConsentChoice()) setShow(true);
-    }, 1500);
+    if (hasConsentChoice()) return;
+    // Delay to avoid interrupting first impression
+    const timer = setTimeout(() => setShow(true), 3000);
     return () => clearTimeout(timer);
   }, []);
 
   if (!show) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 md:p-6 flex justify-center pointer-events-none">
-      <div className="pointer-events-auto w-full max-w-lg bg-white border border-gray-200 rounded-2xl shadow-lg p-4 flex items-center gap-3">
-        <p className="text-sm text-gray-600 flex-1">
-          We use cookies to improve your experience and measure site performance.
-        </p>
-        <div className="flex gap-2 flex-shrink-0">
-          <button
-            onClick={() => { declineAll(); setShow(false); }}
-            className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            Decline
-          </button>
-          <button
-            onClick={() => { acceptAll(); setShow(false); }}
-            className="px-4 py-1.5 text-sm font-medium bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors"
-          >
-            Accept
-          </button>
-        </div>
+    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-gray-900/95 backdrop-blur-sm border-t border-gray-800 md:flex md:items-center md:justify-between">
+      <p className="text-sm text-gray-300 mb-3 md:mb-0 md:mr-4">
+        We use cookies to understand how you use SalesPrep and improve your experience.
+      </p>
+      <div className="flex gap-3 shrink-0">
+        <button
+          onClick={() => { declineAll(); setShow(false); }}
+          className="text-sm text-gray-400 hover:text-white px-4 py-2 transition-colors"
+        >
+          Decline
+        </button>
+        <button
+          onClick={() => { acceptAll(); setShow(false); }}
+          className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
+        >
+          Accept
+        </button>
       </div>
     </div>
   );

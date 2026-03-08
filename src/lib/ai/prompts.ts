@@ -4,9 +4,8 @@
  */
 
 import { getKnowledgeForStage } from "@/lib/knowledge-base";
-import { getSeniorityInstructions, type RoleSeniority } from "@/lib/ai/seniority";
+import { type RoleSeniority } from "@/lib/ai/seniority";
 import {
-  buildJobListingContext,
   buildCompListingContext,
   type JobListingSignals,
 } from "@/lib/ai/job-listing";
@@ -210,8 +209,6 @@ For SDR/BDR:
 - End with genuine forward energy: connect to THIS company specifically, not a generic "I'm excited for the opportunity"`;
 
   const wordTarget = ctx.stage === "hiring_manager" ? "200–280 words (90–120 seconds spoken)" : "130–200 words (60–90 seconds spoken)";
-  const seniority = getSeniorityInstructions(ctx.seniority);
-  const jlc = buildJobListingContext(ctx.jobListingSignals);
 
   return {
     system: `${BASE_SYSTEM}
@@ -221,9 +218,7 @@ ${kb}`,
 
 ${structure}
 
-${seniority}
 
-${jlc ? `${jlc}\n` : ""}SHARED REQUIREMENTS:
 - ${wordTarget}
 - SPOKEN LANGUAGE: This will be said out loud on a phone call. Use contractions. Vary sentence length. No phrases a human wouldn't say in conversation — "leveraged my expertise" is disqualifying, "used what I learned" is correct.
 - Use specific numbers/achievements from their ACTUAL experience — never fabricate
@@ -266,8 +261,6 @@ Return ONLY the narrative text. No labels, no JSON, no quotes around it.`,
 export function buildWhySalesPrompt(ctx: PromptContext): PromptResult {
   const isAE = ctx.roleType === "account_executive";
 
-  const seniority = getSeniorityInstructions(ctx.seniority);
-  const jlc = buildJobListingContext(ctx.jobListingSignals);
 
   if (isAE) {
     return {
@@ -280,7 +273,6 @@ Generate an answer that covers BOTH:
 1. Why they're making a move now (forward-looking, not running away — frame it as strategic next step)
 2. Why this specific company and role is the right next step (specific to this company's product, market, or growth stage)
 
-${seniority}
 
 REQUIREMENTS:
 - 75–150 words
@@ -289,7 +281,6 @@ REQUIREMENTS:
 - Does NOT trash their current/previous employer
 - Weaves in something specific about this company — name a product, market position, or customer segment naturally, not as a recited fact
 - Should feel like a closer who has thought carefully about this opportunity, not someone who is just job-hunting
-${jlc ? `\n${jlc}` : ""}
 CANDIDATE:
 ${buildResumeContext(ctx.resume)}
 
@@ -305,8 +296,6 @@ Return ONLY the answer text.`,
     system: BASE_SYSTEM,
     user: `Generate a "Why sales?" answer for this candidate.
 
-${seniority}
-${jlc ? `\n${jlc}\n` : ""}
 This answer must start with a MOMENT, not a statement.
 
 BAD: "I chose sales because I enjoy building relationships and solving problems."
@@ -343,8 +332,6 @@ Return ONLY the answer text.`,
 // ─── 3. Why This Company ──────────────────────────────────────────────────────
 
 export function buildWhyThisCompanyPrompt(ctx: PromptContext): PromptResult {
-  const seniority = getSeniorityInstructions(ctx.seniority);
-  const jlc = buildJobListingContext(ctx.jobListingSignals);
   const isHM = ctx.stage === "hiring_manager";
   const depthInstruction = isHM
     ? `HIRING MANAGER DEPTH (required — recruiter-level answers will fail this round):
@@ -366,8 +353,6 @@ export function buildWhyThisCompanyPrompt(ctx: PromptContext): PromptResult {
     system: BASE_SYSTEM,
     user: `Generate a "Why ${ctx.company.name}?" answer for this candidate.
 
-${seniority}
-${jlc ? `\n${jlc}\n` : ""}
 ${depthInstruction}
 
 THREE-LAYER STRUCTURE (every stage, every depth level):
@@ -482,8 +467,6 @@ export function buildBehavioralStarPrompt(
 - Senior interviewers have heard thousands of generic answers. "I worked really hard" is a disqualifying response. Specificity is everything — names, numbers, and decisions, not activities.`
     : "";
 
-  const seniority = getSeniorityInstructions(ctx.seniority);
-  const jlc = buildJobListingContext(ctx.jobListingSignals);
 
   return {
     system: `${BASE_SYSTEM}
@@ -493,7 +476,6 @@ ${kb}`,
 
 ${questionOverride ? `QUESTION: ${questionOverride}` : `QUESTIONS:\n${questions.map((q, i) => `${i + 1}. ${q}`).join("\n")}`}
 
-${seniority}
 
 Remember: this answer will be SPOKEN, not read. It's a story being told to a person in real time.
 
@@ -545,7 +527,6 @@ NATURAL OPENERS (use one variation, never "I would like to share a story about..
 - "Yeah, this actually happened pretty recently — about [X months] ago..."
 - "Honestly the best example I have is when..."
 
-${jlc ? `${jlc}\n\n` : ""}REQUIREMENTS per answer:
 - 150–225 words total (60–90 seconds spoken)
 - Must draw from ACTUAL resume bullets — never fabricate
 - SPOKEN LANGUAGE: The STAR labels should NOT appear. Use contractions. Vary sentence length. "I was nervous going into that conversation, honestly" is exactly right. "I demonstrated exceptional communication skills" is disqualifying.
@@ -567,14 +548,11 @@ Return JSON:
 // ─── 5. Comp Expectations ─────────────────────────────────────────────────────
 
 export function buildCompExpectationsPrompt(ctx: PromptContext): PromptResult {
-  const seniority = getSeniorityInstructions(ctx.seniority);
-  const jlc = buildJobListingContext(ctx.jobListingSignals);
   const compCtx = buildCompListingContext(ctx.jobListingSignals);
   return {
     system: BASE_SYSTEM,
     user: `Generate a comp expectations answer for this candidate applying for ${ctx.targetRole} at ${ctx.company.name}.
 
-${seniority}
 ${compCtx ? `\n${compCtx}\n` : ""}
 This is the most AWKWARD question in the interview and the answer must feel natural, not rehearsed.
 
@@ -595,7 +573,6 @@ BENCHMARK RANGES (calibrate to seniority):
 
 IMPORTANT: This is a DEFLECTION answer, not a depth answer. NO nested details, NO storytelling, NO proof points. The goal is to give a range without killing the deal, then redirect forward. Keep it SHORT.
 60–80 words max. This is a screening question, not a negotiation.
-${jlc ? `\n${jlc}` : ""}
 Return ONLY the answer text.`,
     maxTokens: 200,
   };
@@ -606,8 +583,6 @@ Return ONLY the answer text.`,
 export function buildRolePlayScriptPrompt(ctx: PromptContext): PromptResult {
   const kb = getKnowledgeForStage("role_play", ctx.resume.backgroundType);
   const isAE = ctx.roleType === "account_executive";
-  const seniority = getSeniorityInstructions(ctx.seniority);
-  const jlc = buildJobListingContext(ctx.jobListingSignals);
 
   if (isAE) {
     return {
@@ -618,8 +593,6 @@ ${kb}`,
 
 The candidate is applying for ${ctx.targetRole} at ${ctx.company.name}.
 
-${seniority}
-${jlc ? `\n${jlc}\n` : ""}
 AEs are NOT tested on cold calling — they're tested on running discovery. The interviewer will play a prospect (typically a VP or C-level buyer at the company's ICP). The candidate must run a real discovery conversation before pitching.
 
 SCRIPT STRUCTURE (required):
@@ -677,50 +650,75 @@ Return JSON:
     system: `${BASE_SYSTEM}
 
 ${kb}`,
-    user: `Generate a cold call script for this candidate to use in their role play assessment.
+    user: `Generate a cold call conversation framework for this candidate's role play assessment.
 
 The candidate is applying for ${ctx.targetRole} at ${ctx.company.name}.
 
-${seniority}
-${jlc ? `\n${jlc}\n` : ""}
-SCRIPT STRUCTURE (required):
-1. Opener: PATTERN INTERRUPT + PERMISSION-BASED TRANSITION. 2–3 sentences total.
-   PATTERN INTERRUPT: The first sentence must break the expected cold call rhythm. NOT "Hi [name], I'm calling from [Company] and we help companies like yours..." — that's the pattern every prospect is defending against. Instead: lead with an unexpected observation, a direct question, or a specific reference to their world. Examples: "I'll be upfront — this is a cold call. Got 30 seconds?" / "I was looking at [company] and noticed [specific thing] — I might be completely off, but it made me think of [pain]." / "[Name], I know you weren't expecting this — I'll be quick."
-   PERMISSION-BASED TRANSITION: After the interrupt, ask permission before pitching: "Can I take 30 seconds to tell you why I called?" / "Is now a terrible time?" — this isn't weakness, it's a control technique. Prospects who say "sure, go ahead" are 3x more likely to stay on the call.
-2. Discovery questions: 3 open-ended questions. Go from broad → specific → urgency/priority.
-3. Value prop: 1–2 sentences. Problem-first: "Based on what you said about [pain], that's exactly why [Company] exists..."
-4. Objection responses: Handle each of these 5 objections:
-   - "Not interested / We're all set"
-   - "Send me an email"
-   - "We already have a solution"
-   - "Not the right time"
-   - "I'm busy / I have to go"
-5. Close: Specific ask for next step. Assumptive but not pushy.
+RESEARCH FOUNDATION:
+Gong data across 1M+ calls: top-performing reps have a 46:54 talk-to-listen ratio — they talk LESS than the prospect. The #1 failure mode in mock call interviews is a candidate who pitches 70% of the call and barely asks a question. This framework is a CONVERSATION, not a monologue.
 
-THE HARD RULE — discovery before pitch, no exceptions:
-The rep must ask a minimum of 2 discovery questions AND receive a substantive answer before any value prop. Discovery question 1 should be broad enough that the prospect talks for 30–60 seconds. Only after the prospect has confirmed a real pain point does the value prop appear. A script that pitches before this moment is the #1 failure mode interviewers test for.
+FRAMEWORK STRUCTURE (4 parts, in order):
 
-TALK-TO-LISTEN RATIO:
-Write the script so the rep talks less than the prospect. The discovery questions should generate long answers. Add a brief backchannel before each follow-up question ("Got it — so when you say X, do you mean...?" / "That's interesting, because a lot of teams we talk to say the same thing...") to show the rep is processing, not just waiting to talk.
+PART 1 — PATTERN INTERRUPT OPENER (target: 10 seconds)
+Every prospect has a script for the standard cold call opening. Break it before they can run theirs.
+DO NOT write: "Hi [Name], this is [Rep] from [Company] — how are you today?" — that sentence triggers the hang-up reflex in under 2 seconds.
+DO write: An honest, disarming opening that acknowledges the interruption + asks permission before pitching.
+EXAMPLE STRUCTURE: "Hey [Prospect], this is [Name] with [Company] — I know I'm probably catching you in the middle of something, so I'll be quick. Mind if I take 30 seconds to tell you why I called, and you can tell me if it's worth a few more minutes?"
+WHY IT WORKS: Acknowledging the interruption is honest. Asking permission returns control to the prospect. Prospects who say "go ahead" are significantly more likely to stay on the call.
 
-OBJECTION RESPONSES — the formula: acknowledge → isolate → question:
-Never fight the objection. Never immediately push harder. The structure: acknowledge it as reasonable ("That's fair, a lot of people I talk to say that") → isolate it ("Is that the main concern, or is there something else?") → redirect with a question that advances the conversation. The question at the end is critical — it shifts control back to the rep without pressure.
+PART 2 — VALUE HYPOTHESIS (target: 15–20 seconds)
+ONE sentence. Describe the PROBLEM you solve for companies like theirs — not your product features.
+FORMULA: "We work with [similar company type] who are dealing with [specific operational pain]. We've helped them [specific, quantifiable outcome]."
+IMPORTANT: Name their ICP and a real pain point from ${ctx.company.name}'s actual market. This is problem-first, not product-first. The prospect should think "that's us" before you ever say what your product does.
+
+PART 3 — DISCOVERY QUESTIONS (target: the bulk of the call — prospect should talk 54%+)
+5 questions. Use the Sandler Pain Funnel: start broad, drill to pain, quantify stakes, establish urgency.
+Q1 (Broad surface check): "Is that something you're running into?" — short yes/no to confirm relevance before going deep
+Q2 (Current state): "Can you tell me a bit more about how you're handling [that problem] currently?" — gets them talking for 30–60 seconds
+Q3 (Duration = seriousness): "How long has that been an issue?" — longer = more entrenched = better fit
+Q4 (Prior attempts): "What have you tried so far to solve it?" — reveals what they've already bought/tried and why it failed
+Q5 (Cost of inaction): "What happens if this doesn't get solved in the next [quarter/6 months]?" — forces them to articulate the stakes themselves
+CRITICAL RULE: Do NOT introduce the value prop or product until Q3 at the earliest and only after the prospect confirms real pain. A rep who jumps to pitch after Q1 fails this test every time.
+Add one brief backchannel after Q2's expected response ("That tracks — we hear that a lot from [their company type]...") to signal listening before asking Q3.
+
+PART 4 — BRIDGE TO NEXT STEP (target: 10 seconds)
+This is NOT "Can I set up a demo?" — that's a generic ask that sounds like every other rep.
+FORMULA: Tie the next step directly to what they just said + reference a peer company that solved the same problem.
+EXAMPLE: "It sounds like this is actually something worth digging into. Would it make sense to set up 20 minutes with one of our AEs who works specifically with [their company type]? They just helped [similar company] work through the same thing — [one-line specific outcome]."
+WHY: Specific next step + peer-company social proof + tied to their stated pain = a credible reason to say yes.
+
+OBJECTION HANDLING — formula: acknowledge → isolate → question:
+5 objections to handle. Never fight the objection, never immediately push harder.
+Structure: acknowledge it as reasonable ("That's fair — most people I talk to say that at first") → isolate it ("Is that the main thing, or is there something else?") → end with a question that shifts control back to you. The question at the end is the most important part.
+Required objections:
+- "Not interested / We're all set"
+- "Send me an email"
+- "We already have a solution"
+- "Not the right time"
+- "I'm busy / I have to go"
 
 COMPANY:
 ${buildCompanyContext(ctx.company)}
 
+COACHING NOTE TO INCLUDE:
+Generate a coachingNote field with this exact framing, personalized to ${ctx.company.name}'s product and ICP: explain that this is a FRAMEWORK, not a word-for-word script. Memorizing it sounds robotic. The candidate should know the STRUCTURE (interrupt → hypothesis → discover → bridge) and fill it in naturally. In the mock call, they're being tested on whether they can have a CONVERSATION, not recite a pitch.
+
 Return JSON:
 {
-  "opener": "...",
-  "discoveryQuestions": ["...", "...", "..."],
-  "valueProp": "...",
+  "coachingNote": "...",
+  "patternInterruptOpener": "...",
+  "valueHypothesis": "...",
+  "discoveryQuestions": ["...", "...", "...", "...", "..."],
   "objectionResponses": [
     {"objection": "...", "response": "..."},
-    ...
+    {"objection": "...", "response": "..."},
+    {"objection": "...", "response": "..."},
+    {"objection": "...", "response": "..."},
+    {"objection": "...", "response": "..."}
   ],
-  "close": "..."
+  "bridgeToNextStep": "..."
 }`,
-    maxTokens: 1500,
+    maxTokens: 1600,
   };
 }
 
@@ -943,8 +941,6 @@ const STAGE_CHEAT_CLOSER: Record<InterviewStage, { sdr: string; ae: string }> = 
 export function buildCheatSheetPrompt(ctx: PromptContext): PromptResult {
   const kb = getKnowledgeForStage(ctx.stage, ctx.resume.backgroundType);
   const isAE = ctx.roleType === "account_executive";
-  const seniority = getSeniorityInstructions(ctx.seniority);
-  const jlc = buildJobListingContext(ctx.jobListingSignals);
 
   const testingExamples = isAE
     ? STAGE_CHEAT_TESTING_AE[ctx.stage]
@@ -967,8 +963,6 @@ ${kb}`,
     user: `Generate a stage-specific cheat sheet for ${ctx.targetRole} at ${ctx.company.name}.
 Stage: ${ctx.stage} | Role type: ${isAE ? "Account Executive" : "SDR/BDR"}
 
-${seniority}
-${jlc ? `\n${jlc}\n` : ""}
 CANDIDATE:
 ${buildResumeContext(ctx.resume)}
 
@@ -1026,58 +1020,77 @@ const STAGE_QUESTION_CONTEXT: Record<InterviewStage, string> = {
 };
 
 export function buildQuestionsToAskPrompt(ctx: PromptContext): PromptResult {
-  const seniority = getSeniorityInstructions(ctx.seniority);
-  const jlc = buildJobListingContext(ctx.jobListingSignals);
+  const isAE = ctx.roleType === "account_executive";
   const jdSnippet = ctx.jobDescription
-    ? `\nJOB DESCRIPTION (use to make at least 2 questions specific to this listing):\n${ctx.jobDescription.slice(0, 600)}`
+    ? `\nJOB DESCRIPTION SIGNALS (use to make questions specific — never ask anything already answered here):\n${ctx.jobDescription.slice(0, 500)}`
+    : "";
+  const careerPathSignal = ctx.jobListingSignals?.careerPath
+    ? `\nCAREER PATH SIGNAL: The listing mentions progression to ${ctx.jobListingSignals.careerPath} — the growth path question should reference this specifically.`
     : "";
 
   return {
     system: BASE_SYSTEM,
-    user: `Generate 4–5 questions for this candidate to ask in their ${ctx.stage} interview at ${ctx.company.name}.
+    user: `Generate 4 questions for this candidate to ask in their ${ctx.stage} interview at ${ctx.company.name}.
 
-${seniority}
-${jlc ? `\n${jlc}\n` : ""}
-Context: ${STAGE_QUESTION_CONTEXT[ctx.stage]}
+RESEARCH FOUNDATION (Huang et al., Harvard 2017):
+Asking follow-up questions — questions that naturally extend what the interviewer just said — is the single strongest driver of interpersonal liking, stronger than any other conversational behavior. Generate a chain (primary + follow-up) for each question, where the follow-up sounds like it could ONLY exist because the candidate was actually listening.
 
-CONTEXT + QUESTION FORMAT — REQUIRED FOR EVERY QUESTION:
-Each question must have two parts: a "context" sentence and the "question" itself.
-The context sentence does one of three things:
-- References something specific about the company, role, or listing: "I saw you're expanding into mid-market this year —"
-- Reflects something the interviewer likely just said: "You mentioned the team is still pretty early-stage —"
-- Shows the candidate has thought about the role from the inside: "The way I've been thinking about the first 90 days —"
+STAGE CONTEXT: ${STAGE_QUESTION_CONTEXT[ctx.stage]}
 
-This format turns interrogation into conversation. The question flows naturally from the context.
-BAD question alone: "What does success look like in the first 90 days?"
-GOOD: context "You mentioned ramp timelines vary a lot —", question "what does hitting your stride actually look like at the 90-day mark for this role?"
+GENERATE EXACTLY THESE 4 QUESTION TYPES IN ORDER:
 
-FOLLOW-UP QUESTIONS (Harvard research):
-Candidates who ask follow-up questions — ones that respond to what the interviewer just said, not pre-planned questions read off a list — are rated significantly higher on likeability, engagement, and communication quality. Include exactly 1 question designed as a dynamic follow-up: it responds to something the interviewer is *likely* to have said during this specific stage conversation (not advance research). Mark it "followUp": true. The context sentence for this question should explicitly reference what the interviewer probably said: "Earlier you mentioned...", "When you talked about...", "You brought up..."
+1. ROLE MECHANICS (questionType: "role_mechanics")
+Primary: How the role actually works day-to-day — the real split, the real workflow, the stuff not in the job listing.
+Follow-up: Extends into a specific mechanic their answer will likely surface (handoff process, tool usage, collaboration pattern).
+The primary must use "like" or "actually" or a contraction — it must sound like someone asking, not interviewing.
+${isAE ? 'AE focus: territory structure, deal cycles, SDR support, forecast process.' : 'SDR/BDR focus: prospecting split, sequence ownership, AE handoff, call vs email ratio.'}
 
-VOICE: Questions must sound like a real person asking, not a business textbook.
-BAD: "Could you elaborate on how this position interfaces with cross-functional stakeholders?"
-GOOD: "How does the team actually work together day to day — like would I be working closely with [function] regularly?"
+2. PERFORMANCE (questionType: "performance")
+Primary: Ask for a REAL number — what % of the team hit number last quarter, or what quota attainment looks like.
+This signals the candidate thinks like a rep who qualifies opportunities, not a job applicant.
+Follow-up: What separates the ones hitting from the ones missing — is it volume, approach, or something else?
+NEVER ask a version of this that can be answered from Glassdoor or the listing.
 
-REQUIREMENTS:
-- At least 2 questions should only work for THIS company — not generic enough to ask anywhere
-- If job description is available, reference specific requirements in at least 2 questions (signals they read it)
-- Vary the type: team structure, role expectations, company direction, management style
+3. GROWTH PATH (questionType: "growth_path")
+Primary: About career trajectory FROM this role — with a specific timeline ask, not a vague "what does growth look like."
+Follow-up: Is it tenure-based or performance-based? Has anyone made the jump faster than typical?${careerPathSignal}
 
-FOLLOW-UP CHAIN — required for every question:
-Each question must have a "followUpChain" — a natural second question that extends the first based on the most likely short or deflecting interviewer response. This is NOT a backup question; it's the natural continuation of the conversation thread. The follow-up chain trains the candidate to stay in the thread instead of jumping to the next prepared question.
-EXAMPLE: question "what does success look like in the first 90 days?", followUpChain "and when you say [whatever they answer] — is that typically about activity metrics, or more about pipeline built?"
-The follow-up chain should feel like the candidate heard the answer and wants to go one layer deeper.
+4. OBJECTION-SURFACING CLOSE (questionType: "close")
+This is the final question — always. No follow-up needed.
+Surface any hesitation the interviewer has before the candidate leaves the room.
+Vary the phrasing based on stage:
+- Recruiter: "Before we wrap — is there anything about my background that gives you pause, or anything you'd want me to address with the hiring manager?"
+- HM/Panel: "Based on everything we've talked about, is there anything that makes you hesitant about moving me forward? I'd rather address it now."
+This one question, asked confidently, gets more offers than any other technique in the interview.
 
-CLOSING QUESTION (always the final question — the power move):
-End with: "Based on what we've talked about, is there anything that gives you pause about moving me forward?" or a close that fits the stage naturally.${ctx.jobListingSignals?.careerPath ? `\n\nCAREER PATH: The listing mentions a path to ${ctx.jobListingSignals.careerPath}. Include one question about how quickly that transition typically happens and what it takes.` : ""}${jdSnippet}
+VOICE RULES (non-negotiable):
+- Contractions required: "what's", "that's", "you'd", "I'm", "isn't"
+- Approximation markers: "like", "kind of", "basically", "roughly" — in the primary questions
+- NEVER: "Could you elaborate on...", "I'd be curious to understand...", "What is your perspective on..."
+- Questions must reference something SPECIFIC to ${ctx.company.name}, this role, or this conversation — not interchangeable with any other company
+- NEVER ask anything answerable from the job listing or company website
+- NEVER ask about benefits, PTO, or perks at the recruiter stage
+
+COACHING NOTE TO INCLUDE:
+Write a 2-sentence coaching note reminding the candidate these are NOT a checklist — pick 2–3 based on conversation flow, and the follow-ups only work if you were actually listening. If the answer goes somewhere unexpected, skip the planned follow-up and ask what you're genuinely curious about.${jdSnippet}
 
 COMPANY:
 ${buildCompanyContext(ctx.company)}
 
 Return JSON:
-{"questions": [{"context": "one sentence of setup/framing", "question": "the actual question", "followUpChain": "natural second question if they give a short answer", "why": "why this signals strong thinking", "followUp": false}]}
-Set "followUp": true on the 1 dynamic follow-up question.`,
-    maxTokens: 900,
+{
+  "coachingNote": "2-sentence coaching note about how to use these",
+  "questions": [
+    {
+      "questionType": "role_mechanics",
+      "primary": "full conversational primary question",
+      "followUp": "natural follow-up that could only exist because they were listening",
+      "why": "what this signals to the interviewer"
+    }
+  ]
+}
+The "close" question has followUp: null.`,
+    maxTokens: 1000,
   };
 }
 
@@ -1085,41 +1098,83 @@ Set "followUp": true on the 1 dynamic follow-up question.`,
 
 export function buildCoachabilityCoachingPrompt(ctx: PromptContext): PromptResult {
   const kb = getKnowledgeForStage("role_play", ctx.resume.backgroundType);
-  const seniority = getSeniorityInstructions(ctx.seniority);
-  const jlc = buildJobListingContext(ctx.jobListingSignals);
+  const isAE = ctx.roleType === "account_executive";
   return {
     system: `${BASE_SYSTEM}
 
 ${kb}`,
-    user: `Generate coachability coaching for this candidate's role play / live exercise assessment at ${ctx.company.name}.
+    user: `Generate coachability coaching for this candidate's ${isAE ? "discovery demo" : "cold call"} role play assessment at ${ctx.company.name}.
 
-The candidate is applying for ${ctx.targetRole}${ctx.roleType === "account_executive" ? " — this is a discovery demo assessment, not a cold call" : " — this is a cold call role play assessment"}.
+RESEARCH FOUNDATION (Roberge, HubSpot):
+Across 1,000+ sales hires, coachability was the #1 predictor of success — more than curiosity, intelligence, prior quota attainment, or work ethic. Traditional "sales" traits like aggressiveness had the WORST correlation. The coachability test structure: roleplay → self-assessment → feedback → immediate redo → evaluate implementation.
 
-${seniority}
-${jlc ? `\n${jlc}\n` : ""}
-WHAT COACHABILITY COACHING IS:
-The moment after the first attempt when the interviewer gives feedback.
-This is the #1 differentiator — candidates who receive feedback well and immediately implement it get offers. Candidates who argue, deflect, or implement only partially are eliminated.
+COACHING MUST COVER ALL FIVE MOMENTS:
 
-COACHING MUST COVER:
-1. What to say in the exact moment feedback is delivered (specific language, not generic "great feedback!")
-2. How to listen — what signals show genuine receptivity vs. performative nodding
-3. What to do on the second attempt — specifically implement the feedback within 30 seconds of restarting
-4. The most common mistakes for this role type: ${ctx.roleType === "account_executive" ? "pitching before asking questions, not connecting demo to their stated pain, defending your approach instead of adapting" : "feature dumping without discovery, freezing on objections, not asking for next steps"}
+1. BEFORE THE FIRST ATTEMPT: The first attempt establishes a baseline. It does NOT need to be perfect. Focus on: clear opener, qualifying questions, talk less than the prospect. Don't burn mental energy trying to be flawless — save it for the redo.
+
+2. THE SELF-ASSESSMENT (first real test): When they ask "how do you think you did?" — don't say "I think I did well." That's a red flag. Give specific self-critique: name ONE thing that worked and TWO things to improve. Example: "My opener landed okay but I jumped to the pitch too fast — I should've asked at least one more discovery question before mentioning the product." This isn't modesty theater. It's diagnostic ability. Show you can evaluate your own performance accurately.
+
+3. RECEIVING FEEDBACK (this is where most candidates lose): Their first reaction matters more than anything. DO: nod, say "that makes sense," ask a clarifying question that shows you absorbed it ("so when you say focus more on discovery — do you mean before I even mention the product, or just slow down the transition?"). DON'T: defend yourself, explain why you did it that way, say "but what I was trying to do was..." — defensiveness is the #1 killer in this moment.
+
+4. THE REDO (where the job is won or lost): You have 60–90 seconds to internalize and try again. You don't need to be perfect — you need VISIBLE IMPLEMENTATION of the specific feedback. If they said "ask more questions" — ask more questions, even if the rest is rougher. If they said "slow down" — slow down visibly, even if it feels awkward. Effort beats perfection every time.
+
+5. AFTER THE REDO — brief self-assess again: "That felt better — I gave them more room to talk. I'd still want to work on [X] but the feedback really clicked." This closes the loop and shows you're already integrating the learning.
+
+ROLE-SPECIFIC MOST COMMON MISTAKES TO ADDRESS:
+${isAE ? "Pitching before confirming pain. Not connecting the demo to their specific stated problem. Defending your demo approach when they redirect you. Running through features instead of solving the problem they named." : "Feature-dumping without discovery. Freezing on the first hard objection. Not asking for next steps at the end. Talking 70%+ of the time."}
 
 COMPANY:
 ${buildCompanyContext(ctx.company)}
 
-TONE: Write this coaching advice like a friend who has prepped a lot of people for this specific moment — direct, informal, specific. Not a training manual. Not corporate HR language.
+TONE: Write like a friend who has coached 50 people through this exact moment — direct, informal, specific. Not a training manual. Give the candidate actual language to use, not principles to remember.
 
-EXAMPLE LANGUAGE for the candidate to actually use in the moment:
-- When feedback is delivered: "Got it — so you want me to lead with a question about [X] before I get into the pitch. Let me try that again..."
-- NOT: "Thank you for that valuable feedback. I will incorporate your suggestions into my next attempt."
-- The candidate should sound like they absorbed the feedback in 5 seconds and want to immediately try again — because that's what winning candidates do.
+Return ONLY the coaching text (no JSON, no headers). 5–8 sentences. Include at least two examples of specific language to use in the moment.`,
+    maxTokens: 600,
+  };
+}
 
-Return 3–5 sentences of specific, actionable coaching. Include at least one example of what to SAY in the exact moment feedback is given.
-Return ONLY the coaching text (no JSON, no headers).`,
-    maxTokens: 400,
+// ─── 11b. Coachability Game Plan ──────────────────────────────────────────────
+
+export function buildCoachabilityGamePlanPrompt(ctx: PromptContext): PromptResult {
+  const isAE = ctx.roleType === "account_executive";
+  return {
+    system: BASE_SYSTEM,
+    user: `Generate a coachability game plan for this candidate's ${isAE ? "discovery demo" : "cold call"} role play assessment at ${ctx.company.name}.
+
+RESEARCH FOUNDATION (Roberge, HubSpot, 1,000+ hires):
+Coachability is the #1 predictor of sales success. The entire roleplay exercise — including the self-assessment and redo — is a single test of one question: "If I hire this person, can I coach them? Will they get better every week? Or will they argue and plateau?" Show them you're a sponge.
+
+Generate a structured game plan with these exact five sections. Write in direct second-person ("you"), conversational, like a coach talking to someone the night before. Each section should feel like advice from someone who has watched hundreds of candidates do this.
+
+SECTION 1 — BEFORE THE ROLEPLAY
+What to expect, how to prepare, what mindset to bring. The first attempt is a baseline — don't burn energy on perfection. Cover: what they'll brief you on, what to focus on, what to ignore for now.
+
+SECTION 2 — THE SELF-ASSESSMENT (first real test)
+When they ask "how do you think you did?" — this is test #1. Explain exactly what to say and what to avoid. The formula: one thing that worked + two specific things to improve. Give a template sentence they can adapt. Make clear this is about diagnostic ability, not modesty.
+
+SECTION 3 — RECEIVING FEEDBACK
+Their first reaction defines the hire/no-hire. Cover: what to do (nod, acknowledge, ask a clarifying question that proves absorption), what NEVER to do (defend, explain, say "but what I was trying to do was..."). Give one example of the clarifying question they should ask.
+
+SECTION 4 — THE REDO (where the job is won or lost)
+They have 60–90 seconds to internalize and try again. Visible implementation beats perfection. Cover: what "implementing feedback" looks like concretely for a ${isAE ? "discovery demo" : "cold call"}, what to say after the redo to close the loop.
+
+SECTION 5 — THE META-SIGNAL
+One paragraph. The entire exercise tests one thing. Make it visceral: if you implement feedback, you signal coachability, growth trajectory, and that managing you will be easy. If you defend, you signal a management problem. Frame this as the most important 10 minutes of the entire process.
+
+ROLE-SPECIFIC CONTEXT for ${ctx.company.name}:
+${isAE ? `This is a discovery demo. They'll play a ${ctx.company.name} ICP buyer. Your goal is discovery-first — understand their pain before you touch the product. The feedback will almost certainly be about talking too much or pitching too early.` : `This is a cold call. They'll play a skeptical prospect. Your goal is pattern interrupt, earn permission, ask 2+ discovery questions before any value prop. The feedback will almost certainly be about jumping to pitch too fast or not handling the objection cleanly.`}
+
+COMPANY: ${ctx.company.name}${ctx.company.productDescription ? ` — ${ctx.company.productDescription}` : ""}
+
+Return JSON:
+{
+  "beforeRoleplay": "coaching text for section 1",
+  "selfAssessment": "coaching text for section 2",
+  "receivingFeedback": "coaching text for section 3",
+  "theRedo": "coaching text for section 4",
+  "metaSignal": "coaching text for section 5"
+}`,
+    maxTokens: 900,
   };
 }
 
@@ -1179,8 +1234,6 @@ export function buildResumeWalkthroughPrompt(ctx: PromptContext): PromptResult {
   const kb = getKnowledgeForStage("hiring_manager", ctx.resume.backgroundType);
   const isAE = ctx.roleType === "account_executive";
   const isCareerSwitcher = ctx.resume.backgroundType === "career_switcher";
-  const seniority = getSeniorityInstructions(ctx.seniority);
-  const jlc = buildJobListingContext(ctx.jobListingSignals);
 
   return {
     system: `${BASE_SYSTEM}
@@ -1188,8 +1241,6 @@ export function buildResumeWalkthroughPrompt(ctx: PromptContext): PromptResult {
 ${kb}`,
     user: `Generate a "Walk me through your resume" answer for a hiring manager interview.
 
-${seniority}
-${jlc ? `\n${jlc}\n` : ""}
 This is DIFFERENT from "Tell Me About Yourself." TMAY is a 60-second present-past-future pitch. This is a 2–3 minute CHRONOLOGICAL NARRATIVE testing decision-making quality. The hiring manager has the resume in front of them — they want DECISION RATIONALE, not a list of job titles.
 
 STRUCTURE — for each role or career phase:
@@ -1253,8 +1304,6 @@ Return ONLY the narrative text. No labels, no JSON, no quotes around it.`,
 
 export function buildConstructiveFeedbackPrompt(ctx: PromptContext): PromptResult {
   const kb = getKnowledgeForStage("hiring_manager", ctx.resume.backgroundType);
-  const seniority = getSeniorityInstructions(ctx.seniority);
-  const jlc = buildJobListingContext(ctx.jobListingSignals);
 
   return {
     system: `${BASE_SYSTEM}
@@ -1262,8 +1311,6 @@ export function buildConstructiveFeedbackPrompt(ctx: PromptContext): PromptResul
 ${kb}`,
     user: `Generate an answer to "Tell me about the last piece of constructive feedback you received and what you did with it."
 
-${seniority}
-${jlc ? `\n${jlc}\n` : ""}
 This question tests the #1 SDR trait hiring managers hire for: coachability.
 
 Remember: this answer will be SPOKEN, not read. Start in the middle of the story — not at the administrative beginning of it.
@@ -1531,6 +1578,8 @@ export function buildPromptForAnswerType(
       return buildQuestionsToAskPrompt(ctx);
     case "coachability_coaching":
       return buildCoachabilityCoachingPrompt(ctx);
+    case "coachability_game_plan":
+      return buildCoachabilityGamePlanPrompt(ctx);
     case "career_switcher_bridge":
       return buildCareerSwitcherBridgePrompt(ctx);
     case "resume_walkthrough":

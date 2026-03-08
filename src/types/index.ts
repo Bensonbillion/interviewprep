@@ -133,6 +133,7 @@ export type AnswerType =
   | "cheat_sheet"
   | "questions_to_ask"
   | "coachability_coaching"
+  | "coachability_game_plan"
   | "career_switcher_bridge"
   | "resume_walkthrough"
   | "constructive_feedback"

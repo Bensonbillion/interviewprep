@@ -1,25 +1,20 @@
 import type { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://salesprep.ai";
-
   return {
     rules: [
       {
         userAgent: "*",
         allow: "/",
         disallow: [
+          "/prep/",
+          "/dashboard",
           "/api/",
           "/admin/",
-          "/auth/",
-          "/dashboard/",
-          "/prep/",
-          "/report/",
-          "/onboarding/",
-          "/practice/",
+          "/get-started/building/",
         ],
       },
     ],
-    sitemap: `${baseUrl}/sitemap.xml`,
+    sitemap: "https://salesprep.ai/sitemap.xml",
   };
 }

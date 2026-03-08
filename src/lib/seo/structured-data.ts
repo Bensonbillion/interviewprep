@@ -1,14 +1,8 @@
 /**
  * Schema.org structured data generators for SEO.
- *
- * Four types implemented:
- * - SoftwareApplication (site-wide)
- * - FAQPage (interview question pages)
- * - BreadcrumbList (navigation)
- * - HowTo (prep guides)
  */
 
-// ─── SoftwareApplication ─────────────────────────────────────────────────────
+// ---- SoftwareApplication ----
 
 export function softwareApplicationSchema() {
   return {
@@ -18,24 +12,34 @@ export function softwareApplicationSchema() {
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
     description:
-      "AI-powered interview preparation for tech sales professionals. Company-specific questions, real-time feedback, and proven frameworks for SDR, BDR, and AE candidates.",
+      "AI-powered interview preparation platform for tech sales professionals",
     offers: {
       "@type": "Offer",
       price: "0",
       priceCurrency: "USD",
-      description: "Free tier available",
-    },
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "4.8",
-      ratingCount: "127",
-      bestRating: "5",
-      worstRating: "1",
+      description: "Free plan with 3 prep kits",
     },
   };
 }
 
-// ─── FAQPage ─────────────────────────────────────────────────────────────────
+// ---- Organization ----
+
+export function organizationSchema() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "SalesPrep AI",
+    url: "https://salesprep.ai",
+    logo: "https://salesprep.ai/logo.png",
+    sameAs: [
+      "https://twitter.com/SalesPrepAI",
+      "https://linkedin.com/company/salesprep-ai",
+      "https://tiktok.com/@salesprep.ai",
+    ],
+  };
+}
+
+// ---- FAQPage ----
 
 export interface FAQItem {
   question: string;
@@ -57,7 +61,7 @@ export function faqPageSchema(items: FAQItem[]) {
   };
 }
 
-// ─── BreadcrumbList ──────────────────────────────────────────────────────────
+// ---- BreadcrumbList ----
 
 export interface BreadcrumbItem {
   name: string;
@@ -77,7 +81,7 @@ export function breadcrumbSchema(items: BreadcrumbItem[]) {
   };
 }
 
-// ─── HowTo ───────────────────────────────────────────────────────────────────
+// ---- HowTo ----
 
 export interface HowToStep {
   name: string;
@@ -88,7 +92,7 @@ export function howToSchema(params: {
   name: string;
   description: string;
   steps: HowToStep[];
-  totalTime?: string; // ISO 8601 duration, e.g. "PT5M"
+  totalTime?: string;
 }) {
   return {
     "@context": "https://schema.org",
@@ -103,10 +107,4 @@ export function howToSchema(params: {
       text: step.text,
     })),
   };
-}
-
-// ─── Helper: inject as <script type="application/ld+json"> ─────────────────
-
-export function jsonLdScript(data: Record<string, unknown>): string {
-  return JSON.stringify(data);
 }

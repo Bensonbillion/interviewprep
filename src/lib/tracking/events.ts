@@ -2,11 +2,11 @@
  * Unified event tracking layer.
  *
  * Single function that pushes to GTM data layer, fires Meta Pixel events,
- * and captures UTM attribution. All ad platform pixels read from the
- * data layer via GTM tags — this is the only place events are defined.
+ * and triggers server-side CAPI for high-value conversions. All ad platform
+ * pixels read from the data layer via GTM tags.
  */
 
-// ─── Event definitions ─────────────────────────────────────────────────────────
+// ---- Event definitions ----
 
 export type TrackingEvent =
   | { name: "page_view"; properties?: { page_path?: string; page_title?: string } }
@@ -14,14 +14,21 @@ export type TrackingEvent =
   | { name: "sign_up_initiated"; properties?: { method?: string } }
   | { name: "sign_up"; properties: { method: string; value?: number } }
   | { name: "first_prep_kit_created"; properties: { company?: string; role?: string; value?: number } }
+  | { name: "prep_kit_created"; properties: { company?: string; role?: string; stage?: string } }
   | { name: "prep_kit_opened"; properties: { company?: string; role?: string } }
   | { name: "purchase"; properties: { value: number; currency: string; plan?: string } }
+  | { name: "credit_purchased"; properties: { value: number; currency: string; package?: string } }
   | { name: "answer_generated"; properties: { answer_type: string; company?: string } }
   | { name: "answer_copied"; properties: { answer_type: string } }
   | { name: "report_submitted"; properties: { company?: string; stage?: string } }
   | { name: "outcome_updated"; properties: { outcome: string; company?: string } };
 
-// ─── GTM data layer ──────────────────────────────────────────────────────────
+export interface UserContext {
+  userId?: string;
+  userEmail?: string;
+}
+
+// ---- GTM data layer ----
 
 declare global {
   interface Window {
@@ -39,7 +46,7 @@ function pushToDataLayer(event: string, properties?: Record<string, unknown>) {
   });
 }
 
-// ─── Meta Pixel bridge ──────────────────────────────────────────────────────
+// ---- Meta Pixel bridge ----
 
 const META_EVENT_MAP: Record<string, string> = {
   page_view: "PageView",
@@ -48,6 +55,7 @@ const META_EVENT_MAP: Record<string, string> = {
   sign_up: "CompleteRegistration",
   first_prep_kit_created: "Lead",
   purchase: "Purchase",
+  credit_purchased: "Purchase",
 };
 
 function fireMetaPixel(eventName: string, properties?: Record<string, unknown>) {
@@ -64,29 +72,30 @@ function fireMetaPixel(eventName: string, properties?: Record<string, unknown>) 
   window.fbq("track", metaEvent, params);
 }
 
-// ─── Event value map (for ad platform bidding) ──────────────────────────────
+// ---- Event value map (for ad platform bidding) ----
 
 const DEFAULT_VALUES: Record<string, number> = {
   sign_up: 10,
   first_prep_kit_created: 49,
 };
 
-// ─── Main tracking function ─────────────────────────────────────────────────
+// ---- Main tracking function ----
 
 /**
  * Track a conversion/behavioral event across all platforms.
  *
  * Usage:
  *   trackEvent({ name: "sign_up", properties: { method: "google" } })
+ *   trackEvent({ name: "sign_up", properties: { method: "google" } }, { userId: "...", userEmail: "..." })
  */
-export function trackEvent(event: TrackingEvent) {
-  const properties = {
+export function trackEvent(event: TrackingEvent, user?: UserContext) {
+  const properties: Record<string, unknown> = {
     ...event.properties,
-    // Add default value if not specified
     value: (event.properties as Record<string, unknown>)?.value ?? DEFAULT_VALUES[event.name],
-    // Timestamp for dedup
     event_id: `${event.name}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
   };
+
+  if (user?.userId) properties.user_id = user.userId;
 
   // 1. GTM data layer (GA4, Google Ads, LinkedIn tags all read from here)
   pushToDataLayer(event.name, properties);
@@ -94,20 +103,29 @@ export function trackEvent(event: TrackingEvent) {
   // 2. Meta Pixel (client-side, deduped with CAPI via event_id)
   fireMetaPixel(event.name, properties);
 
-  // 3. Server-side CAPI (for sign_up and purchase — high-value events)
-  if (event.name === "sign_up" || event.name === "purchase" || event.name === "first_prep_kit_created") {
-    fireServerCapi(event.name, properties).catch(() => {});
+  // 3. Server-side CAPI (for high-value events — iOS resilience)
+  if (
+    event.name === "sign_up" ||
+    event.name === "purchase" ||
+    event.name === "credit_purchased" ||
+    event.name === "first_prep_kit_created"
+  ) {
+    fireServerCapi(event.name, properties, user?.userEmail).catch(() => {});
   }
 }
 
-// ─── Server-side Meta CAPI ──────────────────────────────────────────────────
+// ---- Server-side Meta CAPI ----
 
-async function fireServerCapi(eventName: string, properties: Record<string, unknown>) {
+async function fireServerCapi(
+  eventName: string,
+  properties: Record<string, unknown>,
+  userEmail?: string,
+) {
   const metaEvent = META_EVENT_MAP[eventName];
   if (!metaEvent) return;
 
   try {
-    await fetch("/api/meta-capi", {
+    await fetch("/api/tracking/meta-capi", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -115,7 +133,7 @@ async function fireServerCapi(eventName: string, properties: Record<string, unkn
         eventId: properties.event_id,
         value: properties.value,
         currency: (properties.currency as string) ?? "USD",
-        // Browser data for matching
+        email: userEmail,
         fbp: getCookie("_fbp"),
         fbc: getCookie("_fbc"),
         userAgent: navigator.userAgent,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ADMIN_EMAILS } from "@/lib/admin-config";
 import { anthropic, SONNET } from "@/lib/ai";
 import type { AnswerType, PrepSession } from "@/types";
