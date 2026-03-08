@@ -432,7 +432,10 @@ export async function POST(req: NextRequest) {
       { status: 422 }
     );
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("[extract-job] ERROR:", err instanceof Error ? err.message : err);
+    return NextResponse.json(
+      { error: "Something went wrong extracting the job details. Please try again or paste the description manually." },
+      { status: 500 }
+    );
   }
 }

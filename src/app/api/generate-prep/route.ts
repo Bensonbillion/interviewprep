@@ -270,10 +270,9 @@ ${STAGE_SCHEMAS[stage]}`;
 
     return NextResponse.json({ prepKit });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("Generate prep error:", msg);
+    console.error("Generate prep error:", err instanceof Error ? err.message : err);
     return NextResponse.json(
-      { error: `Failed to generate prep kit: ${msg}` },
+      { error: "Failed to generate prep kit. Please try again." },
       { status: 500 }
     );
   }

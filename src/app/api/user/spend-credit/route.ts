@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error("[spend-credit] ERROR:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Failed to process credit." }, { status: 500 });
   }
 }

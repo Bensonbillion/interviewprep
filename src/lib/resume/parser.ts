@@ -146,15 +146,22 @@ export async function parseResumeFromFile(
     );
   }
 
-  const response = await anthropic.messages.create({
-    model: HAIKU,
-    max_tokens: 4096,
-    messages,
-  });
+  let response;
+  try {
+    response = await anthropic.messages.create({
+      model: HAIKU,
+      max_tokens: 4096,
+      messages,
+    });
+  } catch (apiErr) {
+    // Log the full error server-side but never propagate SDK internals
+    console.error("[Resume Parser] Anthropic API error:", apiErr);
+    throw new Error("Resume parsing service is temporarily unavailable. Please try again.");
+  }
 
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {
-    throw new Error("No text response from Claude");
+    throw new Error("Resume parsing service returned an unexpected response. Please try again.");
   }
 
   // Strip markdown fences if present
@@ -166,10 +173,17 @@ export async function parseResumeFromFile(
   // Extract first JSON object in case there's surrounding text
   const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
-    throw new Error("Could not extract JSON from Claude response");
+    console.error("[Resume Parser] Could not extract JSON. Raw response:", textBlock.text.slice(0, 500));
+    throw new Error("Could not parse your resume. Please try a different format.");
   }
 
-  const parsed = JSON.parse(jsonMatch[0]) as Omit<ParsedResume, "rawText">;
+  let parsed: Omit<ParsedResume, "rawText">;
+  try {
+    parsed = JSON.parse(jsonMatch[0]) as Omit<ParsedResume, "rawText">;
+  } catch {
+    console.error("[Resume Parser] JSON parse failed. Extracted:", jsonMatch[0].slice(0, 500));
+    throw new Error("Could not parse your resume. Please try a different format.");
+  }
 
   return {
     rawText: "", // not needed — Claude read the file directly
