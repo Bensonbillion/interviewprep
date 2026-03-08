@@ -1,22 +1,17 @@
-import { Building2, Sparkles, Target } from "lucide-react";
-
 const STEPS = [
   {
-    icon: Building2,
-    num: "1",
+    num: "01",
     title: "Tell us about your interview",
-    description: "Company, role, and interview stage. That\u2019s it.",
+    description: "Company, role, and stage. That\u2019s it.",
   },
   {
-    icon: Sparkles,
-    num: "2",
+    num: "02",
     title: "Get your AI prep kit",
     description:
-      "Personalized answers, company-specific questions, and interviewer intel.",
+      "Personalized answers, company research, and interviewer intel.",
   },
   {
-    icon: Target,
-    num: "3",
+    num: "03",
     title: "Practice and nail it",
     description: "Review, refine, and walk in ready.",
   },
@@ -24,21 +19,25 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <section className="bg-[#222] py-14 md:py-20">
-      <div className="max-w-[1120px] mx-auto px-5">
-        <h2 className="text-2xl md:text-3xl font-bold text-[#e0e0e0] text-center leading-tight">
-          From anxious to confident in 3 steps
+    <section className="bg-[#FDFCFA] py-16 md:py-24">
+      <div className="max-w-6xl mx-auto px-5">
+        <h2 className="font-serif text-3xl text-[#1A1A1A] text-center">
+          From anxious to confident
         </h2>
+        <p className="text-[#6B6560] text-center mt-3 font-sans">
+          Three steps. Two minutes. One prep kit.
+        </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-10">
-          {STEPS.map(({ icon: Icon, num, title, description }) => (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-8 mt-14">
+          {STEPS.map(({ num, title, description }) => (
             <div key={num} className="text-center">
-              <div className="w-12 h-12 rounded-xl bg-[#2a2a2a] flex items-center justify-center mx-auto mb-3">
-                <Icon className="w-5 h-5 text-[#4A7AFF]" />
-              </div>
-              <p className="text-xs font-bold text-[#4A7AFF] mb-1.5">Step {num}</p>
-              <h3 className="text-base font-semibold text-[#e0e0e0]">{title}</h3>
-              <p className="text-sm text-[#999] mt-1.5 leading-relaxed max-w-xs mx-auto">
+              <p className="font-serif text-6xl text-[#E8E4DE] leading-none mb-4">
+                {num}
+              </p>
+              <h3 className="text-base font-semibold text-[#1A1A1A] font-sans">
+                {title}
+              </h3>
+              <p className="text-sm text-[#6B6560] mt-2 leading-relaxed max-w-xs mx-auto font-sans">
                 {description}
               </p>
             </div>

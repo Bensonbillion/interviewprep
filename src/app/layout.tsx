@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
-import { Geist_Mono } from "next/font/google";
+import { DM_Serif_Display, DM_Sans, JetBrains_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 import { Suspense } from "react";
@@ -11,16 +10,23 @@ import { AnalyticsScripts, GTMNoScript } from "@/components/tracking/AnalyticsSc
 import { GTMPageViewTracker } from "@/components/tracking/GTMProvider";
 import { ConsentBanner } from "@/components/tracking/ConsentBanner";
 
-const jakarta = Plus_Jakarta_Sans({
+const dmSerif = DM_Serif_Display({
+  weight: "400",
   subsets: ["latin"],
-  variable: "--font-jakarta",
+  variable: "--font-serif",
   display: "swap",
-  weight: ["400", "500", "600", "700", "800"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const dmSans = DM_Sans({
   subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
 });
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://salesprep.ai";
@@ -97,7 +103,7 @@ export default async function RootLayout({
         <JsonLd data={softwareApplicationSchema()} />
         <AnalyticsScripts nonce={nonce} />
       </head>
-      <body className={`${jakarta.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${dmSerif.variable} ${dmSans.variable} ${jetbrainsMono.variable} antialiased`}>
         <GTMNoScript />
         <Suspense fallback={null}>
           <GTMPageViewTracker />

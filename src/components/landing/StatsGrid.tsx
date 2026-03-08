@@ -1,24 +1,21 @@
 const STATS = [
-  { value: "50+", label: "companies" },
-  { value: "6", label: "interview stages" },
-  { value: "150+", label: "questions covered" },
-  { value: "Free", label: "to start" },
+  { value: "50+", label: "Companies" },
+  { value: "6", label: "Interview stages" },
+  { value: "150+", label: "Questions covered" },
+  { value: "Free", label: "To start" },
 ];
 
 export function StatsGrid() {
   return (
-    <section className="bg-[#1a1a1a] py-12 md:py-16">
-      <div className="max-w-[1120px] mx-auto px-5">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <section className="bg-[#F7F5F0] py-12 md:py-16">
+      <div className="max-w-6xl mx-auto px-5">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {STATS.map(({ value, label }) => (
-            <div
-              key={label}
-              className="bg-[#222] rounded-xl border border-[#2a2a2a] p-5 text-center"
-            >
-              <p className="text-2xl md:text-3xl font-bold text-[#4A7AFF]">
+            <div key={label} className="text-center">
+              <p className="font-serif text-3xl md:text-4xl text-[#E8735A]">
                 {value}
               </p>
-              <p className="text-xs text-[#999] mt-1 uppercase tracking-wide">
+              <p className="text-sm text-[#9C9590] mt-1 uppercase tracking-wider font-sans">
                 {label}
               </p>
             </div>

@@ -59,12 +59,12 @@ export async function CompanyGrid() {
   }
 
   return (
-    <section className="bg-[#0F172A] py-16 md:py-20">
-      <div className="max-w-[1120px] mx-auto px-5">
-        <h2 className="text-2xl md:text-3xl font-bold text-white text-center">
+    <section className="bg-[#FDFCFA] py-16 md:py-20 border-t border-[#E8E4DE]">
+      <div className="max-w-6xl mx-auto px-5">
+        <h2 className="font-serif text-2xl md:text-3xl text-[#1A1A1A] text-center">
           Prep for top SaaS companies
         </h2>
-        <p className="text-gray-400 text-center mt-3 max-w-lg mx-auto">
+        <p className="text-[#6B6560] text-center mt-3 max-w-lg mx-auto font-sans">
           Company-specific interview questions, process breakdowns, and tips.
         </p>
 
@@ -72,9 +72,9 @@ export async function CompanyGrid() {
           {Array.from(grouped.entries()).map(([slug, company]) => (
             <div
               key={slug}
-              className="bg-[#131C31] rounded-xl p-4 border border-gray-800 hover:border-blue-500/40 transition-colors"
+              className="bg-[#F7F5F0] rounded-2xl p-5 border border-[#E8E4DE] hover:shadow-md transition-all duration-300"
             >
-              <h3 className="font-semibold text-white text-sm">
+              <h3 className="font-semibold text-[#1A1A1A] text-sm font-sans">
                 {company.name}
               </h3>
               <ul className="mt-2 space-y-1">
@@ -82,7 +82,7 @@ export async function CompanyGrid() {
                   <li key={r.slug}>
                     <Link
                       href={`/companies/${slug}/${r.slug}`}
-                      className="text-blue-400 hover:text-blue-300 text-xs transition-colors"
+                      className="text-[#E8735A] hover:text-[#D4614A] text-xs transition-colors font-sans"
                     >
                       {r.title} &rarr;
                     </Link>
@@ -96,7 +96,7 @@ export async function CompanyGrid() {
         <div className="text-center mt-8">
           <Link
             href="/companies"
-            className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
+            className="text-[#E8735A] hover:text-[#D4614A] text-sm font-medium transition-colors font-sans"
           >
             View all company guides &rarr;
           </Link>

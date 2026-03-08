@@ -66,7 +66,7 @@ export default function HomePage() {
       />
       {/* S1 — Hero */}
       <Hero />
-      {/* S2 — Logo bar with internal links to /companies/* */}
+      {/* S2 — Product preview + Logo bar */}
       <LogoStrip />
       {/* S3 — How it works */}
       <HowItWorks />
@@ -76,7 +76,7 @@ export default function HomePage() {
       <Testimonials />
       {/* S6 — Stats */}
       <StatsGrid />
-      {/* S7 — FAQ with FAQPage schema */}
+      {/* S7 — FAQ */}
       <HomeFAQ />
       {/* Company SEO pages (shows only when published pages exist) */}
       <CompanyGrid />

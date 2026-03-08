@@ -1,26 +1,24 @@
-import { Building2, Phone, UserSearch, MessageSquare } from "lucide-react";
-
 const FEATURES = [
   {
-    icon: Building2,
+    emoji: "\uD83C\uDFE2",
     title: "Company-Specific Prep",
     description:
-      "Research and questions tailored to your target company\u2019s product, customers, and interview style.",
+      "Questions and answers tailored to your target company\u2019s culture, product, and interview style.",
   },
   {
-    icon: Phone,
+    emoji: "\uD83D\uDCDE",
     title: "Mock Cold Call Scripts",
     description:
-      "Practice the roleplay round that eliminates 70% of SDR candidates.",
+      "Practice the roleplay round that eliminates 70% of candidates. Walk in with a framework, not a blank page.",
   },
   {
-    icon: UserSearch,
+    emoji: "\uD83D\uDD0D",
     title: "Interviewer Research",
     description:
-      "Know who\u2019s across the table before you sit down.",
+      "Know who\u2019s across the table before you sit down. LinkedIn insights turned into preparation.",
   },
   {
-    icon: MessageSquare,
+    emoji: "\uD83D\uDDE3\uFE0F",
     title: "Answers That Sound Like You",
     description:
       "AI that writes how you talk, not how robots write. Built from your resume and real experience.",
@@ -29,19 +27,26 @@ const FEATURES = [
 
 export function FeatureGrid() {
   return (
-    <section className="bg-[#1a1a1a] py-14 md:py-20">
-      <div className="max-w-[1120px] mx-auto px-5">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          {FEATURES.map(({ icon: Icon, title, description }) => (
+    <section className="bg-[#F7F5F0] py-16 md:py-24">
+      <div className="max-w-6xl mx-auto px-5">
+        <h2 className="font-serif text-3xl text-[#1A1A1A] text-center mb-12">
+          Everything you need to prep
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {FEATURES.map(({ emoji, title, description }) => (
             <div
               key={title}
-              className="bg-[#222] rounded-xl p-5 border border-[#2a2a2a]"
+              className="bg-[#FDFCFA] rounded-2xl p-8 border border-[#E8E4DE]
+                         hover:shadow-md transition-all duration-300"
             >
-              <div className="w-10 h-10 rounded-lg bg-[#2a2a2a] flex items-center justify-center mb-3">
-                <Icon className="w-5 h-5 text-[#4A7AFF]" />
-              </div>
-              <h3 className="text-sm font-semibold text-[#e0e0e0]">{title}</h3>
-              <p className="text-xs text-[#999] mt-1.5 leading-relaxed">
+              <span className="text-2xl" role="img" aria-hidden="true">
+                {emoji}
+              </span>
+              <h3 className="text-lg font-semibold text-[#1A1A1A] mt-3 font-sans">
+                {title}
+              </h3>
+              <p className="text-sm text-[#6B6560] mt-2 leading-relaxed font-sans">
                 {description}
               </p>
             </div>

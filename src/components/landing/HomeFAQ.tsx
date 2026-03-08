@@ -8,19 +8,19 @@ const FAQS = HOME_FAQ_DATA.map((f) => ({ q: f.question, a: f.answer }));
 
 export function HomeFAQ() {
   return (
-    <section className="bg-[#222] py-14 md:py-20">
+    <section className="bg-[#FDFCFA] py-16 md:py-24">
       <div className="max-w-2xl mx-auto px-5">
-        <h2 className="text-2xl md:text-3xl font-bold text-[#e0e0e0] text-center">
-          Frequently asked questions
+        <h2 className="font-serif text-3xl text-[#1A1A1A] text-center">
+          Questions? We&apos;ve got answers.
         </h2>
 
-        <div className="mt-8 space-y-2">
+        <div className="mt-10 divide-y divide-[#E8E4DE]">
           {FAQS.map(({ q, a }) => (
             <FAQItem key={q} question={q} answer={a} />
           ))}
         </div>
 
-        <p className="text-center text-sm text-[#777] mt-8">
+        <p className="text-center text-sm text-[#9C9590] mt-8 font-sans">
           More questions?{" "}
           <Link
             href="/blog"
@@ -46,29 +46,28 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="bg-[#1a1a1a] rounded-xl border border-[#2a2a2a]">
+    <div>
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-5 py-4 text-left min-h-[52px]"
+        className="w-full flex items-center justify-between py-5 text-left min-h-[52px]"
         aria-expanded={open}
       >
-        <span className="text-sm font-medium text-[#e0e0e0] pr-4">
+        <span className="text-sm font-medium text-[#1A1A1A] pr-4 font-sans">
           {question}
         </span>
         <span
-          className={`text-[#666] transition-transform duration-200 shrink-0 ${
-            open ? "rotate-180" : ""
+          className={`text-[#9C9590] transition-transform duration-200 shrink-0 text-lg ${
+            open ? "rotate-45" : ""
           }`}
         >
-          &#9662;
+          +
         </span>
       </button>
       {open && (
-        <div className="px-5 pb-4">
-          <p className="text-sm text-[#999] leading-relaxed">{answer}</p>
+        <div className="pb-5">
+          <p className="text-sm text-[#6B6560] leading-relaxed font-sans">{answer}</p>
         </div>
       )}
     </div>
   );
 }
-

@@ -30,7 +30,6 @@ export function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Close avatar dropdown on outside click
   useEffect(() => {
     if (!dropdownOpen) return;
     const handleOutside = (e: MouseEvent) => {
@@ -42,7 +41,6 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [dropdownOpen]);
 
-  // Close credit breakdown on outside click
   useEffect(() => {
     if (!showCreditBreakdown) return;
     const handleOutside = (e: MouseEvent) => {
@@ -54,7 +52,6 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [showCreditBreakdown]);
 
-  // Flash amber when credits decrease (e.g. after unlocking an answer)
   useEffect(() => {
     if (creditsLoading) return;
     if (prevCreditsRef.current !== null && credits < prevCreditsRef.current) {
@@ -88,12 +85,12 @@ export function Navbar() {
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
 
   return (
-    <nav className="w-full border-b border-gray-100 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
+    <nav className="w-full border-b border-[#E8E4DE] bg-[#FDFCFA]/80 backdrop-blur-md sticky top-0 z-50">
       <div className="max-w-6xl mx-auto px-5 md:px-10 h-14 flex items-center justify-between">
         {/* Logo */}
         <Link
           href={user ? "/dashboard" : "/"}
-          className="font-bold text-lg tracking-tight text-[#4A7AFF] hover:text-[#3B5FE6] transition-colors"
+          className="font-serif text-lg text-[#1A1A1A] hover:text-[#6B6560] transition-colors"
         >
           SalesPrep AI
         </Link>
@@ -112,7 +109,7 @@ export function Navbar() {
                       ? "bg-amber-100 text-amber-600 scale-110"
                       : credits === 0
                       ? "bg-amber-50 text-amber-600 hover:bg-amber-100"
-                      : "bg-[#EEF4FF] text-[#4A7AFF] hover:bg-[#D9E6FF]"
+                      : "bg-[#F0EDE6] text-[#6B6560] hover:bg-[#E8E4DE]"
                   }`}
                 >
                   <Zap className="w-3.5 h-3.5" />
@@ -127,7 +124,7 @@ export function Navbar() {
                       ? "bg-amber-100 text-amber-600 scale-110"
                       : credits === 0
                       ? "bg-amber-50 text-amber-600"
-                      : "bg-[#EEF4FF] text-[#4A7AFF]"
+                      : "bg-[#F0EDE6] text-[#6B6560]"
                   }`}
                 >
                   <Zap className="w-3 h-3" />
@@ -136,24 +133,24 @@ export function Navbar() {
 
                 {/* Breakdown dropdown */}
                 {showCreditBreakdown && (
-                  <div className="absolute right-0 top-9 w-56 bg-white border border-gray-200 rounded-xl shadow-lg p-4 z-50">
-                    <p className="text-sm font-semibold text-ink mb-3">Your Credits: {credits}</p>
-                    <div className="space-y-1.5 text-xs text-ink-muted mb-3">
-                      <p className="font-medium text-ink-light">What costs credits:</p>
-                      <p>New prep kit: <span className="font-medium text-ink">1 credit</span></p>
-                      <p>Answer refinement: <span className="font-medium text-ink">1 credit</span></p>
-                      <p className="text-ink-muted/70">(first 3 per answer free)</p>
+                  <div className="absolute right-0 top-9 w-56 bg-[#FDFCFA] border border-[#E8E4DE] rounded-2xl shadow-lg p-4 z-50">
+                    <p className="text-sm font-semibold text-[#1A1A1A] mb-3">Your Credits: {credits}</p>
+                    <div className="space-y-1.5 text-xs text-[#9C9590] mb-3">
+                      <p className="font-medium text-[#6B6560]">What costs credits:</p>
+                      <p>New prep kit: <span className="font-medium text-[#1A1A1A]">1 credit</span></p>
+                      <p>Answer refinement: <span className="font-medium text-[#1A1A1A]">1 credit</span></p>
+                      <p className="text-[#9C9590]/70">(first 3 per answer free)</p>
                     </div>
-                    <div className="border-t border-gray-100 pt-3 space-y-1 text-xs text-ink-muted">
-                      <p>Manual edits: <span className="font-medium text-green-600">always free</span></p>
-                      <p>Copying answers: <span className="font-medium text-green-600">free</span></p>
+                    <div className="border-t border-[#E8E4DE] pt-3 space-y-1 text-xs text-[#9C9590]">
+                      <p>Manual edits: <span className="font-medium text-[#5BAD7A]">always free</span></p>
+                      <p>Copying answers: <span className="font-medium text-[#5BAD7A]">free</span></p>
                     </div>
                     <Link
                       href="/dashboard/billing"
-                      className="mt-3 block text-xs font-medium text-primary-500 hover:text-primary-600"
+                      className="mt-3 block text-xs font-medium text-[#E8735A] hover:text-[#D4614A]"
                       onClick={() => setShowCreditBreakdown(false)}
                     >
-                      Get more credits →
+                      Get more credits &rarr;
                     </Link>
                   </div>
                 )}
@@ -176,31 +173,31 @@ export function Navbar() {
                     className="w-8 h-8 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-[#EFF6FF] text-[#4A7AFF] flex items-center justify-center text-sm font-semibold select-none">
+                  <div className="w-8 h-8 rounded-full bg-[#F0EDE6] text-[#6B6560] flex items-center justify-center text-sm font-semibold select-none">
                     {getInitials(user)}
                   </div>
                 )}
               </button>
 
               {dropdownOpen && (
-                <div className="absolute right-0 top-11 w-56 bg-white border border-gray-200 rounded-xl shadow-lg py-2 z-50">
-                  <p className="px-4 py-2 text-sm text-ink-muted truncate">{user.email}</p>
-                  <div className="border-t border-gray-100 my-1" />
+                <div className="absolute right-0 top-11 w-56 bg-[#FDFCFA] border border-[#E8E4DE] rounded-2xl shadow-lg py-2 z-50">
+                  <p className="px-4 py-2 text-sm text-[#9C9590] truncate">{user.email}</p>
+                  <div className="border-t border-[#E8E4DE] my-1" />
                   <Link
                     href="/dashboard"
-                    className="block px-4 py-2 text-sm text-ink hover:bg-gray-50 transition-colors"
+                    className="block px-4 py-2 text-sm text-[#1A1A1A] hover:bg-[#F7F5F0] transition-colors"
                     onClick={() => setDropdownOpen(false)}
                   >
                     My Prep Kits
                   </Link>
                   <Link
                     href="/dashboard/billing"
-                    className="block px-4 py-2 text-sm text-ink hover:bg-gray-50 transition-colors"
+                    className="block px-4 py-2 text-sm text-[#1A1A1A] hover:bg-[#F7F5F0] transition-colors"
                     onClick={() => setDropdownOpen(false)}
                   >
                     Credits &amp; Billing
                   </Link>
-                  <div className="border-t border-gray-100 my-1" />
+                  <div className="border-t border-[#E8E4DE] my-1" />
                   <button
                     type="button"
                     onClick={handleSignOut}
@@ -216,15 +213,22 @@ export function Navbar() {
           <div className="flex items-center gap-5">
             <Link
               href="/blog"
-              className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors hidden sm:block"
+              className="text-sm font-medium text-[#9C9590] hover:text-[#6B6560] transition-colors hidden sm:block"
             >
               Blog
             </Link>
             <Link
-              href="/get-started"
-              className="text-sm font-medium text-[#4A7AFF] hover:text-[#3B5FE6] transition-colors"
+              href="/auth/login"
+              className="text-sm font-medium text-[#6B6560] hover:text-[#1A1A1A] transition-colors hidden sm:block"
             >
-              Start practicing →
+              Sign In
+            </Link>
+            <Link
+              href="/get-started"
+              className="bg-[#E8735A] hover:bg-[#D4614A] text-white text-sm font-medium
+                         rounded-full px-5 py-2 transition-all duration-200"
+            >
+              Get Started
             </Link>
           </div>
         )}

@@ -21,22 +21,22 @@ const SOCIAL_LINKS = [
 
 export function Footer() {
   return (
-    <footer className="bg-[#111] py-10 border-t border-[#2a2a2a]">
-      <div className="max-w-[1120px] mx-auto px-5">
+    <footer className="bg-[#1A1A1A] py-12 border-t border-[#333]">
+      <div className="max-w-6xl mx-auto px-5">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="text-lg font-bold text-[#4A7AFF]">
+            <Link href="/" className="font-serif text-lg text-white">
               SalesPrep AI
             </Link>
-            <p className="text-xs text-[#666] mt-2 leading-relaxed max-w-[200px]">
+            <p className="text-sm text-gray-400 mt-2 leading-relaxed max-w-[220px] font-sans">
               AI interview preparation for tech sales candidates.
             </p>
           </div>
 
           {/* Product */}
           <div>
-            <p className="text-xs font-semibold text-[#888] uppercase tracking-wider mb-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 font-sans">
               Product
             </p>
             <ul className="space-y-2">
@@ -44,7 +44,7 @@ export function Footer() {
                 <li key={l.href}>
                   <Link
                     href={l.href}
-                    className="text-sm text-[#999] hover:text-[#e0e0e0] transition-colors"
+                    className="text-sm text-gray-400 hover:text-white transition-colors font-sans"
                   >
                     {l.label}
                   </Link>
@@ -55,7 +55,7 @@ export function Footer() {
 
           {/* Support */}
           <div>
-            <p className="text-xs font-semibold text-[#888] uppercase tracking-wider mb-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 font-sans">
               Support
             </p>
             <ul className="space-y-2">
@@ -64,14 +64,14 @@ export function Footer() {
                   {l.href.startsWith("mailto:") ? (
                     <a
                       href={l.href}
-                      className="text-sm text-[#999] hover:text-[#e0e0e0] transition-colors"
+                      className="text-sm text-gray-400 hover:text-white transition-colors font-sans"
                     >
                       {l.label}
                     </a>
                   ) : (
                     <Link
                       href={l.href}
-                      className="text-sm text-[#999] hover:text-[#e0e0e0] transition-colors"
+                      className="text-sm text-gray-400 hover:text-white transition-colors font-sans"
                     >
                       {l.label}
                     </Link>
@@ -83,7 +83,7 @@ export function Footer() {
 
           {/* Social */}
           <div>
-            <p className="text-xs font-semibold text-[#888] uppercase tracking-wider mb-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 font-sans">
               Follow us
             </p>
             <ul className="space-y-2">
@@ -93,7 +93,7 @@ export function Footer() {
                     href={l.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-[#999] hover:text-[#e0e0e0] transition-colors"
+                    className="text-sm text-gray-400 hover:text-white transition-colors font-sans"
                   >
                     {l.label}
                   </a>
@@ -103,8 +103,8 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-[#2a2a2a] text-center">
-          <p className="text-xs text-[#555]">
+        <div className="mt-10 pt-6 border-t border-gray-800 text-center">
+          <p className="text-xs text-gray-500 font-sans">
             &copy; 2026 SalesPrep AI. All rights reserved.
           </p>
         </div>
