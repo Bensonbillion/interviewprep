@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LogoFull } from "@/components/Logo";
 
 const PRODUCT_LINKS = [
   { label: "Get Started", href: "/get-started" },
@@ -26,8 +27,8 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="font-serif text-lg text-white">
-              SalesPrep AI
+            <Link href="/" className="inline-block hover:opacity-80 transition-opacity">
+              <LogoFull size="md" theme="dark" />
             </Link>
             <p className="text-sm text-gray-400 mt-2 leading-relaxed max-w-[220px] font-sans">
               AI interview preparation for tech sales candidates.

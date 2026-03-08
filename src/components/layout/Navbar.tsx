@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Zap } from "lucide-react";
+import { LogoFull } from "@/components/Logo";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { useCredits } from "@/hooks/useCredits";
@@ -90,9 +91,9 @@ export function Navbar() {
         {/* Logo */}
         <Link
           href={user ? "/dashboard" : "/"}
-          className="font-serif text-lg text-[#1A1A1A] hover:text-[#6B6560] transition-colors"
+          className="hover:opacity-80 transition-opacity"
         >
-          SalesPrep AI
+          <LogoFull size="sm" theme="light" />
         </Link>
 
         {/* Right side */}

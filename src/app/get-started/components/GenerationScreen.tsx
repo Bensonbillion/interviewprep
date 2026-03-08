@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Check } from "lucide-react";
+import { LogoIcon } from "@/components/Logo";
 import type {
   ParsedResume,
   CompanyProfile,
@@ -256,9 +257,9 @@ export function GenerationScreen({
         <div className="bg-white rounded-2xl border border-[#DBEAFE] p-8 shadow-[0_4px_24px_rgba(74,122,255,0.08)]">
           {/* Header */}
           <div className="text-center mb-8">
-            <span className="font-bold text-sm text-[#4A7AFF] uppercase tracking-wide">
-              SalesPrep AI
-            </span>
+            <div className="flex justify-center mb-3">
+              <LogoIcon size="lg" theme="light" />
+            </div>
             <p className="text-xl font-bold text-[#0F172A] mt-2">Building your prep kit</p>
             <p className="text-sm text-[#64748B] mt-1">
               Personalized for{" "}
