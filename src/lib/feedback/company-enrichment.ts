@@ -83,3 +83,96 @@ export function formatCompanyEnrichmentSection(ctx: CompanyEnrichmentContext): s
 
   return parts.join("\n");
 }
+
+// ── Interview Intel (curated Glassdoor / community data) ──────────────────────
+
+export interface CompanyInterviewIntel {
+  companyName: string;
+  interviewRounds: number | null;
+  avgDaysToHire: number | null;
+  keyTest: string | null;
+  uniqueElement: string | null;
+  mockCallFormat: string | null;
+  commonQuestions: string[];
+  redFlags: string[];
+  tips: string[];
+  sdrSatisfactionScore: number | null;
+}
+
+/**
+ * Fetch curated interview intel for a company.
+ * Returns null if no intel row exists.
+ */
+export async function fetchCompanyInterviewIntel(companyName: string): Promise<CompanyInterviewIntel | null> {
+  const normalized = normalizeCompanyName(companyName);
+  const db = adminDb();
+
+  const { data } = await db
+    .from("company_interview_intel")
+    .select("company_name, interview_rounds, avg_days_to_hire, key_test, unique_element, mock_call_format, common_questions, red_flags, tips, sdr_satisfaction_score")
+    .eq("company_name_normalized", normalized)
+    .maybeSingle();
+
+  if (!data) return null;
+
+  return {
+    companyName: data.company_name,
+    interviewRounds: data.interview_rounds,
+    avgDaysToHire: data.avg_days_to_hire,
+    keyTest: data.key_test,
+    uniqueElement: data.unique_element,
+    mockCallFormat: data.mock_call_format,
+    commonQuestions: data.common_questions ?? [],
+    redFlags: data.red_flags ?? [],
+    tips: data.tips ?? [],
+    sdrSatisfactionScore: data.sdr_satisfaction_score ? Number(data.sdr_satisfaction_score) : null,
+  };
+}
+
+/**
+ * Format interview intel as a system prompt section.
+ */
+export function formatInterviewIntelSection(intel: CompanyInterviewIntel): string {
+  const parts: string[] = [];
+
+  parts.push(`COMPANY-SPECIFIC INTERVIEW INTELLIGENCE — ${intel.companyName}:`);
+
+  if (intel.interviewRounds || intel.avgDaysToHire) {
+    const processDetails = [
+      intel.interviewRounds && `${intel.interviewRounds} rounds`,
+      intel.avgDaysToHire && `~${intel.avgDaysToHire} days to hire`,
+    ].filter(Boolean).join(", ");
+    parts.push(`Process: ${processDetails}`);
+  }
+
+  if (intel.keyTest) {
+    parts.push(`Key test: ${intel.keyTest}`);
+  }
+
+  if (intel.uniqueElement) {
+    parts.push(`Unique element: ${intel.uniqueElement}`);
+  }
+
+  if (intel.mockCallFormat) {
+    parts.push(`Mock call format: ${intel.mockCallFormat}`);
+  }
+
+  if (intel.commonQuestions.length > 0) {
+    parts.push(`\nQUESTIONS COMMONLY ASKED AT ${intel.companyName.toUpperCase()}:\n${intel.commonQuestions.map((q) => `- "${q}"`).join("\n")}`);
+    parts.push("Structure your answer to anticipate and naturally address these questions.");
+  }
+
+  if (intel.redFlags.length > 0) {
+    parts.push(`\nRED FLAGS TO AVOID AT ${intel.companyName.toUpperCase()}:\n${intel.redFlags.map((r) => `- ${r}`).join("\n")}`);
+  }
+
+  if (intel.tips.length > 0) {
+    parts.push(`\nINSIDER TIPS FOR ${intel.companyName.toUpperCase()}:\n${intel.tips.map((t) => `- ${t}`).join("\n")}`);
+  }
+
+  if (intel.sdrSatisfactionScore !== null) {
+    parts.push(`\nSDR satisfaction score: ${intel.sdrSatisfactionScore}/5${intel.sdrSatisfactionScore < 3.5 ? " — candidate should ask probing questions about culture and support" : ""}`);
+  }
+
+  return parts.join("\n");
+}

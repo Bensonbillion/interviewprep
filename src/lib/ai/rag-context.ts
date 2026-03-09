@@ -22,7 +22,12 @@ import { encrypt } from "@/lib/security/encryption";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateEmbedding } from "@/lib/embeddings";
-import { fetchCompanyEnrichment, formatCompanyEnrichmentSection } from "@/lib/feedback/company-enrichment";
+import {
+  fetchCompanyEnrichment,
+  formatCompanyEnrichmentSection,
+  fetchCompanyInterviewIntel,
+  formatInterviewIntelSection,
+} from "@/lib/feedback/company-enrichment";
 import type { AnswerType, RoleType, InterviewStage } from "@/types";
 
 function adminDb() {
@@ -154,7 +159,7 @@ export async function fetchRagContext(
     const db = adminDb();
 
     // ── Parallel DB lookups ────────────────────────────────────────────────────
-    const [voiceRes, promptRes, queryEmbedding, questionBankRes, voicePatternsRes, companyEnrichment] = await Promise.all([
+    const [voiceRes, promptRes, queryEmbedding, questionBankRes, voicePatternsRes, companyEnrichment, interviewIntel] = await Promise.all([
       db.from("voice_profile").select("id, description, tone_keywords").eq("is_active", true).limit(1).single(),
       db.from("prompt_versions").select("id, prompt_text").eq("question_key", answerType).eq("is_active", true).limit(1).maybeSingle(),
       generateEmbedding(queryText).catch(() => null),
@@ -172,6 +177,7 @@ export async function fetchRagContext(
         .eq("is_active", true)
         .order("pattern_type"),
       companyName ? fetchCompanyEnrichment(companyName).catch(() => null) : Promise.resolve(null),
+      companyName ? fetchCompanyInterviewIntel(companyName).catch(() => null) : Promise.resolve(null),
     ]);
 
     const voicePatterns = (voicePatternsRes.data ?? []) as Array<{
@@ -428,8 +434,11 @@ export async function fetchRagContext(
     }
 
     // ── Build company intelligence section ───────────────────────────────────
-    const sectionCompanyIntel = companyEnrichment
-      ? formatCompanyEnrichmentSection(companyEnrichment)
+    const companyIntelParts: string[] = [];
+    if (companyEnrichment) companyIntelParts.push(formatCompanyEnrichmentSection(companyEnrichment));
+    if (interviewIntel) companyIntelParts.push(formatInterviewIntelSection(interviewIntel));
+    const sectionCompanyIntel = companyIntelParts.length > 0
+      ? companyIntelParts.join("\n\n")
       : null;
 
     return {
