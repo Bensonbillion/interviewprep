@@ -449,6 +449,81 @@ const SPOKEN_ANSWER_TYPES = new Set([
   "assignment_guide",
 ]);
 
+// ─── JSON parser with code-fence stripping ──────────────────────────────────
+function tryParseJSON(raw: string): unknown | null {
+  let cleaned = raw.trim();
+  // Strip markdown code fences (```json ... ``` or ``` ... ```)
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```(?:json|JSON)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+  }
+  if (!cleaned.startsWith("{") && !cleaned.startsWith("[")) return null;
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    return null;
+  }
+}
+
+// ─── STAR section parser for behavioral answers ─────────────────────────────
+const STAR_BADGES = [
+  { pattern: /^(?:\*{0,2})Situation(?:\*{0,2})\s*[:—–-]\s*/i, letter: "S", label: "Situation", bg: "bg-blue-500", ring: "ring-blue-200" },
+  { pattern: /^(?:\*{0,2})Task(?:\*{0,2})\s*[:—–-]\s*/i, letter: "T", label: "Task", bg: "bg-amber-500", ring: "ring-amber-200" },
+  { pattern: /^(?:\*{0,2})Action[s]?(?:\*{0,2})\s*[:—–-]\s*/i, letter: "A", label: "Action", bg: "bg-green-500", ring: "ring-green-200" },
+  { pattern: /^(?:\*{0,2})Result[s]?(?:\*{0,2})\s*[:—–-]\s*/i, letter: "R", label: "Result", bg: "bg-purple-500", ring: "ring-purple-200" },
+] as const;
+
+function STARContent({ text }: { text: string }) {
+  const sections: Array<{ letter: string; label: string; bg: string; ring: string; content: string }> = [];
+  // Split by double newlines OR single newlines that precede a STAR header
+  const paragraphs = text.split(/\n(?=\*{0,2}(?:Situation|Task|Actions?|Results?)\*{0,2}\s*[:—–-])/i);
+  let currentSection: (typeof sections)[number] | null = null;
+  let buffer: string[] = [];
+
+  const flush = () => {
+    if (currentSection) {
+      sections.push({ ...currentSection, content: buffer.join("\n\n").trim() });
+    }
+    buffer = [];
+  };
+
+  for (const para of paragraphs) {
+    const firstLine = para.trim().split("\n")[0];
+    const badge = STAR_BADGES.find((b) => b.pattern.test(firstLine));
+    if (badge) {
+      flush();
+      const cleaned = para.trim().replace(badge.pattern, "");
+      currentSection = { letter: badge.letter, label: badge.label, bg: badge.bg, ring: badge.ring, content: "" };
+      buffer.push(cleaned);
+    } else {
+      buffer.push(para);
+    }
+  }
+  flush();
+
+  // Need at least 2 STAR sections to use badge layout
+  if (sections.length < 2) {
+    return <FormattedTextContent content={text} isSpoken />;
+  }
+
+  return (
+    <div className="space-y-3">
+      {sections.map((s, i) => (
+        <div key={i} className="flex gap-3">
+          <div className="flex-shrink-0 mt-0.5">
+            <div className={`w-7 h-7 rounded-full ${s.bg} ring-2 ${s.ring} flex items-center justify-center`}>
+              <span className="text-xs font-bold text-white">{s.letter}</span>
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-1">{s.label}</p>
+            <p className="text-sm text-ink-light leading-relaxed">{renderInlineFormatting(s.content)}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ContentRenderer({
   content,
   slot,
@@ -460,19 +535,10 @@ function ContentRenderer({
 }) {
   if (!content) return null;
 
-  // Try JSON parsing
-  const isJson = content.trimStart().startsWith("{") || content.trimStart().startsWith("[");
+  const parsed = tryParseJSON(content);
 
-  if (!isJson) {
+  if (parsed === null) {
     // Plain text — use paragraph-aware formatter
-    return <FormattedTextContent content={content} isSpoken={SPOKEN_ANSWER_TYPES.has(slot.type)} />;
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    // JSON-like but not valid — render as formatted text
     return <FormattedTextContent content={content} isSpoken={SPOKEN_ANSWER_TYPES.has(slot.type)} />;
   }
 
@@ -488,7 +554,7 @@ function ContentRenderer({
             <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-2">
               Q{i + 1}: {a.question}
             </p>
-            <p className="text-sm text-ink-light leading-relaxed whitespace-pre-wrap">{a.answer}</p>
+            <STARContent text={a.answer} />
             <p className="text-xs text-ink-muted mt-2 italic">Source: {a.resumeSource}</p>
             {i < (data.answers?.length ?? 0) - 1 && <Separator className="mt-4" />}
           </div>
@@ -1111,6 +1177,166 @@ function ContentRenderer({
         })}
       </div>
     );
+  }
+
+  // ─ comp_expectations ─
+  if (slot.type === "comp_expectations") {
+    const data = parsed as {
+      script?: string;
+      range?: string;
+      research?: string;
+      notes?: string;
+      reasoning?: string;
+    };
+    if (data.script) {
+      return (
+        <div className="space-y-4">
+          <div className="bg-gray-50 border-l-4 border-primary-400 rounded-r-xl px-4 py-3">
+            <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wide mb-2">Your Script</p>
+            <p className="text-sm text-ink leading-relaxed italic">{data.script}</p>
+          </div>
+          {data.range && (
+            <div>
+              <p className="text-xs font-semibold text-ink-muted uppercase mb-1">Comp Range</p>
+              <p className="text-sm text-ink-light font-medium">{data.range}</p>
+            </div>
+          )}
+          {data.research && (
+            <div>
+              <p className="text-xs font-semibold text-ink-muted uppercase mb-1">Research</p>
+              <p className="text-sm text-ink-light leading-relaxed">{data.research}</p>
+            </div>
+          )}
+          {(data.reasoning || data.notes) && (
+            <div>
+              <p className="text-xs font-semibold text-ink-muted uppercase mb-1">Notes</p>
+              <p className="text-sm text-ink-light leading-relaxed">{data.reasoning || data.notes}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+  }
+
+  // ─ cold_email ─
+  if (slot.type === "cold_email") {
+    const data = parsed as {
+      subject?: string;
+      body?: string;
+      notes?: string;
+      followUp?: string;
+    };
+    if (data.subject || data.body) {
+      return (
+        <div className="space-y-4">
+          {data.subject && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-ink-muted uppercase">Subject:</span>
+              <span className="text-sm font-semibold text-ink">{data.subject}</span>
+            </div>
+          )}
+          {data.body && (
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
+              <FormattedTextContent content={data.body} />
+            </div>
+          )}
+          {data.followUp && (
+            <div className="bg-amber-50/60 border-l-2 border-amber-300 px-3 py-2 rounded-r-lg">
+              <p className="text-xs font-semibold text-amber-800 mb-1">Follow-up</p>
+              <p className="text-sm text-amber-900 leading-relaxed">{data.followUp}</p>
+            </div>
+          )}
+          {data.notes && (
+            <div>
+              <p className="text-xs font-semibold text-ink-muted uppercase mb-1">Notes</p>
+              <p className="text-sm text-ink-light leading-relaxed">{data.notes}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+  }
+
+  // ─ pain_point_analysis ─
+  if (slot.type === "pain_point_analysis") {
+    const data = parsed as {
+      painPoints?: Array<{ pain: string; evidence: string; question: string }>;
+      summary?: string;
+    };
+    if (data.painPoints?.length) {
+      return (
+        <div className="space-y-4">
+          {data.summary && <p className="text-sm text-ink-light leading-relaxed">{data.summary}</p>}
+          {data.painPoints.map((pp, i) => (
+            <div key={i} className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="px-4 py-2.5 bg-red-50 border-b border-red-100">
+                <p className="text-sm font-semibold text-red-900">🔍 {pp.pain}</p>
+              </div>
+              <div className="px-4 py-3 space-y-2">
+                <p className="text-sm text-ink-light leading-relaxed">{pp.evidence}</p>
+                <div className="bg-primary-50 border-l-4 border-primary-400 rounded-r-lg px-3 py-2">
+                  <p className="text-xs font-semibold text-primary-700 mb-1">Discovery Question</p>
+                  <p className="text-sm text-primary-800 italic">&ldquo;{pp.question}&rdquo;</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+  }
+
+  // ─ assignment_guide ─
+  if (slot.type === "assignment_guide") {
+    const data = parsed as {
+      overview?: string;
+      checklist?: string[];
+      structure?: Array<{ section: string; tips: string }>;
+      tips?: string[];
+    };
+    if (data.checklist?.length || data.structure?.length) {
+      return (
+        <div className="space-y-4">
+          {data.overview && <p className="text-sm text-ink-light leading-relaxed">{data.overview}</p>}
+          {data.structure?.length ? (
+            <div className="space-y-3">
+              {data.structure.map((s, i) => (
+                <div key={i}>
+                  <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-1">{s.section}</p>
+                  <p className="text-sm text-ink-light leading-relaxed">{s.tips}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {data.checklist?.length ? (
+            <div>
+              <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-2">Checklist</p>
+              <ul className="space-y-1.5">
+                {data.checklist.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-ink-light">
+                    <span className="text-green-500 flex-shrink-0 mt-0.5">☐</span>
+                    <span className="leading-relaxed">{renderInlineFormatting(item)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {data.tips?.length ? (
+            <div>
+              <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-2">Tips</p>
+              <ul className="space-y-1.5">
+                {data.tips.map((tip, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-ink-light">
+                    <span className="text-amber-500 flex-shrink-0 mt-0.5">💡</span>
+                    <span className="leading-relaxed">{renderInlineFormatting(tip)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      );
+    }
   }
 
   // Unknown JSON type — render with generic structured layout instead of raw JSON
