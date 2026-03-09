@@ -1,5 +1,3 @@
-"use server";
-
 /**
  * Post-generation quality check — scans AI answers for anti-patterns
  * that real hiring managers flag as instant disqualifiers.
