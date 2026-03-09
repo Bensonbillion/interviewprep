@@ -7,6 +7,7 @@ import { buildPromptForAnswerType } from "@/lib/ai/prompts";
 import { detectRoleSeniority, getSeniorityInstructions } from "@/lib/ai/seniority";
 import { parseJobListing, buildJobListingContext } from "@/lib/ai/job-listing";
 import { fetchRagContext, assembleSystemPrompt, logAnswerVersion } from "@/lib/ai/rag-context";
+import { checkAnswerQuality, logQualityCheck } from "@/lib/ai/quality-check";
 import type { AnswerType, PrepSession } from "@/types";
 import { auditLog } from "@/lib/security/audit";
 
@@ -126,19 +127,66 @@ export async function POST(req: NextRequest) {
     if (content.type !== "text") throw new Error("Unexpected response type");
 
     // Strip markdown wrapping if present
-    const rawContent = content.text
+    let rawContent = content.text
       .replace(/^```(?:json)?\s*/i, "")
       .replace(/\s*```$/i, "")
       .trim();
 
     const answerId = crypto.randomUUID();
 
+    // ── Quality check ────────────────────────────────────────────────────────
+    const qc = checkAnswerQuality(rawContent, answerType, seniority);
+    let wasRegenerated = false;
+
+    // Auto-regenerate once if critical issues found
+    if (qc.shouldRegenerate && qc.correctionPrompt) {
+      try {
+        const regenResponse = await anthropic.messages.create({
+          model,
+          max_tokens: maxTokens,
+          system,
+          messages: [
+            { role: "user", content: userContent },
+            { role: "assistant", content: rawContent },
+            { role: "user", content: qc.correctionPrompt },
+          ],
+        });
+
+        const regenBlock = regenResponse.content[0];
+        if (regenBlock.type === "text") {
+          rawContent = regenBlock.text
+            .replace(/^```(?:json)?\s*/i, "")
+            .replace(/\s*```$/i, "")
+            .trim();
+          wasRegenerated = true;
+        }
+      } catch (regenErr) {
+        // Regeneration failed — use original answer with coaching tips
+        console.warn("Quality regen failed (non-fatal):", regenErr);
+      }
+    }
+
+    // Re-check after regeneration for coaching tips
+    const finalQc = wasRegenerated
+      ? checkAnswerQuality(rawContent, answerType, seniority)
+      : qc;
+
+    // Log quality check (fire-and-forget)
+    logQualityCheck({
+      answerId,
+      answerType,
+      issues: qc.issues,
+      criticalCount: qc.criticalCount,
+      warningCount: qc.warningCount,
+      wasRegenerated,
+    });
+
     // Log generation (fire-and-forget)
     logAnswerVersion({
       sessionId,
       answerType: answerType as AnswerType,
       content: rawContent,
-      generationType: "initial",
+      generationType: wasRegenerated ? "regen" : "initial",
       promptVersionId: rag.activePromptVersionId,
       knowledgeChunkIds: rag.knowledgeChunkIds,
       goldenExampleIds: rag.goldenExampleIds,
@@ -149,7 +197,13 @@ export async function POST(req: NextRequest) {
       userId: auth.userId,
       resourceType: "answer",
       resourceId: answerId,
-      details: { answerType, model, company: session.company?.name },
+      details: {
+        answerType,
+        model,
+        company: session.company?.name,
+        qualityIssues: qc.criticalCount + qc.warningCount,
+        wasRegenerated,
+      },
     });
 
     return NextResponse.json({
@@ -157,6 +211,7 @@ export async function POST(req: NextRequest) {
       answerType,
       content: rawContent,
       model,
+      ...(finalQc.coachingTips.length > 0 && { coachingTips: finalQc.coachingTips }),
     });
   } catch (err) {
     console.error("Generate answer error:", err);
