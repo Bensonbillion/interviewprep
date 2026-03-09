@@ -11,6 +11,7 @@ import { InterviewerIntelCard } from "@/components/prep/InterviewerIntelCard";
 import { ClosingCoachCard } from "@/components/prep/ClosingCoachCard";
 import { FollowUpSection } from "@/components/prep/FollowUpSection";
 import { ConfidenceCheck } from "@/components/prep/ConfidenceCheck";
+import { CustomQuestionSection } from "@/components/prep/CustomQuestionSection";
 import { getSessionList as getSessionListForCount } from "@/lib/session/session-list";
 import { useCredits } from "@/hooks/useCredits";
 import { tracker } from "@/lib/feedback/implicit-tracker";
@@ -891,6 +892,14 @@ export default function PrepSessionPage() {
           ))}
         </div>
       )}
+
+      {/* ── Custom question prep ───────────────────────────────────────── */}
+      <CustomQuestionSection
+        session={session}
+        sessionId={sessionId}
+        creditBalance={creditsLoading ? 0 : creditBalance}
+        onCreditSpent={() => refreshCredits?.()}
+      />
 
       {/* ── Closing coach card ──────────────────────────────────────────── */}
       {allGenerated && (
