@@ -92,9 +92,13 @@ Identify 3-5 strong matches, 2-3 gaps, and 2-3 lead stories. For career switcher
 
     return NextResponse.json({ relevanceMap });
   } catch (err) {
-    console.error("Cross-reference error:", err instanceof Error ? err.message : err);
+    const rawMsg = err instanceof Error ? err.message : String(err);
+    console.error("Cross-reference error:", rawMsg);
     return NextResponse.json(
-      { error: "Failed to analyze your resume against this role. Please try again." },
+      {
+        error: "Failed to analyze your resume against this role. Please try again.",
+        _debug: rawMsg.replace(/sk-ant-[^\s]*/g, "[KEY]").slice(0, 300),
+      },
       { status: 500 }
     );
   }

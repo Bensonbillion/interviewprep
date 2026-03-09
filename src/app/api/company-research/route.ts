@@ -123,9 +123,13 @@ Return ONLY valid JSON (no markdown):
 
     return NextResponse.json({ company });
   } catch (err) {
-    console.error("Company research error:", err);
+    const rawMsg = err instanceof Error ? err.message : String(err);
+    console.error("Company research error:", rawMsg);
     return NextResponse.json(
-      { error: "Failed to generate company profile" },
+      {
+        error: "Failed to generate company profile",
+        _debug: rawMsg.replace(/sk-ant-[^\s]*/g, "[KEY]").slice(0, 300),
+      },
       { status: 500 }
     );
   }
