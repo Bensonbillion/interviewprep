@@ -114,22 +114,20 @@ Return ONLY valid JSON (no markdown):
     const content = response.content[0];
     if (content.type !== "text") throw new Error("Unexpected response type");
 
-    const jsonText = content.text
+    const cleaned = content.text
       .replace(/^```(?:json)?\s*/i, "")
       .replace(/\s*```$/i, "")
       .trim();
-
-    const company = JSON.parse(jsonText) as CompanyProfile;
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON in company research response");
+    const company = JSON.parse(jsonMatch[0]) as CompanyProfile;
 
     return NextResponse.json({ company });
   } catch (err) {
     const rawMsg = err instanceof Error ? err.message : String(err);
     console.error("Company research error:", rawMsg);
     return NextResponse.json(
-      {
-        error: "Failed to generate company profile",
-        _debug: rawMsg.replace(/sk-ant-[^\s]*/g, "[KEY]").slice(0, 300),
-      },
+      { error: "Failed to generate company profile" },
       { status: 500 }
     );
   }

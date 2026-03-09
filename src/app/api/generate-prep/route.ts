@@ -261,12 +261,13 @@ ${STAGE_SCHEMAS[stage]}`;
     const content = response.content[0];
     if (content.type !== "text") throw new Error("Unexpected response type");
 
-    const jsonText = content.text
+    const cleaned = content.text
       .replace(/^```(?:json)?\s*/i, "")
       .replace(/\s*```$/i, "")
       .trim();
-
-    const prepKit = JSON.parse(jsonText) as PrepKit;
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON in prep kit response");
+    const prepKit = JSON.parse(jsonMatch[0]) as PrepKit;
 
     return NextResponse.json({ prepKit });
   } catch (err) {

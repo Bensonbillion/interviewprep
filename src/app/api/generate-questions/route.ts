@@ -84,8 +84,10 @@ Return ONLY valid JSON: {"questions":[{"question":"...","category":"...","hint":
       });
 
       const raw = response.content[0].type === "text" ? response.content[0].text : "{}";
-      const jsonText = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-      const parsed = JSON.parse(jsonText) as { questions: Array<{ question: string; category: string; hint?: string }> };
+      const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("No JSON in questions response");
+      const parsed = JSON.parse(jsonMatch[0]) as { questions: Array<{ question: string; category: string; hint?: string }> };
 
       return (parsed.questions ?? []).map((q) => ({
         id: randomUUID(),

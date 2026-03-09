@@ -83,22 +83,22 @@ Identify 3-5 strong matches, 2-3 gaps, and 2-3 lead stories. For career switcher
     const content = response.content[0];
     if (content.type !== "text") throw new Error("Unexpected response type");
 
-    const jsonText = content.text
+    const cleaned = content.text
       .replace(/^```(?:json)?\s*/i, "")
       .replace(/\s*```$/i, "")
       .trim();
 
-    const relevanceMap = JSON.parse(jsonText) as RelevanceMap;
+    // Extract first JSON object — Claude sometimes adds commentary after the JSON
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON found in cross-reference response");
+    const relevanceMap = JSON.parse(jsonMatch[0]) as RelevanceMap;
 
     return NextResponse.json({ relevanceMap });
   } catch (err) {
     const rawMsg = err instanceof Error ? err.message : String(err);
     console.error("Cross-reference error:", rawMsg);
     return NextResponse.json(
-      {
-        error: "Failed to analyze your resume against this role. Please try again.",
-        _debug: rawMsg.replace(/sk-ant-[^\s]*/g, "[KEY]").slice(0, 300),
-      },
+      { error: "Failed to analyze your resume against this role. Please try again." },
       { status: 500 }
     );
   }

@@ -97,12 +97,13 @@ Return ONLY valid JSON (no markdown):
     const content = response.content[0];
     if (content.type !== "text") throw new Error("Unexpected response type");
 
-    const jsonText = content.text
+    const cleaned = content.text
       .replace(/^```(?:json)?\s*/i, "")
       .replace(/\s*```$/i, "")
       .trim();
-
-    const dossier = JSON.parse(jsonText) as InterviewerDossier;
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON in interviewer research response");
+    const dossier = JSON.parse(jsonMatch[0]) as InterviewerDossier;
 
     // Store in Supabase (fire-and-forget)
     try {

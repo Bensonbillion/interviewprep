@@ -92,7 +92,7 @@ export function GenerationScreen({
         body: JSON.stringify({ companyName, companyUrl, jobDescription, targetRole }),
       });
       const companyData = await companyRes.json();
-      if (!companyRes.ok) throw new Error((companyData.error ?? "Company research failed") + (companyData._debug ? ` [debug: ${companyData._debug}]` : ""));
+      if (!companyRes.ok) throw new Error(companyData.error ?? "Company research failed");
       const company: CompanyProfile = companyData.company;
 
       // Step 2: cross-reference resume
@@ -103,7 +103,7 @@ export function GenerationScreen({
         body: JSON.stringify({ resume, company, jobDescription, targetRole }),
       });
       const crossRefData = await crossRefRes.json();
-      if (!crossRefRes.ok) throw new Error((crossRefData.error ?? "Cross-reference failed") + (crossRefData._debug ? ` [debug: ${crossRefData._debug}]` : ""));
+      if (!crossRefRes.ok) throw new Error(crossRefData.error ?? "Cross-reference failed");
       const relevanceMap: RelevanceMap = crossRefData.relevanceMap;
 
       // Build session object
