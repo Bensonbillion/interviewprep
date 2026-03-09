@@ -554,9 +554,12 @@ export default function PrepSessionPage() {
       const res = await fetch("/api/user/spend-credit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: `unlock-${sessionId}-${type}-${Date.now()}` }),
+        body: JSON.stringify({ sessionId: `unlock-${sessionId}-${type}` }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.error("[unlock] spend-credit failed:", res.status);
+        return;
+      }
       setSlots((prev) =>
         prev.map((s) => (s.type === type ? { ...s, status: "unlocked" as const } : s))
       );

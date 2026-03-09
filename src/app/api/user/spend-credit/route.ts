@@ -33,7 +33,8 @@ export async function POST(req: NextRequest) {
     });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("[spend-credit] RPC error:", error.message, error.code);
+      return NextResponse.json({ error: "Failed to process credit." }, { status: 500 });
     }
 
     if (data === false) {

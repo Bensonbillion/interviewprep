@@ -36,18 +36,11 @@ export async function POST(req: NextRequest) {
     const resume = await parseResumeFromFile(buffer, f.type, f.name);
     return NextResponse.json({ resume });
   } catch (err) {
-    const rawMsg = err instanceof Error ? err.message : String(err);
-    const rawStack = err instanceof Error ? err.stack : undefined;
-    console.error("[parse-resume] ERROR:", rawMsg);
-    if (rawStack) console.error("[parse-resume] STACK:", rawStack);
-    // Never expose raw error messages — they may contain API keys or internal details
-    // Temporarily include a safe diagnostic hint (no secrets) for debugging
+    console.error("[parse-resume] ERROR:", err instanceof Error ? err.message : err);
     const safeMessage =
       err instanceof Error && /empty|unsupported|too short|image-based|DOCX/i.test(err.message)
         ? err.message
         : "Failed to parse resume. Please try a different file format or paste your resume as text.";
-    // Include a non-sensitive error class hint for debugging
-    const errorHint = err instanceof Error ? err.constructor.name : "unknown";
-    return NextResponse.json({ error: safeMessage, _debug: errorHint }, { status: 500 });
+    return NextResponse.json({ error: safeMessage }, { status: 500 });
   }
 }
