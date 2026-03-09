@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 
+const CREDIT_REFRESH_EVENT = "salesprep:credits-changed";
+
 interface CreditsState {
   balance: number;
   loading: boolean;
@@ -22,7 +24,18 @@ export function useCredits(): CreditsState {
       .finally(() => setLoading(false));
   }, [tick]);
 
-  const refresh = useCallback(() => setTick((t) => t + 1), []);
+  // Listen for cross-component refresh events
+  useEffect(() => {
+    const handler = () => setTick((t) => t + 1);
+    window.addEventListener(CREDIT_REFRESH_EVENT, handler);
+    return () => window.removeEventListener(CREDIT_REFRESH_EVENT, handler);
+  }, []);
+
+  // Refresh locally AND broadcast to all other useCredits instances
+  const refresh = useCallback(() => {
+    setTick((t) => t + 1);
+    window.dispatchEvent(new Event(CREDIT_REFRESH_EVENT));
+  }, []);
 
   return { balance, loading, refresh };
 }
