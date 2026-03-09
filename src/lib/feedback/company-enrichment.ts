@@ -132,6 +132,59 @@ export async function fetchCompanyInterviewIntel(companyName: string): Promise<C
 /**
  * Format interview intel as a system prompt section.
  */
+/**
+ * Build fallback generic interview intelligence when no company-specific data exists.
+ * Uses cross-industry patterns from 40+ researched companies.
+ */
+export function buildGenericInterviewIntel(stage?: string): string {
+  const parts: string[] = [];
+
+  parts.push("GENERAL INTERVIEW INTELLIGENCE (company-specific data not available — using cross-industry patterns from 40+ companies):");
+
+  parts.push("\nStage-specific guidance:");
+
+  const stageGuidance: Record<string, string> = {
+    recruiter: "- Recruiter screen: They are filtering for energy, basic research, and phone presence. Your TMAY is 80% of this call. Keep answers to 60-90 seconds. End with a close.",
+    hiring_manager: "- Hiring manager: Depth of thought and self-awareness matter most. Show decision rationale at career transitions. Be ready to explain WHY you moved, not just where.",
+    role_play: "- Role play / mock call: This is a coachability test, not a performance test. When they give feedback, implement it visibly. Your first attempt barely matters — your response to coaching is everything.",
+    panel: "- Panel: 3-4 evaluators will compare notes. Be consistent but tailor depth to each person's function.",
+    take_home: "- Take-home: Allocate 2-3x the time you think it needs. Quality of research and personalization matter more than polish.",
+  };
+
+  if (stage && stageGuidance[stage]) {
+    parts.push(stageGuidance[stage]);
+  } else {
+    parts.push(Object.values(stageGuidance).join("\n"));
+  }
+
+  parts.push(`
+Universal patterns across 40 companies:
+- 32 of 38 active SDR orgs use mock calls
+- Average process: 3-5 rounds over 22-30 days
+- Questions they ALL ask: Tell me about yourself, Why sales, Why this company, How do you handle rejection
+- Universal red flags: No product research, passive interview style, inability to simplify the product
+- Emerging trend: AI usage questions are becoming standard`);
+
+  return parts.join("\n");
+}
+
+/**
+ * Log company intel request for demand tracking.
+ * Fire-and-forget — errors are swallowed.
+ */
+export async function logCompanyIntelRequest(companyName: string): Promise<void> {
+  try {
+    const normalized = normalizeCompanyName(companyName);
+    const db = adminDb();
+    await db.rpc("upsert_company_intel_request", {
+      p_company_name: companyName,
+      p_normalized: normalized,
+    });
+  } catch {
+    // Non-fatal — demand tracking should never block generation
+  }
+}
+
 export function formatInterviewIntelSection(intel: CompanyInterviewIntel): string {
   const parts: string[] = [];
 

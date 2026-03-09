@@ -27,6 +27,8 @@ import {
   formatCompanyEnrichmentSection,
   fetchCompanyInterviewIntel,
   formatInterviewIntelSection,
+  buildGenericInterviewIntel,
+  logCompanyIntelRequest,
 } from "@/lib/feedback/company-enrichment";
 import type { AnswerType, RoleType, InterviewStage } from "@/types";
 
@@ -437,6 +439,14 @@ export async function fetchRagContext(
     const companyIntelParts: string[] = [];
     if (companyEnrichment) companyIntelParts.push(formatCompanyEnrichmentSection(companyEnrichment));
     if (interviewIntel) companyIntelParts.push(formatInterviewIntelSection(interviewIntel));
+
+    // Fallback: if no company-specific intel, inject generic cross-industry patterns
+    if (companyIntelParts.length === 0 && companyName) {
+      companyIntelParts.push(buildGenericInterviewIntel(stage));
+      // Log demand so we know which companies to research next (fire-and-forget)
+      logCompanyIntelRequest(companyName);
+    }
+
     const sectionCompanyIntel = companyIntelParts.length > 0
       ? companyIntelParts.join("\n\n")
       : null;
