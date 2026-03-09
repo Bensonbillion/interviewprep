@@ -136,6 +136,16 @@ const COMPANY_ALIASES: Record<string, string> = {
   // monday.com
   "monday": "monday.com",
 
+  // Couchbase
+  "couchbase inc": "couchbase",
+  "membase": "couchbase",
+
+  // ValorC3
+  "valor c3": "valorc3",
+  "valor c3 data centers": "valorc3",
+  "valorc3 data centers": "valorc3",
+  "tonaquint": "valorc3",
+
   // Notion
   "notion labs": "notion",
 
