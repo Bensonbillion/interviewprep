@@ -214,7 +214,13 @@ BANNED OPENERS (disqualifying):
 GOOD OPENERS:
 - "The short version is..." (then give the interesting version)
 - "My path to tech sales isn't traditional, which I think is actually an advantage."
-- Lead with the most compelling part of the arc, not the chronological beginning`
+- Lead with the most compelling part of the arc, not the chronological beginning
+
+HIRING MANAGER VERSION — deeper, more narrative:
+- Include a specific TURNING POINT moment. Real example: 'The turning point was honestly about two years ago at BroadBridge. I was running ABM/ABX... but what excited me wasn't the marketing side. It was when I started getting prospects on the phone.'
+- 200-280 words. This round goes deeper.
+- Show decision RATIONALE at career transitions — why you left, not just where you went.
+- HMs are testing for self-awareness. The best TMAY answers include one honest admission: 'I wasn't sure when it happened exactly' or 'I realized the marketing side wasn't what excited me.'`
     : `STRUCTURE — Present → Past → Future (tell it like a story, not a framework):
 Present (2–3 sentences): What they're doing now + one specific metric that proves they're good at it.
 Past (2–3 sentences): The ONE experience or turning point that made this career direction click — not a chronological résumé read-through.
@@ -228,7 +234,15 @@ CRITICAL — First sentence must hook. Not "I am currently at..." but something 
 For SDR/BDR:
 - Career switcher: the Past section should name the pivot moment directly — own it confidently, don't slide past it
 - Include one specific metric (a number, a ranking, a rate — anything concrete)
-- End with genuine forward energy: connect to THIS company specifically, not a generic "I'm excited for the opportunity"`;
+- End with genuine forward energy: connect to THIS company specifically, not a generic "I'm excited for the opportunity"
+
+REAL-WORLD PATTERNS FROM HIRED CANDIDATES:
+- Start with a MOMENT or REALIZATION, not a chronological bio. Example: 'I spent a long time in college convinced I was going to be in finance...' NOT 'I graduated from X University in 2020.'
+- Include ONE specific metric from past work. Real example that got someone hired: 'raised $100,000 more than our original goal'
+- End with an engagement question: 'What else would you like to know about me?' — this is an instinctive sales move that hiring managers notice. Terry Husayn (250+ SDR interviews) says this question IS the entire interview.
+- Keep under 60 seconds / 130-180 words for recruiter screen.
+- Career switchers: Draw a THREAD through your whole life that leads to sales. The nonprofit fundraiser mentioned real estate sections as a kid → college internship → current role.
+- NEVER start with 'I am a [role] with X years of experience.' Hiring managers report hearing this opening in 80%+ of interviews — it is invisible.`;
 
   const wordTarget = ctx.stage === "hiring_manager" ? "200–280 words (90–120 seconds spoken)" : "130–200 words (60–90 seconds spoken)";
 
@@ -343,6 +357,14 @@ PROBE-READINESS — this answer must survive:
 - "What specifically about that moment clicked?" — the answer must have sensory or physical detail to draw from, not just a summary
 - "Was there a time you doubted sales?" — the answer should already acknowledge one honest friction point or uncertainty, so this probe feels pre-answered
 
+REAL-WORLD PATTERNS:
+- Start with a SPECIFIC MOMENT, not a statement. The finance major who got hired started with: 'I spent a long time in college convinced I was going to be in finance. But every job description I read bored me to tears...'
+- Career switchers should NAME the previous field and explain the PULL toward sales, not the push away from the old career.
+- Military candidates: Connect specific military experiences (unit, mission, training moment) to sales traits. Do NOT just say 'military taught me discipline.'
+- Teachers: Frame classroom management as coaching, lesson planning as territory planning, student outcomes as metrics.
+- Hospitality/retail: Frame customer interactions as discovery, upselling as consultative selling, complaint resolution as objection handling. One hired candidate said: 'I spent 10 years in top-tier steakhouses. My responsibilities included hands-on time programming POS systems' — turned domain knowledge into a credential.
+- AVOID: 'I heard the money is good.' While true, this is a red flag when stated as primary motivation.
+
 CANDIDATE:
 ${buildResumeContext(ctx.resume)}
 ${buildPersonalContextBlock(ctx.personalContext)}
@@ -400,6 +422,13 @@ REQUIREMENTS (all stages):
 - DON'T list research facts — weave them in naturally. Sound like you already know this, not like you're presenting a report: "The reason I'm specifically excited about ${ctx.company.name} is..." or "What got me was when I looked at who actually buys this..."
 - SPOKEN: This will be said out loud on a call. Use contractions. No sentence a human wouldn't say in conversation.
 - Every company detail MUST come from the company profile — never hallucinate facts
+
+REAL-WORLD PATTERNS:
+- NEVER recite marketing copy. A CEO literally eye-rolled when a candidate memorized their website paragraph, then said: 'Great, you memorized it. Now pretend I'm your grandmother and do it over.' The candidate simplified to 'You get the hard data for customers and make it easy to understand' — and THAT got them hired.
+- Reference SPECIFIC customers by name. Real example: 'Leapfin selling to customers like Reddit, TaskRabbit, and Guideline proves how great this product is.'
+- Use the 'grandmother test': Can you explain what this company does in one sentence that a non-technical person understands?
+- Show value proposition in SPECIFIC numbers, not vague claims. Good: 'enables 5x as many conversations' Bad: 'increases efficiency.' Great: 'reps will have more conversations in a day than a peer will have in an entire week.'
+- ONE candidate at SaaStr got hired on the spot because they had created a free trial account, tested competitors, and brought printouts with improvement recommendations. Signal this level of initiative in the answer.
 
 CANDIDATE:
 ${buildResumeContext(ctx.resume)}
@@ -555,6 +584,13 @@ NATURAL OPENERS (use one variation, never "I would like to share a story about..
 - Includes at least one specific metric, name, or concrete detail
 - MUST end with the reflection layer — what they learned or would do differently${aeExtra}${panelExtra}
 
+REAL STAR PATTERNS FROM HIRED CANDIDATES:
+- The rejection story structure: Lost a deal → asked WHY → discovered the real gap → built a system to prevent it. Real example: 'They chose a competitor who provided a more customized solution. I started asking more probing questions and spending more time understanding each client's specific challenges.'
+- Entry-level without sales experience: Use fundraising, student org, volunteer, or academic stories. Real example: 'I reached out to sponsors who rejected me, asking if they would share insights on how I could improve my pitch.' This shows resilience AND coachability simultaneously.
+- Include ONE number in every story. Pipeline sourced, percentage improvement, dollar amount, number of calls.
+- The reflection layer matters more than the result. Good: 'I now have a 10-item checklist I go through when a mistake occurs, that I developed with my boss and five colleagues.' Bad: 'And that's how I learned to always work harder.'
+- RED FLAG: Never switch from 'I' to 'you' when discussing mistakes. 'You should always...' signals deflection. Keep it in first person throughout.
+
 CANDIDATE:
 ${buildResumeContext(ctx.resume)}
 
@@ -595,6 +631,13 @@ BENCHMARK RANGES (calibrate to seniority):
 
 IMPORTANT: This is a DEFLECTION answer, not a depth answer. NO nested details, NO storytelling, NO proof points. The goal is to give a range without killing the deal, then redirect forward. Keep it SHORT.
 60–80 words max. This is a screening question, not a negotiation.
+
+REAL NEGOTIATION PATTERNS:
+- Default response: 'What is budgeted for the role?' — this is the #1 recommended deflection across Bravado, LinkedIn, and sales hiring communities.
+- If pushed: 'Right now I'm focused on the interview process and don't have a number in mind, but I'm confident we'll be able to reach an agreement.'
+- NEVER say 'I'm flexible' or 'I'll take whatever you think is fair' — hiring managers see this as a weakness signal.
+- For entry-level SDRs, note that one experienced SDR manager warned: 'Negotiating for BDR is HARD because they will tell you you don't have enough experience for a higher base. It doesn't make sense to negotiate an entry-level role like this.' Generate the answer with this context in mind.
+- Keep the comp answer to 60-80 words MAX. This is a redirect, not a speech.
 Return ONLY the answer text.`,
     maxTokens: 200,
   };
@@ -721,6 +764,13 @@ Required objections:
 
 COMPANY:
 ${buildCompanyContext(ctx.company)}
+
+REAL MOCK CALL INSIGHTS FROM HIRING MANAGERS:
+- The call itself matters LESS than how you respond to coaching afterward. Gong gives candidates TWO attempts with coaching between them. Outreach evaluates 'not whether they ace the call but how they respond to coaching.'
+- A BDR who self-described his mock call as 'awful' and lasting '5 minutes' still got hired. The CEO said he 'didn't do too bad.' What mattered was recovery, not perfection.
+- Framework from Bravado (real advice that got people hired): 'Don't overcomplicate it. Say: We have helped [competitor] in this space with [stat]. We might be able to assist y'all too. Ask for the next call.'
+- INCLUDE a self-assessment section at the end: 'After your mock call, say: Here is one thing I did well, and here is specifically what I'd improve next time.' This is explicitly what hiring managers evaluate.
+- NEVER include an objection handle that just pushes past the objection. The real pattern: acknowledge → ask a deeper question → reframe. One hired candidate: When told to 'just send an email,' they asked what specific problem they could address in the email — turning a blow-off into discovery.
 
 COACHING NOTE TO INCLUDE:
 Generate a coachingNote field with this exact framing, personalized to ${ctx.company.name}'s product and ICP: explain that this is a FRAMEWORK, not a word-for-word script. Memorizing it sounds robotic. The candidate should know the STRUCTURE (interrupt → hypothesis → discover → bridge) and fill it in naturally. In the mock call, they're being tested on whether they can have a CONVERSATION, not recite a pitch.
@@ -1019,6 +1069,13 @@ Seniority calibration:
 - Mid-level: direct, assumes basic interview knowledge
 - Senior: brief and strategic, skip the obvious
 
+HIRING MANAGER INTELLIGENCE TO INCLUDE:
+- 'Without exception, every great SDR I have hired has had a fantastic Tell Me About Yourself.' — Jason Dorfman, CEO Orum (hired 10 from 250+ interviews, 30:1 ratio)
+- Coachability is tested in role-play rounds. The test: they give you feedback mid-call, then watch if you implement it on the second try. Performance on the FIRST call is almost irrelevant.
+- 'The questions they ask are more important than their responses to my questions.' — Chili Piper hiring manager
+- Red flag phrases that end interviews: 'I'm hesitant to be on the phone' (HubSpot HM), 'I am the best in the world at cold calling' (Victor Vatus), asking easily Googleable questions (Elric Legloire, 220+ interviews).
+- SaaStr warning: A CRO candidate in a FINAL interview didn't know 66% of revenue came from channel. A VPM candidate hadn't watched the 2-minute explainer video. Both interviews ended immediately.
+
 Return JSON:
 {
   "testing": ["...", "...", "..."],
@@ -1092,6 +1149,14 @@ VOICE RULES (non-negotiable):
 - Questions must reference something SPECIFIC to ${ctx.company.name}, this role, or this conversation — not interchangeable with any other company
 - NEVER ask anything answerable from the job listing or company website
 - NEVER ask about benefits, PTO, or perks at the recruiter stage
+
+REAL QUESTIONS THAT GOT CANDIDATES HIRED (from Bravado, Orum, and hiring manager interviews):
+- 'What does your top performer do differently from your worst performer?' — shows competitive mindset
+- 'If we started this interview over, can you coach me on something I could have done better?' — demonstrates coachability in real-time. Multiple hiring managers across Orum, Bravado, and LinkedIn independently called this one of the best questions they've ever received.
+- 'What percentage of reps hit quota and at what point in the year is that typically?'
+- 'What's comp like during onboarding? Is there a non-recoverable draw?' — shows business sophistication
+- ALWAYS end with a CLOSE: 'Based on everything we've discussed, I am confident I am a great fit. Do you have any concerns that would hold you back from moving me forward?' This mirrors a sales close and every hiring manager notices it.
+- RED FLAG questions to NEVER generate: 'Is the company remote?' (Googleable), 'How many people are on the team?' (shows zero research), 'What are the next steps?' (passive, no close)
 
 COACHING NOTE TO INCLUDE:
 Write a 2-sentence coaching note reminding the candidate these are NOT a checklist — pick 2–3 based on conversation flow, and the follow-ups only work if you were actually listening. If the answer goes somewhere unexpected, skip the planned follow-up and ask what you're genuinely curious about.${jdSnippet}
