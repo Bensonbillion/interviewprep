@@ -1028,12 +1028,43 @@ export function buildCheatSheetPrompt(ctx: PromptContext): PromptResult {
     ? STAGE_CHEAT_CLOSER[ctx.stage].ae
     : STAGE_CHEAT_CLOSER[ctx.stage].sdr;
 
+  // Build the stage-specific "one thing" guidance
+  const stageOneThingMap: Record<string, { sdr: string; ae: string }> = {
+    recruiter: {
+      sdr: "They are filtering for energy and research depth, not sales skill — your TMAY is 80% of this call. 'Without exception, every great SDR I have hired has had a fantastic Tell Me About Yourself.' — Jason Dorfman, CEO Orum (hired 10 from 250+ interviews, 30:1 ratio)",
+      ae: "They are validating your numbers and reason for moving. Vague quota talk ('I performed well') kills AE candidates in the recruiter screen. Lead with specifics.",
+    },
+    hiring_manager: {
+      sdr: "Show decision rationale at every career transition. WHY you moved matters more than where you went. They are testing self-awareness and coachability, not polish.",
+      ae: "Can you walk through a deal end-to-end with real numbers — not just the highlight reel? HMs trust reps who own their losses more than ones who only share wins.",
+    },
+    role_play: {
+      sdr: "The mock call is a coachability test. When they give you feedback, implement it visibly on your second try. First call performance barely matters. Gong gives candidates TWO attempts with coaching between them. Outreach evaluates 'not whether they ace the call but how they respond to coaching.'",
+      ae: "Do you listen before you pitch? AEs who ask 2+ discovery questions before presenting anything advance at 3× the rate. The talk-to-listen ratio is what they actually measure.",
+    },
+    panel: {
+      sdr: "You are being evaluated by 3-4 people who will compare notes. Be consistent but tailor depth to each person's function. Close the process at the end — panels respect candidates who ask for the job.",
+      ae: "Are you closing the process — or just surviving it? The panel expects you to ask for the job. A 90-day plan that's all ramp and no pipeline activity signals you don't have day-1 instincts.",
+    },
+    take_home: {
+      sdr: "Did you show ICP thinking — or just write a cold email? Research depth is what separates finalists from rejections.",
+      ae: "Is this submission something you'd send to a real prospect? Treat it like a live deal, not an assignment.",
+    },
+  };
+  const stageOneThing = isAE
+    ? (stageOneThingMap[ctx.stage]?.ae ?? oneThingExample)
+    : (stageOneThingMap[ctx.stage]?.sdr ?? oneThingExample);
+
+  // Seniority label for prompt
+  const seniorityLabel = ctx.seniority === "entry" ? "entry-level" : ctx.seniority === "senior" ? "senior" : "mid-level";
+
   return {
     system: `${BASE_SYSTEM}
 
 ${kb}`,
-    user: `Generate a stage-specific cheat sheet for ${ctx.targetRole} at ${ctx.company.name}.
-Stage: ${ctx.stage} | Role type: ${isAE ? "Account Executive" : "SDR/BDR"}
+    user: `Generate a cheat sheet for a ${seniorityLabel} ${isAE ? "Account Executive" : "SDR/BDR"} candidate interviewing at ${ctx.company.name} for the ${ctx.stage} round.
+
+This cheat sheet should feel like a note from a mentor who has sat in hundreds of interviews at THIS company, for THIS stage. Not a generic tip sheet. Direct, warm, like a coach texting you 5 minutes before the call. Short sentences. No fluff. Use "you" and "they" language. This is tactical, not inspirational.
 
 CANDIDATE:
 ${buildResumeContext(ctx.resume)}
@@ -1041,40 +1072,50 @@ ${buildResumeContext(ctx.resume)}
 COMPANY:
 ${buildCompanyContext(ctx.company)}
 
-Generate EXACTLY this structure — concise, no filler, fits on one mobile screen:
+Generate EXACTLY this structure — concise, fits on ONE mobile screen:
 
-1. WHAT THEY'RE TESTING FOR (2–3 bullets, 1 sentence each):
-   Specific evaluation criteria for THIS stage — not generic "communication skills."
-   Use the candidate's background to make these feel personal, not textbook.
+1. WHAT THEY'RE REALLY TESTING FOR (2–3 bullets, 1 sentence each):
+   Not the obvious skills — the HIDDEN evaluation criteria.
+   For recruiter screens: phone presence, enthusiasm, basic research.
+   For HM rounds: depth of thought, self-awareness, why THIS company specifically.
+   For role-play: coachability (not call performance), discovery skills, recovery from objections.
+   For panel: consistency across interviewers, strategic depth, closing instinct.
+   Use the candidate's specific background to make these feel personal.
    ${testingExamples}
 
-2. THE ONE THING THAT MATTERS MOST (1 sentence):
-   The single highest-signal behavior for this stage.
-   Example: ${oneThingExample}
+2. THE ONE THING THAT MATTERS MOST (1-2 sentences):
+   The single most important thing for THIS specific stage. Be blunt.
+   For this stage: ${stageOneThing}
 
-3. TIMING (1 line):
-   How long, how long to talk.
-   Example: ${timingExample}
+3. YOUR TIMING (1 line):
+   How long this stage typically runs, how to pace.
+   ${timingExample}
 
-4. COMMON MISTAKES AT THIS STAGE (exactly 3 bullets):
-   Stage-specific, not generic. Adapt to this candidate's background.
-   Examples: ${mistakesExamples.map((m) => `\n   - "${m}"`).join("")}
+4. THREE MISTAKES THAT END INTERVIEWS (exactly 3 bullets):
+   Real examples from hiring managers — not generic advice. Adapt to this candidate's background.
+   REAL EXAMPLES TO DRAW FROM:
+   - 'A VPM candidate in the 4th round hadn't watched the 2-minute explainer video. Interview ended in 10 minutes.' — SaaStr
+   - 'I get questions like "Is the company remote?" This reflects poorly on research skills.' — Elric Legloire (220+ interviews)
+   - 'If someone says they are hesitant about the phone, that's a huge red flag for me.' — HubSpot hiring manager
+   - 'I am the best in the world at cold calling' — Victor Vatus flagged this as an instant no
+   - A CRO candidate in a FINAL interview didn't know 66% of revenue came from channel. Interview ended immediately.
+   Stage-specific examples: ${mistakesExamples.map((m) => `\n   - "${m}"`).join("")}
 
-5. YOUR CLOSER (1 sentence, in quotes — something they can actually say):
-   What to say at the END of the call to advance the process.
-   Example: ${closerExample}
+5. YOUR CLOSER (in quotes — the exact words to end the interview):
+   Always close the interview. This is a sales interview — they notice if you don't close.
+   Default: "Based on everything we've discussed, I'm confident I am a great fit for this role. Do you have any questions or concerns that would hold you back from moving me forward?"
+   Stage-adapted example: ${closerExample}
 
-Seniority calibration:
-- Entry-level: coaching tone, briefly explain WHY each point matters
-- Mid-level: direct, assumes basic interview knowledge
-- Senior: brief and strategic, skip the obvious
+6. QUICK TALK TRACK (your back-pocket ammo — memorize these 4 lines):
+   a. 30-SECOND TMAY: Not the full 90-second version — the elevator pitch if they say "give me the quick version." One sentence on what you do now + one metric + one sentence on why you're here. Under 30 seconds spoken.
+   b. GRANDMOTHER-TEST COMPANY DESCRIPTION: One sentence explaining what ${ctx.company.name} does that a non-technical person would understand. Not marketing copy. "They basically [simple verb] for [who] so they can [outcome]."
+   c. ONE PREPARED METRIC: The single most impressive number from your resume to drop naturally. Not "I exceeded expectations" — a real number: "127% to quota", "$1.2M pipeline in Q3", "highest connect rate on a team of 12." Pick the one that's most relevant to ${ctx.company.name}.
+   d. CLOSING LINE: The exact words above, practiced until they feel natural — not rehearsed.
 
-HIRING MANAGER INTELLIGENCE TO INCLUDE:
-- 'Without exception, every great SDR I have hired has had a fantastic Tell Me About Yourself.' — Jason Dorfman, CEO Orum (hired 10 from 250+ interviews, 30:1 ratio)
-- Coachability is tested in role-play rounds. The test: they give you feedback mid-call, then watch if you implement it on the second try. Performance on the FIRST call is almost irrelevant.
-- 'The questions they ask are more important than their responses to my questions.' — Chili Piper hiring manager
-- Red flag phrases that end interviews: 'I'm hesitant to be on the phone' (HubSpot HM), 'I am the best in the world at cold calling' (Victor Vatus), asking easily Googleable questions (Elric Legloire, 220+ interviews).
-- SaaStr warning: A CRO candidate in a FINAL interview didn't know 66% of revenue came from channel. A VPM candidate hadn't watched the 2-minute explainer video. Both interviews ended immediately.
+'The questions they ask are more important than their responses to my questions.' — Chili Piper hiring manager. Your questions reveal whether you're a serious candidate or just going through motions.
+
+SENIORITY CALIBRATION (${seniorityLabel}):
+${ctx.seniority === "entry" ? "- Coaching tone. Briefly explain WHY each point matters — this may be their first real sales interview." : ctx.seniority === "senior" ? "- Brief and strategic. Skip the obvious. Focus on the political dynamics and executive-level signals." : "- Direct. Assumes basic interview knowledge. Focus on what's specific to THIS company and stage."}
 
 Return JSON:
 {
@@ -1082,9 +1123,15 @@ Return JSON:
   "oneThingThatMatters": "...",
   "timing": "...",
   "commonMistakes": ["...", "...", "..."],
-  "closer": "..."
+  "closer": "...",
+  "quickTalkTrack": {
+    "thirtySecondTmay": "...",
+    "grandmotherCompanyDescription": "...",
+    "preparedMetric": "...",
+    "closingLine": "..."
+  }
 }`,
-    maxTokens: 700,
+    maxTokens: 1000,
   };
 }
 
