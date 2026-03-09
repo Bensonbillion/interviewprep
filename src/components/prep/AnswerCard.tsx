@@ -293,6 +293,162 @@ export interface AnswerCardProps {
 
 // ─── Content renderer ─────────────────────────────────────────────────────────
 
+// ─── Inline formatting: **bold** and *italic* ──────────────────────────────
+function renderInlineFormatting(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={i} className="font-semibold text-ink">{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
+      return <em key={i} className="italic">{part.slice(1, -1)}</em>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
+// ─── Formatted text renderer (handles paragraphs, lists, headings, bold) ────
+function FormattedTextContent({ content, isSpoken }: { content: string; isSpoken?: boolean }) {
+  const blocks = content.split(/\n\n+/).filter((b) => b.trim());
+
+  return (
+    <div className="space-y-3">
+      {blocks.map((block, i) => {
+        const trimmed = block.trim();
+
+        // Markdown headings
+        if (trimmed.startsWith("### ")) {
+          return (
+            <h4 key={i} className="text-sm font-semibold text-ink mt-2 first:mt-0">
+              {trimmed.slice(4)}
+            </h4>
+          );
+        }
+        if (trimmed.startsWith("## ")) {
+          return (
+            <h3 key={i} className="text-base font-semibold text-ink mt-3 first:mt-0">
+              {trimmed.slice(3)}
+            </h3>
+          );
+        }
+
+        // Horizontal rules
+        if (trimmed === "---" || trimmed === "***") {
+          return <hr key={i} className="border-cream-300 my-2" />;
+        }
+
+        const lines = trimmed.split("\n");
+
+        // Detect bullet/numbered lists
+        const isList = lines.every(
+          (l) =>
+            /^\s*[-•]\s/.test(l) ||
+            /^\s*\d+[\.\)]\s/.test(l)
+        );
+
+        if (isList) {
+          return (
+            <ul key={i} className="space-y-1.5">
+              {lines.map((line, j) => {
+                const text = line
+                  .trim()
+                  .replace(/^[-•]\s+/, "")
+                  .replace(/^\d+[\.\)]\s+/, "");
+                return (
+                  <li key={j} className="flex gap-2 text-sm text-ink-light">
+                    <span className="text-ink-muted mt-0.5 flex-shrink-0">•</span>
+                    <span className="leading-relaxed">{renderInlineFormatting(text)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          );
+        }
+
+        // Regular paragraph — first paragraph gets emphasis for spoken answers
+        return (
+          <p
+            key={i}
+            className={`text-sm leading-relaxed ${
+              i === 0 && isSpoken ? "text-ink font-medium" : "text-ink-light"
+            }`}
+          >
+            {lines.map((line, j) => (
+              <span key={j}>
+                {j > 0 && <br />}
+                {renderInlineFormatting(line)}
+              </span>
+            ))}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Generic structured JSON renderer (catches unknown JSON gracefully) ─────
+function GenericStructuredContent({ data }: { data: Record<string, unknown> }) {
+  return (
+    <div className="space-y-4">
+      {Object.entries(data).map(([key, value]) => {
+        if (key.startsWith("_") || key === "type" || key === "version") return null;
+        const label = key
+          .replace(/([A-Z])/g, " $1")
+          .replace(/_/g, " ")
+          .replace(/^\w/, (c) => c.toUpperCase())
+          .trim();
+
+        return (
+          <div key={key}>
+            <h4 className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-1.5">
+              {label}
+            </h4>
+            {Array.isArray(value) ? (
+              <ul className="space-y-1.5">
+                {value.map((item, i) => (
+                  <li key={i} className="flex gap-2 text-sm text-ink-light">
+                    <span className="text-ink-muted mt-0.5 flex-shrink-0">•</span>
+                    <span className="leading-relaxed">
+                      {typeof item === "string"
+                        ? renderInlineFormatting(item)
+                        : typeof item === "object" && item !== null
+                        ? Object.entries(item as Record<string, unknown>)
+                            .map(([k, v]) => `${k}: ${String(v)}`)
+                            .join(" · ")
+                        : String(item)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : typeof value === "object" && value !== null ? (
+              <div className="bg-cream-100 rounded-lg p-3">
+                <GenericStructuredContent data={value as Record<string, unknown>} />
+              </div>
+            ) : (
+              <p className="text-sm text-ink-light leading-relaxed">{String(value)}</p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Spoken answer types (rendered with paragraph emphasis) ─────────────────
+const SPOKEN_ANSWER_TYPES = new Set([
+  "tell_me_about_yourself",
+  "resume_walkthrough",
+  "why_sales",
+  "why_this_company",
+  "career_switcher_bridge",
+  "coachability_coaching",
+  "comp_expectations",
+  "constructive_feedback",
+  "cold_email",
+  "pain_point_analysis",
+  "assignment_guide",
+]);
+
 function ContentRenderer({
   content,
   slot,
@@ -302,19 +458,22 @@ function ContentRenderer({
   slot: AnswerSlot;
   session: PrepSession;
 }) {
-  const isJson = content?.trimStart().startsWith("{") || content?.trimStart().startsWith("[");
+  if (!content) return null;
 
-  if (!isJson || !content) {
-    return (
-      <p className="text-sm text-ink-light leading-relaxed whitespace-pre-wrap">{content}</p>
-    );
+  // Try JSON parsing
+  const isJson = content.trimStart().startsWith("{") || content.trimStart().startsWith("[");
+
+  if (!isJson) {
+    // Plain text — use paragraph-aware formatter
+    return <FormattedTextContent content={content} isSpoken={SPOKEN_ANSWER_TYPES.has(slot.type)} />;
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(content);
   } catch {
-    return <p className="text-sm text-ink-light whitespace-pre-wrap">{content}</p>;
+    // JSON-like but not valid — render as formatted text
+    return <FormattedTextContent content={content} isSpoken={SPOKEN_ANSWER_TYPES.has(slot.type)} />;
   }
 
   // ─ behavioral_star ─
@@ -954,11 +1113,13 @@ function ContentRenderer({
     );
   }
 
-  return (
-    <pre className="text-xs text-ink-light whitespace-pre-wrap overflow-auto bg-[#F0F7FF] rounded-lg p-3">
-      {JSON.stringify(parsed, null, 2)}
-    </pre>
-  );
+  // Unknown JSON type — render with generic structured layout instead of raw JSON
+  if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+    return <GenericStructuredContent data={parsed as Record<string, unknown>} />;
+  }
+
+  // Array or other JSON — render as formatted text
+  return <FormattedTextContent content={content} />;
 }
 
 // ─── AnswerCard ────────────────────────────────────────────────────────────────
