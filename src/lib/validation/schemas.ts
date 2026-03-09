@@ -198,7 +198,7 @@ export const generateFollowupSchema = z.object({
 export const crossReferenceSchema = z.object({
   resume: z.object({}).passthrough(),
   company: z.object({}).passthrough(),
-  jobDescription: z.string().min(1).max(15000),
+  jobDescription: z.string().max(15000).default(""),
   targetRole: safeString(200),
   roleType: z.string().max(50).optional(),
 });

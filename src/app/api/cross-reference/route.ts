@@ -55,7 +55,7 @@ ${topBullets}
 Target Role: ${targetRole} at ${company.name}
 Company Product: ${company.productDescription}
 Company ICP: ${JSON.stringify(company.icp)}
-Job Description Excerpt: ${jobDescription.slice(0, 1000)}
+Job Description Excerpt: ${jobDescription ? jobDescription.slice(0, 1000) : "(not provided — infer from role title and company context)"}
 
 Return ONLY valid JSON (no markdown):
 {
