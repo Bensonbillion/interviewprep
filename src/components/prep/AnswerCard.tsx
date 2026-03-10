@@ -86,17 +86,17 @@ const COLLAPSIBLE_REFERENCE_TYPES = new Set<AnswerType>([
   "assignment_guide",
 ]);
 
-// Answer types that are SPOKEN — show speaking time estimate
+// Answer types that are SPOKEN prose — show speaking time + progressive disclosure.
+// Types that return JSON (behavioral_star, objection_response, career_switcher_bridge,
+// coachability_game_plan, role_play_script) render through ContentRenderer's JSON handlers.
 const SPOKEN_TYPES = new Set<AnswerType>([
   "tell_me_about_yourself",
   "why_sales",
   "why_this_company",
   "comp_expectations",
   "coachability_coaching",
-  "career_switcher_bridge",
   "resume_walkthrough",
   "constructive_feedback",
-  "behavioral_star",
 ]);
 
 function extractSayThis(content: string | undefined): string | undefined {
@@ -536,12 +536,24 @@ function tryParseJSON(raw: string): unknown | null {
   if (cleaned.startsWith("```")) {
     cleaned = cleaned.replace(/^```(?:json|JSON)?\s*\n?/, "").replace(/\n?```\s*$/, "");
   }
-  if (!cleaned.startsWith("{") && !cleaned.startsWith("[")) return null;
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    return null;
+  if (cleaned.startsWith("{") || cleaned.startsWith("[")) {
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      // fall through to extraction attempt
+    }
   }
+  // Fallback: extract JSON object or array from surrounding text
+  // (handles cases where the AI wraps JSON in prose or markdown headings)
+  const objMatch = cleaned.match(/(\{[\s\S]*\})\s*$/);
+  if (objMatch) {
+    try { return JSON.parse(objMatch[1]); } catch { /* ignore */ }
+  }
+  const arrMatch = cleaned.match(/(\[[\s\S]*\])\s*$/);
+  if (arrMatch) {
+    try { return JSON.parse(arrMatch[1]); } catch { /* ignore */ }
+  }
+  return null;
 }
 
 // ─── STAR section parser for behavioral answers ─────────────────────────────

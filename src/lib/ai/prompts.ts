@@ -769,7 +769,7 @@ ${buildResumeContext(ctx)}
 RELEVANCE MAP:
 ${buildRelevanceContext(ctx.relevanceMap)}
 ${buildPersonalContextBlock(ctx.personalContext)}
-Return JSON:
+IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
 {"answers": [{"question": "...", "answer": "...", "resumeSource": "which bullet/role this draws from"}]}`,
     maxTokens: 2000,
   };
@@ -865,7 +865,7 @@ Do NOT jump from Q1 to the product. The pivot only earns credibility after the p
 COMPANY:
 ${buildCompanyContext(ctx.company)}
 
-Return JSON:
+IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
 {
   "opener": "...",
   "discoveryQuestions": ["...", "...", "...", "...", "..."],
@@ -947,7 +947,7 @@ REAL MOCK CALL INSIGHTS FROM HIRING MANAGERS:
 COACHING NOTE TO INCLUDE:
 Generate a coachingNote field with this exact framing, personalized to ${ctx.company.name}'s product and ICP: explain that this is a FRAMEWORK, not a word-for-word script. Memorizing it sounds robotic. The candidate should know the STRUCTURE (interrupt → hypothesis → discover → bridge) and fill it in naturally. In the mock call, they're being tested on whether they can have a CONVERSATION, not recite a pitch.
 
-Return JSON:
+IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
 {
   "coachingNote": "...",
   "patternInterruptOpener": "...",
@@ -1008,7 +1008,7 @@ REQUIREMENTS:
 COMPANY CONTEXT:
 ${buildCompanyContext(ctx.company)}
 
-Return JSON:
+IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
 {"responses": [{"objection": "...", "response": "..."}]}`,
     maxTokens: 800,
   };
@@ -1472,7 +1472,7 @@ ${isAE ? `This is a discovery demo. They'll play a ${ctx.company.name} ICP buyer
 
 COMPANY: ${ctx.company.name}${ctx.company.productDescription ? ` — ${ctx.company.productDescription}` : ""}
 
-Return JSON:
+IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
 {
   "beforeRoleplay": "coaching text for section 1",
   "selfAssessment": "coaching text for section 2",
@@ -1519,7 +1519,7 @@ REQUIREMENTS:
 - Never say "even though I don't have direct sales experience" — reframe as "different path, same skills"
 - Specific: actual job titles, industries, situations, and numbers where available
 ${buildPersonalContextBlock(ctx.personalContext)}
-Return JSON:
+IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
 {
   "bridges": [
     {
