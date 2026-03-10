@@ -107,6 +107,86 @@ function extractSayThis(content: string | undefined): string | undefined {
   } catch { return undefined; }
 }
 
+// ─── Answer Card section parser ────────────────────────────────────────────
+// Splits Answer Card format (## Quick take, ## 30-second version, etc.) into
+// progressive disclosure levels for spoken answer types.
+
+interface AnswerSections {
+  quickTake: string | null;
+  thirtySecond: string | null;
+  fullAnswer: string | null;
+  proofPoints: string[];
+  digDeeper: string | null;
+  makeItYours: string | null;
+}
+
+function parseAnswerSections(content: string): AnswerSections | null {
+  const sections: AnswerSections = {
+    quickTake: null,
+    thirtySecond: null,
+    fullAnswer: null,
+    proofPoints: [],
+    digDeeper: null,
+    makeItYours: null,
+  };
+
+  // Match ## headings and split content
+  const headingPattern = /^##\s+(.+)$/gm;
+  const matches: Array<{ heading: string; start: number }> = [];
+  let m;
+  while ((m = headingPattern.exec(content)) !== null) {
+    matches.push({ heading: m[1].trim().toLowerCase(), start: m.index });
+  }
+
+  if (matches.length < 2) return null; // not Answer Card format
+
+  const getSection = (idx: number): string => {
+    const start = content.indexOf("\n", matches[idx].start) + 1;
+    const end = idx + 1 < matches.length ? matches[idx + 1].start : content.length;
+    return content.slice(start, end).trim();
+  };
+
+  for (let i = 0; i < matches.length; i++) {
+    const h = matches[i].heading;
+    const body = getSection(i);
+    if (h.includes("quick take")) sections.quickTake = body;
+    else if (h.includes("30-second") || h.includes("30 second")) sections.thirtySecond = body;
+    else if (h.includes("full answer")) sections.fullAnswer = body;
+    else if (h.includes("proof point") || h.includes("key proof")) {
+      sections.proofPoints = body
+        .split(/\n/)
+        .map((l) => l.replace(/^[-•→*]\s*/, "").trim())
+        .filter(Boolean);
+    } else if (h.includes("dig deeper") || h.includes("they dig deeper")) sections.digDeeper = body;
+    else if (h.includes("make it yours")) sections.makeItYours = body;
+  }
+
+  // Must have at least quickTake + one more to use progressive disclosure
+  if (!sections.quickTake) return null;
+  return sections;
+}
+
+// ─── Speaking time bar ────────────────────────────────────────────────────
+function SpeakingTimeBar({ words }: { words: number }) {
+  const seconds = Math.round((words / 150) * 60 * 1.18); // 150 wpm + 18% pauses
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  const label = minutes > 0 ? `~${minutes}m ${secs}s` : `~${secs}s`;
+  const pct = Math.min(100, (seconds / 120) * 100);
+  const color =
+    seconds <= 60 ? "bg-green-400" : seconds <= 90 ? "bg-amber-400" : "bg-red-400";
+
+  return (
+    <div className="flex items-center gap-2 text-xs text-stone-400">
+      <span className="flex-shrink-0">🎙</span>
+      <div className="w-16 h-1 bg-stone-200 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+      <span>{label}</span>
+    </div>
+  );
+}
+
 function getSpeakingTime(text: string): {
   words: number;
   rawSeconds: number;
@@ -298,7 +378,7 @@ function renderInlineFormatting(text: string): React.ReactNode {
   const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
   return parts.map((part, i) => {
     if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={i} className="font-semibold text-ink">{part.slice(2, -2)}</strong>;
+      return <strong key={i} className="font-semibold text-stone-900">{part.slice(2, -2)}</strong>;
     }
     if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
       return <em key={i} className="italic">{part.slice(1, -1)}</em>;
@@ -312,21 +392,21 @@ function FormattedTextContent({ content, isSpoken }: { content: string; isSpoken
   const blocks = content.split(/\n\n+/).filter((b) => b.trim());
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 max-w-prose">
       {blocks.map((block, i) => {
         const trimmed = block.trim();
 
         // Markdown headings
         if (trimmed.startsWith("### ")) {
           return (
-            <h4 key={i} className="text-sm font-semibold text-ink mt-2 first:mt-0">
+            <h4 key={i} className="text-sm font-semibold text-stone-900 mt-2 first:mt-0">
               {trimmed.slice(4)}
             </h4>
           );
         }
         if (trimmed.startsWith("## ")) {
           return (
-            <h3 key={i} className="text-base font-semibold text-ink mt-3 first:mt-0">
+            <h3 key={i} className="text-base font-semibold text-stone-900 mt-3 first:mt-0">
               {trimmed.slice(3)}
             </h3>
           );
@@ -355,9 +435,9 @@ function FormattedTextContent({ content, isSpoken }: { content: string; isSpoken
                   .replace(/^[-•]\s+/, "")
                   .replace(/^\d+[\.\)]\s+/, "");
                 return (
-                  <li key={j} className="flex gap-2 text-sm text-ink-light">
-                    <span className="text-ink-muted mt-0.5 flex-shrink-0">•</span>
-                    <span className="leading-relaxed">{renderInlineFormatting(text)}</span>
+                  <li key={j} className="flex gap-2 text-sm sm:text-base text-stone-700 leading-relaxed">
+                    <span className="text-stone-400 mt-0.5 flex-shrink-0">•</span>
+                    <span>{renderInlineFormatting(text)}</span>
                   </li>
                 );
               })}
@@ -369,8 +449,8 @@ function FormattedTextContent({ content, isSpoken }: { content: string; isSpoken
         return (
           <p
             key={i}
-            className={`text-sm leading-relaxed ${
-              i === 0 && isSpoken ? "text-ink font-medium" : "text-ink-light"
+            className={`text-sm sm:text-base leading-relaxed ${
+              i === 0 && isSpoken ? "text-stone-900 font-medium" : "text-stone-700"
             }`}
           >
             {lines.map((line, j) => (
@@ -1444,12 +1524,12 @@ export function AnswerCard({
   // ─── Loading state ──────────────────────────────────────────────────────────
   if (slot.status === "loading") {
     return (
-      <div className="rounded-2xl border border-[#DBEAFE] bg-white overflow-hidden shadow-sm">
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-[#EFF6FF]">
+      <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-stone-100">
           <span className="text-xl leading-none flex-shrink-0 select-none">{EMOJIS[slot.type]}</span>
           <div>
-            <h3 className="font-semibold text-ink text-sm">{slot.label}</h3>
-            <p className="text-xs text-ink-muted mt-0.5 line-clamp-1">{slot.description}</p>
+            <h3 className="font-semibold text-stone-900 text-sm">{slot.label}</h3>
+            <p className="text-xs text-stone-500 mt-0.5 line-clamp-1">{slot.description}</p>
           </div>
         </div>
         <div className="px-5 py-5">
@@ -1667,25 +1747,25 @@ export function AnswerCard({
 
   return (
     <div
-      className={`rounded-2xl border overflow-hidden shadow-sm ${
+      className={`rounded-xl border overflow-hidden ${
         justUnlocked
-          ? "animate-unlock-flash bg-white border-[#DBEAFE]"
+          ? "animate-unlock-flash bg-white border-stone-200"
           : isCollapsible && !isExpanded && !isLocked
           ? "bg-gray-50 border-gray-200 md:bg-amber-50/30 md:border-amber-200"
           : isReference && !isLocked
           ? "bg-amber-50/30 border-amber-200"
-          : "bg-white border-[#DBEAFE]"
+          : "bg-white border-stone-200"
       }`}
     >
       {/* ── Header (always visible) ─────────────────────────────────────── */}
-      <div className={`flex items-start justify-between px-5 py-4 border-b ${isReference && !isLocked ? "border-amber-100" : "border-[#EFF6FF]"}`}>
+      <div className={`flex items-start justify-between px-5 py-4 border-b ${isReference && !isLocked ? "border-amber-100" : "border-stone-100"}`}>
         <div className="flex items-start gap-3 min-w-0 flex-1">
           <span className="text-xl leading-none mt-0.5 flex-shrink-0 select-none">
             {EMOJIS[slot.type]}
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-ink text-sm leading-snug">{slot.label}</h3>
+              <h3 className="font-semibold text-stone-900 text-base leading-snug">{slot.label}</h3>
 
               {/* Reference badge — study material, not a spoken answer */}
               {isReference && !isLocked && (
@@ -1729,10 +1809,13 @@ export function AnswerCard({
             <p className="text-xs text-ink-muted mt-0.5 line-clamp-1 leading-snug">
               {slot.description}
             </p>
-            {/* Coaching tip — only when unlocked */}
+            {/* Coaching tip — callout box, only when unlocked */}
             {coachingTip && !isLocked && (
-              <div className="bg-amber-50/60 border-l-2 border-amber-300 px-2.5 py-1.5 rounded-r-lg mt-2">
-                <p className="text-xs text-amber-800 leading-snug">💡 {coachingTip}</p>
+              <div className="bg-amber-50 border-l-4 border-amber-400 p-3 rounded-r-lg mt-2">
+                <p className="text-sm text-amber-800 flex gap-2">
+                  <span className="flex-shrink-0">💡</span>
+                  <span><strong className="font-semibold">Pro tip:</strong> {coachingTip}</span>
+                </p>
               </div>
             )}
           </div>
@@ -1928,7 +2011,7 @@ export function AnswerCard({
           )}
 
           {/* ── Content — blur-reveal animation plays once on unlock ─── */}
-          <div className={`px-5 py-4 relative ${justUnlocked ? "animate-blur-reveal" : ""}`}>
+          <div className={`px-5 py-5 relative ${justUnlocked ? "animate-blur-reveal" : ""}`}>
             {isRegenerating && (
               <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-b-xl">
                 <div className="flex items-center gap-2 text-sm text-ink-muted bg-white border border-[#DBEAFE] px-4 py-2 rounded-full shadow-sm">
@@ -1973,28 +2056,153 @@ export function AnswerCard({
               </div>
             ) : (
               <>
-                <ContentRenderer content={displayContent} slot={slot} session={session} />
+                {/* Progressive disclosure for spoken answer types with Answer Card format */}
                 {SPOKEN_TYPES.has(slot.type) && displayContent && (() => {
-                  const st = getSpeakingTime(displayContent);
-                  if (!st) return null;
-                  const target = getWordTarget(slot.type, session.stage);
-                  const status = target ? getWordCountStatus(st.words, target) : null;
-                  const colorClass = status ? WORD_STATUS_CLASSES[status.color] : "text-ink-muted";
+                  const sections = parseAnswerSections(displayContent);
+                  if (!sections) {
+                    // Fallback: no Answer Card structure, render normally
+                    return (
+                      <>
+                        <ContentRenderer content={displayContent} slot={slot} session={session} />
+                        {(() => {
+                          const st = getSpeakingTime(displayContent);
+                          if (!st) return null;
+                          const target = getWordTarget(slot.type, session.stage);
+                          const status = target ? getWordCountStatus(st.words, target) : null;
+                          const colorClass = status ? WORD_STATUS_CLASSES[status.color] : "text-ink-muted";
+                          return (
+                            <p className={`text-xs mt-3 tabular-nums ${colorClass}`}>
+                              {st.words} words · {st.display} spoken · aim for 140–160 wpm
+                              {status?.flag && <span> · {status.flag}</span>}
+                            </p>
+                          );
+                        })()}
+                      </>
+                    );
+                  }
+
+                  const wordCount = displayContent.trim().split(/\s+/).filter(Boolean).length;
+
                   return (
-                    <p className={`text-xs mt-3 tabular-nums ${colorClass}`}>
-                      {st.words} words · {st.display} spoken · aim for 140–160 wpm
-                      {status?.flag && <span> · {status.flag}</span>}
-                    </p>
+                    <div>
+                      {/* LEVEL 1 — Always visible: Quick take + speaking time */}
+                      <div className="flex items-center gap-2 mb-3">
+                        {SPOKEN_TYPES.has(slot.type) && (
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                            {slot.type === "behavioral_star" ? "Behavioral" : slot.type === "comp_expectations" ? "Tactical" : "Narrative"}
+                          </span>
+                        )}
+                        <SpeakingTimeBar words={wordCount} />
+                      </div>
+                      <p className="text-sm sm:text-base text-stone-700 leading-relaxed max-w-prose">
+                        {renderInlineFormatting(sections.quickTake ?? "")}
+                      </p>
+
+                      {/* LEVEL 2 — 30-second answer + proof points */}
+                      {(sections.thirtySecond || sections.proofPoints.length > 0) && (
+                        <details
+                          className="group mt-4"
+                          open={isPrimaryForRound}
+                          onToggle={(e) => {
+                            if ((e.target as HTMLDetailsElement).open) {
+                              logEvent("disclosure_expand_30s");
+                            }
+                          }}
+                        >
+                          <summary className="cursor-pointer text-sm font-medium text-primary-500 hover:text-primary-600 flex items-center gap-1 select-none min-h-[44px] py-2">
+                            See 30s answer
+                            <span className="group-open:rotate-180 transition-transform text-xs">↓</span>
+                          </summary>
+                          <div className="mt-3 pt-3 border-t border-stone-100">
+                            {sections.thirtySecond && (
+                              <div className="prose prose-sm prose-stone max-w-none">
+                                <FormattedTextContent content={sections.thirtySecond} isSpoken />
+                              </div>
+                            )}
+                            {sections.proofPoints.length > 0 && (
+                              <div className="mt-3 space-y-1">
+                                {sections.proofPoints.map((point, pi) => (
+                                  <div key={pi} className="flex gap-2 text-sm sm:text-base text-stone-700 leading-relaxed">
+                                    <span className="text-amber-500 flex-shrink-0">→</span>
+                                    <span>{renderInlineFormatting(point)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* LEVEL 3 — Full answer + follow-ups + make it yours */}
+                            {(sections.fullAnswer || sections.digDeeper || sections.makeItYours) && (
+                              <details
+                                className="group/deep mt-4"
+                                onToggle={(e) => {
+                                  if ((e.target as HTMLDetailsElement).open) {
+                                    logEvent("disclosure_expand_full");
+                                  }
+                                }}
+                              >
+                                <summary className="cursor-pointer text-sm font-medium text-stone-500 hover:text-stone-700 flex items-center gap-1 select-none min-h-[44px] py-2">
+                                  See full answer + follow-ups
+                                  <span className="group-open/deep:rotate-180 transition-transform text-xs">↓</span>
+                                </summary>
+                                <div className="mt-3 pt-3 border-t border-stone-100 space-y-4">
+                                  {sections.fullAnswer && (
+                                    <div className="prose prose-sm prose-stone max-w-none">
+                                      <FormattedTextContent content={sections.fullAnswer} isSpoken />
+                                    </div>
+                                  )}
+                                  {sections.digDeeper && (
+                                    <div>
+                                      <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">If they dig deeper</p>
+                                      <FormattedTextContent content={sections.digDeeper} isSpoken />
+                                    </div>
+                                  )}
+                                  {sections.makeItYours && (
+                                    <div className="bg-amber-50 border-l-4 border-amber-400 p-3 rounded-r-lg">
+                                      <p className="text-sm text-amber-800 flex gap-2">
+                                        <span className="flex-shrink-0">💡</span>
+                                        <span><strong className="font-semibold">Make it yours:</strong> {sections.makeItYours}</span>
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </details>
+                            )}
+                          </div>
+                        </details>
+                      )}
+
+                      {/* Speaking time stats */}
+                      {(() => {
+                        const st = getSpeakingTime(displayContent);
+                        if (!st) return null;
+                        const target = getWordTarget(slot.type, session.stage);
+                        const status = target ? getWordCountStatus(st.words, target) : null;
+                        const colorClass = status ? WORD_STATUS_CLASSES[status.color] : "text-ink-muted";
+                        return (
+                          <p className={`text-xs mt-3 tabular-nums ${colorClass}`}>
+                            {st.words} words · {st.display} spoken
+                            {status?.flag && <span> · {status.flag}</span>}
+                          </p>
+                        );
+                      })()}
+                    </div>
                   );
                 })()}
-                {slot.type === "questions_to_ask" && displayContent && (() => {
-                  const n = countQuestions(displayContent);
-                  return n > 0 ? (
-                    <p className="text-xs text-ink-muted mt-3">
-                      {n} question{n !== 1 ? "s" : ""} prepared
-                    </p>
-                  ) : null;
-                })()}
+
+                {/* Non-spoken / reference types — scannable layout with prose typography */}
+                {!SPOKEN_TYPES.has(slot.type) && (
+                  <div className="prose prose-sm prose-stone max-w-none">
+                    <ContentRenderer content={displayContent} slot={slot} session={session} />
+                    {slot.type === "questions_to_ask" && displayContent && (() => {
+                      const n = countQuestions(displayContent);
+                      return n > 0 ? (
+                        <p className="text-xs text-ink-muted mt-3">
+                          {n} question{n !== 1 ? "s" : ""} prepared
+                        </p>
+                      ) : null;
+                    })()}
+                  </div>
+                )}
               </>
             )}
           </div>
