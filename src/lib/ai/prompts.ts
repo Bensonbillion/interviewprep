@@ -11,6 +11,7 @@ import {
 } from "@/lib/ai/job-listing";
 import type {
   ParsedResume,
+  ExtractedResume,
   CompanyProfile,
   RelevanceMap,
   InterviewStage,
@@ -20,6 +21,7 @@ import type {
 
 interface PromptContext {
   resume: ParsedResume;
+  extractedResume?: ExtractedResume;
   company: CompanyProfile;
   relevanceMap: RelevanceMap;
   jobDescription: string;
@@ -39,7 +41,67 @@ interface PromptResult {
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 
-function buildResumeContext(resume: ParsedResume): string {
+/**
+ * Build the resume context block for prompts.
+ * Uses ExtractedResume (grounded facts) when available, falls back to ParsedResume.
+ */
+function buildResumeContext(ctx: Pick<PromptContext, "resume" | "extractedResume">): string {
+  if (ctx.extractedResume) {
+    return buildGroundedResumeContext(ctx.extractedResume, ctx.resume);
+  }
+  return buildLegacyResumeContext(ctx.resume);
+}
+
+/** Grounded resume context from security-hardened extraction. */
+function buildGroundedResumeContext(er: ExtractedResume, resume: ParsedResume): string {
+  const parts: string[] = [];
+
+  // Candidate summary
+  parts.push(`Name: ${er.candidate.name ?? resume.personalInfo.name ?? "Candidate"}`);
+  parts.push(`Background type: ${resume.backgroundType}`);
+  parts.push(`Narrative: ${resume.narrativeSummary}`);
+  if (er.candidate.current_title) parts.push(`Current title: ${er.candidate.current_title}`);
+  if (er.candidate.years_experience_estimate != null) {
+    parts.push(`Experience: ~${er.candidate.years_experience_estimate} years`);
+  }
+  if (er.candidate.industries.length) parts.push(`Industries: ${er.candidate.industries.join(", ")}`);
+  if (er.candidate.sales_motion) parts.push(`Sales motion experience: ${er.candidate.sales_motion}`);
+  if (er.candidate.tools_used.length) parts.push(`Tools: ${er.candidate.tools_used.join(", ")}`);
+
+  // Roles with grounded facts
+  parts.push("\nRoles:");
+  for (const role of er.roles) {
+    const duration = role.duration_months != null ? `, ${role.duration_months} months` : "";
+    parts.push(`${role.title ?? "Unknown"} at ${role.company ?? "Unknown"} (${role.start ?? "?"}–${role.end ?? "present"}${duration})`);
+    if (role.wins.length) parts.push(`  Wins: ${role.wins.join("; ")}`);
+    if (role.metrics.length) parts.push(`  Metrics: ${role.metrics.join("; ")}`);
+    if (role.responsibilities.length) parts.push(`  Responsibilities: ${role.responsibilities.slice(0, 4).join("; ")}`);
+    if (role.tools.length) parts.push(`  Tools: ${role.tools.join(", ")}`);
+    if (role.promotion) parts.push(`  ↑ Promoted`);
+
+    // Story categorization
+    const storyTypes = Object.entries(role.stories).filter(([, v]) => v.length > 0);
+    for (const [type, stories] of storyTypes) {
+      parts.push(`  Stories (${type}): ${(stories as string[]).join("; ")}`);
+    }
+  }
+
+  // Education & certifications
+  if (er.education.length) parts.push(`\nEducation: ${er.education.join("; ")}`);
+  if (er.certifications.length) parts.push(`Certifications: ${er.certifications.join(", ")}`);
+
+  // Explicit missing-data markers
+  if (er.missing_but_important.length) {
+    parts.push(
+      `\n⚠ MISSING FROM RESUME (use [INSERT YOUR …] placeholders): ${er.missing_but_important.join("; ")}`
+    );
+  }
+
+  return parts.join("\n");
+}
+
+/** Legacy resume context — fallback when ExtractedResume is not available. */
+function buildLegacyResumeContext(resume: ParsedResume): string {
   const topBullets = resume.roles
     .flatMap((r) =>
       r.bullets.map((b) => ({
@@ -117,56 +179,101 @@ Rules for using personal context:
 `;
 }
 
-const BASE_SYSTEM = `You are an expert SDR/BDR/AE interview coach. Generate highly personalized, authentic interview prep content.
+const BASE_SYSTEM = `YOU ARE GENERATING TEXT THAT A REAL PERSON WILL SAY OUT LOUD IN A LIVE INTERVIEW. It must sound like natural speech.
 
-CORE PRINCIPLE — SPOKEN, NOT WRITTEN:
-Every prose answer is going to be said out loud on a phone call or Zoom. It must sound like a real human talking, not a LinkedIn post, not a ChatGPT essay. Apply this test to every sentence: "Would someone actually SAY this out loud in a conversation?"
+Here is how real candidates actually talk in interviews (from a real transcript — match this energy):
 
-SPOKEN LANGUAGE RULES (apply to all narrative/prose answers):
-- Use contractions throughout: "I've", "it's", "they're", "that's", "didn't", "won't" — never "I have", "it is" in casual speech contexts
-- Mix sentence lengths: one short punchy sentence after a long one — that's how people talk
-- First-person active voice: "I built X" not "The candidate built X" or "This experience showed"
-- Fragments are natural in speech: "Not bad for a first month." "Which is exactly why I'm here."
-- No corporate jargon: not "leverage", "synergize", "utilize", "streamline" — say "use", "build", "cut", "grow"
-- End spoken answers with forward energy — not a period, but a bridge to the next conversation
-- BUILD ANSWERS THROUGH CLAUSE-CHAINING, NOT SENTENCES: Spoken English connects short clauses with "and," "so," "but," "because," "which" — not periods followed by new topic sentences. WRONG: "I identified the problem early. I proposed a solution to my manager. She approved it. I implemented it within two weeks." RIGHT: "I caught it pretty early, so I put together a quick proposal for my manager — and she was actually on board right away, which meant I could start implementing within like two weeks." RULE: No more than 2 consecutive sentences that end with a period and start a completely new thought. By the third sentence, chain it to the previous thought with a conjunction.
-- PLACE COGNITIVE MARKERS AT THOUGHT TRANSITIONS: Research shows ~6 disfluencies per 100 words in natural speech. Use 2–3 cognitive markers per answer at clause boundaries only — NEVER mid-clause, NEVER two in the same clause, NEVER more than 4 per answer. Markers: "I mean," (self-clarification/rephrase), "actually," (mid-sentence revision), "honestly," (authenticity — once per answer max), "like," (approximation: "we had like 300 accounts"), "you know," (shared understanding — once per answer max), "right," (self-confirmation: "I was doing about 50 calls a day, right, and what I noticed was..."), "— sorry, let me back up —" (narrative reorganization). Place them where the speaker is SHIFTING from one idea to another or SHARPENING a vague statement. EXAMPLE: "So I was handling about — I mean, it was probably 40 to 50 outbound calls a day, and honestly the thing that made the biggest difference was actually slowing down and doing more research before each call."
-- USE PHONETIC REDUCTIONS THAT MATCH SPOKEN ENGLISH: Written text uses full forms. Spoken English compresses. ALWAYS use: "gonna" (not "going to"), "wanna" (not "want to"), "'cause" (not "because" in casual explanations), "kinda" (not "kind of"), "a lot" (not "a great deal" or "significantly"), "pretty" (not "quite" or "rather"), "stuff"/"things" (not "various elements" or "multiple factors"), "figured out" (not "determined" or "ascertained"), "messed up" (not "made an error" in vulnerability moments), "ended up" (not "ultimately" or "eventually"). EXCEPTION: Never reduce in the key metric moment — when stating a specific achievement, use precise language: "I increased our conversion rate from 12 to 18 percent" — not "I kinda bumped our numbers up a lot."
-- INDICATE EMPHASIS AND PACE SHIFTS: These answers will be read aloud and practiced, so embed delivery cues in the structure. Use em dashes (—) to mark natural pause points where the speaker should breathe and let the point land. Use ALL CAPS for the single word in a key sentence that carries the emphasis: "it wasn't about the VOLUME of calls — it was about the quality of each conversation." Use short sentences (3–6 words) for impact moments, surrounded by longer flowing clauses: "That was the turning point. After that, everything kind of clicked and I went from middle of the pack to consistently hitting 120%." PACE PRINCIPLE: Short sentences = slow down, let it land. Surrounding clauses = normal pace. Numbers and key claims = slow, precise. Transitions = faster. Varying pace within 140–160 wpm is what creates the perception of confidence.
-- FIRST-PERSON PRONOUN DOMINANCE (Newman et al., 2003): People who ACTUALLY did something use "I" heavily. People fabricating or inflating use "we," "the team," or passive voice to create distance. RULES: "I" must appear in at least 60% of action sentences. "We" is acceptable for context ("we had a team of four") but NEVER for actions ("I built the sequence" not "we built"). NEVER passive voice for the candidate's own actions ("The pipeline was increased by 40%" → "I grew the pipeline by 40%"). If the candidate genuinely led a team effort, structure it as: "I coordinated with [role] to do X — specifically, my part was Y." Include at least ONE explicit ownership statement per behavioral answer: "That was my call" / "I made that decision" / "I was the one who pushed for that."
+EXAMPLE 1 (TMAY style):
+"Yeah, so basically I'm in Toronto. I moved here about five years ago — went to school in the UK, came here cause I wanted a change of scenery. Since I came here, I've been in sales basically the whole time. Started at FedEx selling shipment management to e-commerce brands, then moved into sort of like door-to-door at Amazon selling to property managers. From there, I actually moved to my first tech sales role at Brandwatch — and I think that was like really a pivotal time in my career."
 
-PRONOUN DISCIPLINE — CRITICAL:
-Authentic speakers own their actions with "I", not "we" or passive constructions. Deception research shows candidates who hide behind "we" and passive voice are perceived as less credible.
-- CORRECT: "I built the sequence", "I closed that deal", "I made the call to pivot"
-- WRONG: "We ran a campaign", "The deal closed", "A decision was made to..."
-- RULE: Use "we" only for genuine team accomplishments where personal ownership would be a lie. Every individual action, decision, and result gets "I".
+EXAMPLE 2 (Key to success style):
+"I think what has helped me is just basically being able to know what I need to do and when I need to do that. One thing I always pride myself in is not just knowing enough about the product but knowing enough about the industry — cause I feel like that's the best way to sell to people."
 
-BAN THESE AI SPEECH PATTERNS — they make answers sound generated, not experienced:
-- Formulaic transitions: NEVER use "Furthermore", "Moreover", "In addition", "Additionally", "It's worth noting that", "It is important to note"
-- Hedging boilerplate: NEVER "Generally speaking", "In the context of", "From a [X] perspective", "At the end of the day"
-- Rhetorical road-mapping: NEVER "In this answer I will cover...", "There are three key points to consider", "To summarize..."
-- Uniform cautiousness: Take positions. "I think that approach is wrong" not "different methods may have merit depending on context"
-- Passive distance: NEVER "A decision was made", "Challenges were encountered", "Results were achieved" — who did it? Say it directly.
+EXAMPLE 3 (Handling feedback style):
+"Yeah, this was towards the beginning of my associate AE role at Brandwatch. All I wanted to do was close a deal real quick. And my manager basically said like, hey, I think you need to slow it down a little bit. At the time I didn't really take that feedback well — I'm like, I'm an AE now, my whole job is to close. But then I lost a couple deals, and now I kind of understand it was actually correct."
 
-BANNED STRUCTURES — structural AI tells, not just phrases:
-- I-chain: NEVER start 3+ consecutive sentences with "I". "I did X. I then Y. I also Z." is robotic and AI-patterned. Break it: "I did X — and then Y kind of fell into place, which meant Z."
-- Balanced hedging: NEVER "While X, it's also true that Y." This is AI's signature even-handedness. Real people have opinions. Pick a side.
-- Enumeration: NEVER "First... Second... Third..." — say "the main thing was X, and then on top of that Y"
-- Meta-commentary: NEVER "That's a great question" (unless genuinely buying time), NEVER "Let me think about that for a second" as a pattern
-- Identical sentence length: if three consecutive sentences are all 12–18 words, force at least one to be <8 or >22 words
-- Thesis restatement closing: NEVER end with "So that's why I believe I'd be a great fit for this role." End with a specific forward-looking statement or a natural trail-off: "...and that's basically what brought me here."
+Notice what makes these sound HUMAN:
+- Contractions everywhere (I've, I'm, don't, cause, that's)
+- Filler words at thought boundaries (basically, I guess, sort of like, kind of like, I think, I feel like)
+- "From there" transitions between career stops
+- Self-correction ("I was selling hardware — I'm sorry, basically selling to operation managers")
+- Specific company names and products (not abstractions)
+- Casual sentence starters (Yeah, So, And, But)
+- Variable sentence length — short punchy + longer flowing
+- Trailing thoughts ("and that kind of opened things up...")
+- Response starters ("Yeah, definitely", "Yeah, so...")
 
-USE THESE HUMAN PATTERNS INSTEAD:
-- Self-interruption: "The thing that — actually no, let me give you a better example..."
-- Acknowledged imprecision: "I don't remember the exact number, but it was somewhere around 30%"
-- Strong opinions: "Honestly, I think most SDRs waste too much time on low-intent leads" — a strong stance reads as authentic
-- Sensory/physical anchors: "I remember sitting at my desk on a Friday..." — specific physical context signals genuine memory, not fabrication
+=== NON-NEGOTIABLE RULES ===
 
-GUARDRAILS:
+1. CONTRACTIONS MANDATORY
+   I've not "I have", don't not "do not", I'm not "I am", it's not "it is", that's not "that is", won't not "will not", couldn't not "could not", wasn't not "was not". Exception: emphasis ("I did NOT want that").
+
+2. SENTENCE VARIETY MANDATORY
+   Mix 4-8 word sentences with 15-25 word sentences. Never 3+ sentences at the same length.
+
+3. START WITH A HOOK
+   Never start with "I am a sales professional with..." Start with: "So basically...", "Yeah, so...", "Honestly, the big thing was...", a specific moment, or a casual transition.
+
+4. NATURAL CONNECTORS ONLY
+   Use: so, and then, but like, from there, which is, and basically, one of the things is, I think, I feel like
+   NEVER: Furthermore, Additionally, Moreover, Consequently, In addition to this, It is important to note
+
+5. COGNITIVE MARKERS (2-4 per answer)
+   Place at thought boundaries: "I guess," "honestly," "I think," "basically," "kind of," "sort of like"
+
+6. ONE SELF-CORRECTION PER ANSWER
+   "Actually, let me back up—" or "I mean, more specifically"
+   Shows the speaker is thinking, not reciting.
+
+7. SPECIFICS OVER ABSTRACTIONS
+   Bad: "I exceeded my quota consistently"
+   Good: "I hit 118% last quarter — sourced about $2.1M"
+   Bad: "I have SaaS sales experience"
+   Good: "I sold social media management at Brandwatch and GPS hardware at Samsara"
+   If a metric isn't available: use [INSERT YOUR NUMBER]
+
+8. END NATURALLY
+   Never: "That is why I believe I would be an excellent fit."
+   Good: "So yeah, that's kind of where I am right now."
+   Good: "What else would you want to know about that?"
+   Good: Just let the thought land.
+
+=== BANNED VOCABULARY ===
+Words: delve, embark, leverage, utilize, synergy, robust, pivotal, groundbreaking, seamless, holistic, innovative, transformative, cutting-edge, streamline, harness, navigate (metaphorical), tapestry, landscape, beacon, testament, realm, paradigm, foster, elevate, unlock, unleash, spearhead
+
+Phrases: "I am passionate about", "I thrive in fast-paced", "results-driven", "detail-oriented", "self-starter", "proven track record", "Throughout my career", "I believe my experience", "demonstrated ability to", "skill set", "move the needle", "at the end of the day", "wear many hats", "In today's fast-paced world", "It is important to note"
+
+Structures: First/Second/Third enumeration, balanced hedging ("While X, also Y"), thesis-conclusion format, every paragraph same length, em dash overuse (max 1 per answer)
+
+=== OUTPUT STRUCTURE (Answer Card) ===
+Every narrative/prose answer MUST use this exact structure:
+
+## Quick take
+(One sentence, max 18 words — the core message)
+
+## 30-second version
+(75-95 words. Conversational. Easy to say out loud in one breath-group at a time. This is what most users will practice.)
+
+## Full answer (~60 seconds)
+(140-180 words. Light STAR: context → action → result → what I learned. Still conversational — NOT an essay.)
+
+## Key proof points
+(3 bullets, max 12 words each. Memorizable sound bites.)
+
+## If they dig deeper
+(2 short follow-up answers for likely probes)
+
+## Make it yours
+(1-2 bracketed spots where the candidate should insert their own specific detail: [INSERT YOUR METRIC HERE])
+
+Bold the 3-5 most important phrases — specific metrics, company names, and key claims. A reader who ONLY reads the bold text should understand the gist.
+
+=== GUARDRAILS ===
 - Every answer MUST trace to specific resume details — never fabricate achievements
 - Every company reference MUST come from the company profile — never hallucinate facts
-- Return ONLY the requested content — no preamble, no meta-commentary, no markdown headers
-- Career switcher? Translate background confidently — never apologize for non-traditional path`;
+- If a metric is not in the candidate's data, use a bracketed placeholder like [INSERT YOUR %] or [INSERT $ AMOUNT]. NEVER invent numbers.
+- Career switcher? Translate background confidently — never apologize for non-traditional path
+- Use "I" for personal actions, not "we" or passive voice — ownership signals authenticity`;
 
 // ─── 1. Tell Me About Yourself ────────────────────────────────────────────────
 
@@ -282,13 +389,13 @@ PROBE-READINESS — this answer must survive:
 - "Why did you leave [company]?" — every career transition must have a forward-leaning reason already embedded. Never escape-framing ("I wanted more" not "it wasn't working out").
 
 CANDIDATE:
-${buildResumeContext(ctx.resume)}
+${buildResumeContext(ctx)}
 
 TARGET: ${ctx.targetRole} at ${ctx.company.name}
 COMPANY: ${buildCompanyContext(ctx.company)}
 ${buildPersonalContextBlock(ctx.personalContext)}
-Return ONLY the narrative text. No labels, no JSON, no quotes around it.`,
-    maxTokens: 600,
+Use the Answer Card structure (## Quick take → ## 30-second version → ## Full answer → ## Key proof points → ## If they dig deeper → ## Make it yours). Bold the 3-5 most important phrases.`,
+    maxTokens: 1200,
   };
 }
 
@@ -318,13 +425,13 @@ REQUIREMENTS:
 - Weaves in something specific about this company — name a product, market position, or customer segment naturally, not as a recited fact
 - Should feel like a closer who has thought carefully about this opportunity, not someone who is just job-hunting
 CANDIDATE:
-${buildResumeContext(ctx.resume)}
+${buildResumeContext(ctx)}
 
 COMPANY:
 ${buildCompanyContext(ctx.company)}
 ${buildPersonalContextBlock(ctx.personalContext)}
-Return ONLY the answer text.`,
-      maxTokens: 300,
+Use the Answer Card structure (## Quick take → ## 30-second version → ## Full answer → ## Key proof points → ## If they dig deeper → ## Make it yours). Bold the 3-5 most important phrases.`,
+      maxTokens: 800,
     };
   }
 
@@ -366,10 +473,10 @@ REAL-WORLD PATTERNS:
 - AVOID: 'I heard the money is good.' While true, this is a red flag when stated as primary motivation.
 
 CANDIDATE:
-${buildResumeContext(ctx.resume)}
+${buildResumeContext(ctx)}
 ${buildPersonalContextBlock(ctx.personalContext)}
-Return ONLY the answer text.`,
-    maxTokens: 350,
+Use the Answer Card structure (## Quick take → ## 30-second version → ## Full answer → ## Key proof points → ## If they dig deeper → ## Make it yours). Bold the 3-5 most important phrases.`,
+    maxTokens: 800,
   };
 }
 
@@ -431,13 +538,13 @@ REAL-WORLD PATTERNS:
 - ONE candidate at SaaStr got hired on the spot because they had created a free trial account, tested competitors, and brought printouts with improvement recommendations. Signal this level of initiative in the answer.
 
 CANDIDATE:
-${buildResumeContext(ctx.resume)}
+${buildResumeContext(ctx)}
 
 COMPANY:
 ${buildCompanyContext(ctx.company)}
 
-Return ONLY the answer text.`,
-    maxTokens: isHM ? 600 : 300,
+Use the Answer Card structure (## Quick take → ## 30-second version → ## Full answer → ## Key proof points → ## If they dig deeper → ## Make it yours). Bold the 3-5 most important phrases.`,
+    maxTokens: isHM ? 1200 : 800,
   };
 }
 
@@ -592,7 +699,7 @@ REAL STAR PATTERNS FROM HIRED CANDIDATES:
 - RED FLAG: Never switch from 'I' to 'you' when discussing mistakes. 'You should always...' signals deflection. Keep it in first person throughout.
 
 CANDIDATE:
-${buildResumeContext(ctx.resume)}
+${buildResumeContext(ctx)}
 
 RELEVANCE MAP:
 ${buildRelevanceContext(ctx.relevanceMap)}
@@ -1067,7 +1174,7 @@ ${kb}`,
 This cheat sheet should feel like a note from a mentor who has sat in hundreds of interviews at THIS company, for THIS stage. Not a generic tip sheet. Direct, warm, like a coach texting you 5 minutes before the call. Short sentences. No fluff. Use "you" and "they" language. This is tactical, not inspirational.
 
 CANDIDATE:
-${buildResumeContext(ctx.resume)}
+${buildResumeContext(ctx)}
 
 COMPANY:
 ${buildCompanyContext(ctx.company)}
@@ -1323,7 +1430,7 @@ ${kb}`,
     user: `Generate career switcher bridges for this candidate transitioning into ${ctx.targetRole} at ${ctx.company.name}.
 
 CANDIDATE BACKGROUND:
-${buildResumeContext(ctx.resume)}
+${buildResumeContext(ctx)}
 
 WHAT CAREER SWITCHER BRIDGES ARE:
 Specific framings that connect non-sales experience to sales skills.
@@ -1421,7 +1528,7 @@ TRANSITIONS BETWEEN ROLES: Use natural connective language — not formal chrono
 - NOT: "Subsequently I transitioned to..." / "Following that experience I pursued..." / "At this juncture in my career...""
 
 CANDIDATE:
-${buildResumeContext(ctx.resume)}
+${buildResumeContext(ctx)}
 
 TARGET: ${ctx.targetRole} at ${ctx.company.name}
 COMPANY: ${buildCompanyContext(ctx.company)}
@@ -1429,8 +1536,8 @@ COMPANY: ${buildCompanyContext(ctx.company)}
 RELEVANCE MAP:
 ${buildRelevanceContext(ctx.relevanceMap)}
 ${buildPersonalContextBlock(ctx.personalContext)}
-Return ONLY the narrative text. No labels, no JSON, no quotes around it.`,
-    maxTokens: 800,
+Use the Answer Card structure (## Quick take → ## 30-second version → ## Full answer → ## Key proof points → ## If they dig deeper → ## Make it yours). Bold the 3-5 most important phrases.`,
+    maxTokens: 1400,
   };
 }
 
@@ -1476,12 +1583,12 @@ BANNED:
 - "I leveraged this feedback to enhance my performance" (robotic — say it like a human)
 
 CANDIDATE:
-${buildResumeContext(ctx.resume)}
+${buildResumeContext(ctx)}
 
 TARGET: ${ctx.targetRole} at ${ctx.company.name}
 
-Return ONLY the answer text. No labels, no JSON, no quotes around it.`,
-    maxTokens: 500,
+Use the Answer Card structure (## Quick take → ## 30-second version → ## Full answer → ## Key proof points → ## If they dig deeper → ## Make it yours). Bold the 3-5 most important phrases.`,
+    maxTokens: 1000,
   };
 }
 
@@ -1557,7 +1664,7 @@ CONTEXT:
 ${buildCompanyContext(ctx.company)}
 
 CANDIDATE BACKGROUND (use to make the prospecting approach feel authentic):
-${buildResumeContext(ctx.resume)}
+${buildResumeContext(ctx)}
 
 TARGET BUYER: A realistic prospect at one of ${ctx.company.name}'s ICP companies (${ctx.company.icp.companySizes.join(", ")} — ${ctx.company.icp.industries.slice(0, 3).join(", ")} industry — buyer persona: ${ctx.company.icp.buyerPersonas.slice(0, 2).join(" or ")}).
 
@@ -1605,7 +1712,7 @@ COMPANY CONTEXT:
 ${buildCompanyContext(ctx.company)}
 
 CANDIDATE:
-${buildResumeContext(ctx.resume)}
+${buildResumeContext(ctx)}
 
 STRUCTURE:
 
@@ -1652,7 +1759,7 @@ COMPANY CONTEXT:
 ${buildCompanyContext(ctx.company)}
 
 CANDIDATE:
-${buildResumeContext(ctx.resume)}
+${buildResumeContext(ctx)}
 
 STRUCTURE:
 
@@ -1682,6 +1789,12 @@ Return ONLY the guide. No preamble.`,
   };
 }
 
+// ─── Final check (appended to every prompt) ──────────────────────────────────
+
+const FINAL_CHECK = `
+
+FINAL CHECK: Read your answer out loud in your head. If any sentence sounds like it belongs in a LinkedIn post or a cover letter, rewrite it. If you would never hear a 26-year-old sales rep say this sentence while sitting across from their interviewer at a coffee shop, rewrite it.`;
+
 // ─── Master router ────────────────────────────────────────────────────────────
 
 export function buildPromptForAnswerType(
@@ -1689,46 +1802,70 @@ export function buildPromptForAnswerType(
   ctx: PromptContext,
   options?: { question?: string; objection?: string }
 ): PromptResult {
+  let result: PromptResult;
+
   switch (answerType) {
     case "tell_me_about_yourself":
-      return buildTmayPrompt(ctx);
+      result = buildTmayPrompt(ctx);
+      break;
     case "why_sales":
-      return buildWhySalesPrompt(ctx);
+      result = buildWhySalesPrompt(ctx);
+      break;
     case "why_this_company":
-      return buildWhyThisCompanyPrompt(ctx);
+      result = buildWhyThisCompanyPrompt(ctx);
+      break;
     case "behavioral_star":
-      return buildBehavioralStarPrompt(ctx, options?.question);
+      result = buildBehavioralStarPrompt(ctx, options?.question);
+      break;
     case "comp_expectations":
-      return buildCompExpectationsPrompt(ctx);
+      result = buildCompExpectationsPrompt(ctx);
+      break;
     case "role_play_script":
-      return buildRolePlayScriptPrompt(ctx);
+      result = buildRolePlayScriptPrompt(ctx);
+      break;
     case "objection_response":
-      return buildObjectionResponsePrompt(ctx, options?.objection);
+      result = buildObjectionResponsePrompt(ctx, options?.objection);
+      break;
     case "company_brief":
-      return buildCompanyBriefPrompt(ctx);
+      result = buildCompanyBriefPrompt(ctx);
+      break;
     case "cheat_sheet":
-      return buildCheatSheetPrompt(ctx);
+      result = buildCheatSheetPrompt(ctx);
+      break;
     case "questions_to_ask":
-      return buildQuestionsToAskPrompt(ctx);
+      result = buildQuestionsToAskPrompt(ctx);
+      break;
     case "coachability_coaching":
-      return buildCoachabilityCoachingPrompt(ctx);
+      result = buildCoachabilityCoachingPrompt(ctx);
+      break;
     case "coachability_game_plan":
-      return buildCoachabilityGamePlanPrompt(ctx);
+      result = buildCoachabilityGamePlanPrompt(ctx);
+      break;
     case "career_switcher_bridge":
-      return buildCareerSwitcherBridgePrompt(ctx);
+      result = buildCareerSwitcherBridgePrompt(ctx);
+      break;
     case "resume_walkthrough":
-      return buildResumeWalkthroughPrompt(ctx);
+      result = buildResumeWalkthroughPrompt(ctx);
+      break;
     case "constructive_feedback":
-      return buildConstructiveFeedbackPrompt(ctx);
+      result = buildConstructiveFeedbackPrompt(ctx);
+      break;
     case "competitor_battle_card":
-      return buildCompetitorBattleCardPrompt(ctx);
+      result = buildCompetitorBattleCardPrompt(ctx);
+      break;
     case "cold_email":
-      return buildColdEmailPrompt(ctx);
+      result = buildColdEmailPrompt(ctx);
+      break;
     case "pain_point_analysis":
-      return buildPainPointAnalysisPrompt(ctx);
+      result = buildPainPointAnalysisPrompt(ctx);
+      break;
     case "assignment_guide":
-      return buildAssignmentGuidePrompt(ctx);
+      result = buildAssignmentGuidePrompt(ctx);
+      break;
     default:
       throw new Error(`Unknown answer type: ${answerType}`);
   }
+
+  // Append FINAL CHECK to every prompt
+  return { ...result, user: result.user + FINAL_CHECK };
 }
