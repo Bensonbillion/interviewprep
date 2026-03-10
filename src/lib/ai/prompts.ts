@@ -275,6 +275,71 @@ Bold the 3-5 most important phrases — specific metrics, company names, and key
 - Career switcher? Translate background confidently — never apologize for non-traditional path
 - Use "I" for personal actions, not "we" or passive voice — ownership signals authenticity`;
 
+// ─── Reference format rules (for material the candidate READS, not speaks) ──────
+
+const REFERENCE_FORMAT_RULES = `
+This is REFERENCE MATERIAL the candidate will READ on their phone while prepping. It is NOT something they will say out loud. Optimize for SCANNING, not conversation.
+
+FORMAT RULES:
+1. Lead with the most important fact in the first line
+2. Use short paragraphs (2-3 sentences max)
+3. Bold the 5-8 most important facts — a reader who ONLY reads bold text should get the key takeaways
+4. Use bullets for lists of 3+ items
+5. Group information under clear, descriptive subheadings
+6. No filler sentences — every sentence must contain a fact or actionable insight
+7. Keep total length under 400 words for mobile reading
+8. For comp_expectations: always include specific numbers (OTE, base range, split) and the deflection script
+
+TONE: Clear, direct, informative. Like a well-written briefing doc, not a blog post and not a conversation.
+
+STILL BANNED: leverage, utilize, synergy, robust, groundbreaking, Furthermore, Moreover, "In today's world"
+(these are just bad writing, not just bad speech)`;
+
+/** System prompt for REFERENCE answer types — guardrails + scannable formatting. */
+const REFERENCE_SYSTEM = `You are generating REFERENCE MATERIAL for a sales interview candidate. This will be read on a phone screen, not spoken aloud.
+
+${REFERENCE_FORMAT_RULES}
+
+=== GUARDRAILS ===
+- Every answer MUST trace to specific resume details — never fabricate achievements
+- Every company reference MUST come from the company profile — never hallucinate facts
+- If a metric is not in the candidate's data, use a bracketed placeholder like [INSERT YOUR %] or [INSERT $ AMOUNT]. NEVER invent numbers.
+- Career switcher? Translate background confidently — never apologize for non-traditional path`;
+
+// ─── Spoken voice profile (appended to system prompt for spoken answer types only) ──
+
+export const SPOKEN_VOICE_PROFILE = `
+
+=== SPOKEN VOICE PROFILE ===
+
+This answer will be SAID OUT LOUD in a live interview.
+Write it like clean spoken English — not an essay, not a script, not a LinkedIn post.
+
+VOICE EXAMPLES (match this register):
+
+"Yeah, so basically I've been in sales about five years now. Started at FedEx selling shipment management to e-commerce brands. From there, I moved over to Brandwatch — and I think that was really the turning point for me. I hit quota enough times to get promoted to associate AE, where I was doing full-cycle: booking my own meetings, running demos, closing my own deals."
+
+"One thing I always pride myself in is not just knowing the product but knowing the industry — cause I feel like that's the best way to sell. When you can tell someone what's happening outside their own business, they start seeing you as more of a consultant than a vendor."
+
+"At the time I didn't really take that feedback well. I'm like — I'm an AE now, my whole job is to close. But then I lost a couple deals because of it, and now I kind of understand that feedback was actually correct."
+
+RULES:
+1. Contractions always (I'm, don't, it's, that's, I've)
+2. Short sentences mixed with longer ones
+3. Start with a hook, never "I am a professional with..."
+4. Use: so, from there, and basically, I think, I guess, kind of, honestly — at thought boundaries (2-4 per answer)
+5. Include ONE self-correction or "actually, let me reframe"
+6. Real company names and specific numbers always
+7. End naturally — no thesis statement
+8. If a metric isn't in the candidate data, write [your quota % — e.g., "118%"] not just [INSERT NUMBER]
+
+BANNED: leverage, utilize, synergy, robust, pivotal, groundbreaking, seamless, innovative, Furthermore, Moreover, Additionally, "I am passionate about", "results-driven", "proven track record", "In today's fast-paced world"
+
+FINAL CHECK: Read it out loud. If any sentence sounds like a cover letter, rewrite it until it sounds like you're talking to someone over coffee.`;
+
+/** System prompt for SPOKEN answer types — BASE_SYSTEM + spoken voice profile. */
+const SPOKEN_SYSTEM = BASE_SYSTEM + SPOKEN_VOICE_PROFILE;
+
 // ─── 1. Tell Me About Yourself ────────────────────────────────────────────────
 
 export function buildTmayPrompt(ctx: PromptContext): PromptResult {
@@ -354,7 +419,7 @@ REAL-WORLD PATTERNS FROM HIRED CANDIDATES:
   const wordTarget = ctx.stage === "hiring_manager" ? "200–280 words (90–120 seconds spoken)" : "130–200 words (60–90 seconds spoken)";
 
   return {
-    system: `${BASE_SYSTEM}
+    system: `${SPOKEN_SYSTEM}
 
 ${kb}`,
     user: `Generate a "Tell Me About Yourself" narrative for this candidate.
@@ -407,7 +472,7 @@ export function buildWhySalesPrompt(ctx: PromptContext): PromptResult {
 
   if (isAE) {
     return {
-      system: BASE_SYSTEM,
+      system: SPOKEN_SYSTEM,
       user: `Generate a "Why are you making this move?" answer for this experienced AE candidate.
 
 AEs don't get asked "Why sales?" — they get asked "Why are you leaving?" and "Why this company specifically at this stage of your career?"
@@ -436,7 +501,7 @@ Use the Answer Card structure (## Quick take → ## 30-second version → ## Ful
   }
 
   return {
-    system: BASE_SYSTEM,
+    system: SPOKEN_SYSTEM,
     user: `Generate a "Why sales?" answer for this candidate.
 
 This answer must start with a MOMENT, not a statement.
@@ -501,7 +566,7 @@ export function buildWhyThisCompanyPrompt(ctx: PromptContext): PromptResult {
 - NOT generic: "I love the culture and growth opportunities" is disqualifying`;
 
   return {
-    system: BASE_SYSTEM,
+    system: SPOKEN_SYSTEM,
     user: `Generate a "Why ${ctx.company.name}?" answer for this candidate.
 
 ${depthInstruction}
@@ -627,7 +692,7 @@ export function buildBehavioralStarPrompt(
 
 
   return {
-    system: `${BASE_SYSTEM}
+    system: `${SPOKEN_SYSTEM}
 
 ${kb}`,
     user: `Generate ${questionOverride ? "1 STAR answer" : `${questions.length} STAR answers`} for this candidate.
@@ -715,7 +780,7 @@ Return JSON:
 export function buildCompExpectationsPrompt(ctx: PromptContext): PromptResult {
   const compCtx = buildCompListingContext(ctx.jobListingSignals);
   return {
-    system: BASE_SYSTEM,
+    system: REFERENCE_SYSTEM,
     user: `Generate a comp expectations answer for this candidate applying for ${ctx.targetRole} at ${ctx.company.name}.
 
 ${compCtx ? `\n${compCtx}\n` : ""}
@@ -758,7 +823,7 @@ export function buildRolePlayScriptPrompt(ctx: PromptContext): PromptResult {
 
   if (isAE) {
     return {
-      system: `${BASE_SYSTEM}
+      system: `${SPOKEN_SYSTEM}
 
 ${kb}`,
       user: `Generate a discovery demo script for this AE candidate's role play / live exercise assessment.
@@ -819,7 +884,7 @@ Return JSON:
   }
 
   return {
-    system: `${BASE_SYSTEM}
+    system: `${SPOKEN_SYSTEM}
 
 ${kb}`,
     user: `Generate a cold call conversation framework for this candidate's role play assessment.
@@ -919,7 +984,7 @@ export function buildObjectionResponsePrompt(
       ];
 
   return {
-    system: `${BASE_SYSTEM}
+    system: `${SPOKEN_SYSTEM}
 
 ${kb}`,
     user: `Generate objection handling responses for a ${ctx.company.name} ${ctx.targetRole} cold call role play.
@@ -953,7 +1018,7 @@ Return JSON:
 
 export function buildCompanyBriefPrompt(ctx: PromptContext): PromptResult {
   return {
-    system: BASE_SYSTEM,
+    system: REFERENCE_SYSTEM,
     user: `Generate a company research brief for this candidate to study before their interview.
 
 COMPANY:
@@ -1166,7 +1231,7 @@ export function buildCheatSheetPrompt(ctx: PromptContext): PromptResult {
   const seniorityLabel = ctx.seniority === "entry" ? "entry-level" : ctx.seniority === "senior" ? "senior" : "mid-level";
 
   return {
-    system: `${BASE_SYSTEM}
+    system: `${REFERENCE_SYSTEM}
 
 ${kb}`,
     user: `Generate a cheat sheet for a ${seniorityLabel} ${isAE ? "Account Executive" : "SDR/BDR"} candidate interviewing at ${ctx.company.name} for the ${ctx.stage} round.
@@ -1262,7 +1327,7 @@ export function buildQuestionsToAskPrompt(ctx: PromptContext): PromptResult {
     : "";
 
   return {
-    system: BASE_SYSTEM,
+    system: REFERENCE_SYSTEM,
     user: `Generate 4 questions for this candidate to ask in their ${ctx.stage} interview at ${ctx.company.name}.
 
 RESEARCH FOUNDATION (Huang et al., Harvard 2017):
@@ -1341,7 +1406,7 @@ export function buildCoachabilityCoachingPrompt(ctx: PromptContext): PromptResul
   const kb = getKnowledgeForStage("role_play", ctx.resume.backgroundType);
   const isAE = ctx.roleType === "account_executive";
   return {
-    system: `${BASE_SYSTEM}
+    system: `${SPOKEN_SYSTEM}
 
 ${kb}`,
     user: `Generate coachability coaching for this candidate's ${isAE ? "discovery demo" : "cold call"} role play assessment at ${ctx.company.name}.
@@ -1379,7 +1444,7 @@ Return ONLY the coaching text (no JSON, no headers). 5–8 sentences. Include at
 export function buildCoachabilityGamePlanPrompt(ctx: PromptContext): PromptResult {
   const isAE = ctx.roleType === "account_executive";
   return {
-    system: BASE_SYSTEM,
+    system: SPOKEN_SYSTEM,
     user: `Generate a coachability game plan for this candidate's ${isAE ? "discovery demo" : "cold call"} role play assessment at ${ctx.company.name}.
 
 RESEARCH FOUNDATION (Roberge, HubSpot, 1,000+ hires):
@@ -1424,7 +1489,7 @@ Return JSON:
 export function buildCareerSwitcherBridgePrompt(ctx: PromptContext): PromptResult {
   const kb = getKnowledgeForStage(ctx.stage, "career_switcher");
   return {
-    system: `${BASE_SYSTEM}
+    system: `${SPOKEN_SYSTEM}
 
 ${kb}`,
     user: `Generate career switcher bridges for this candidate transitioning into ${ctx.targetRole} at ${ctx.company.name}.
@@ -1477,7 +1542,7 @@ export function buildResumeWalkthroughPrompt(ctx: PromptContext): PromptResult {
   const isCareerSwitcher = ctx.resume.backgroundType === "career_switcher";
 
   return {
-    system: `${BASE_SYSTEM}
+    system: `${SPOKEN_SYSTEM}
 
 ${kb}`,
     user: `Generate a "Walk me through your resume" answer for a hiring manager interview.
@@ -1547,7 +1612,7 @@ export function buildConstructiveFeedbackPrompt(ctx: PromptContext): PromptResul
   const kb = getKnowledgeForStage("hiring_manager", ctx.resume.backgroundType);
 
   return {
-    system: `${BASE_SYSTEM}
+    system: `${SPOKEN_SYSTEM}
 
 ${kb}`,
     user: `Generate an answer to "Tell me about the last piece of constructive feedback you received and what you did with it."
@@ -1602,7 +1667,7 @@ export function buildCompetitorBattleCardPrompt(ctx: PromptContext): PromptResul
     : "the main competitors in this space";
 
   return {
-    system: `${BASE_SYSTEM}
+    system: `${REFERENCE_SYSTEM}
 
 ${kb}`,
     user: `Generate competitor battle cards for a ${ctx.targetRole} interview at ${ctx.company.name}.
@@ -1653,7 +1718,7 @@ export function buildColdEmailPrompt(ctx: PromptContext): PromptResult {
   const kb = getKnowledgeForStage("recruiter", ctx.resume.backgroundType);
 
   return {
-    system: `${BASE_SYSTEM}
+    system: `${REFERENCE_SYSTEM}
 
 ${kb}`,
     user: `Write a cold outreach email that a candidate would submit as part of their take-home sales assignment for a ${ctx.targetRole} role at ${ctx.company.name}.
@@ -1701,7 +1766,7 @@ export function buildPainPointAnalysisPrompt(ctx: PromptContext): PromptResult {
   const kb = getKnowledgeForStage("recruiter", ctx.resume.backgroundType);
 
   return {
-    system: `${BASE_SYSTEM}
+    system: `${REFERENCE_SYSTEM}
 
 ${kb}`,
     user: `Write a pain point analysis for a ${ctx.targetRole} take-home assignment at ${ctx.company.name}.
@@ -1748,7 +1813,7 @@ export function buildAssignmentGuidePrompt(ctx: PromptContext): PromptResult {
   const kb = getKnowledgeForStage("recruiter", ctx.resume.backgroundType);
 
   return {
-    system: `${BASE_SYSTEM}
+    system: `${REFERENCE_SYSTEM}
 
 ${kb}`,
     user: `Write a take-home assignment strategy guide for a ${ctx.targetRole} candidate at ${ctx.company.name}.
