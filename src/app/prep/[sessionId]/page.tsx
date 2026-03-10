@@ -849,10 +849,12 @@ export default function PrepSessionPage() {
 
       {/* YOUR ANSWERS — spoken cards */}
       {speakingSlots.length > 0 && (
-        <div className="space-y-3">
-          <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider">
-            Your Answers
-          </p>
+        <div className="space-y-4">
+          <div className="sticky top-[56px] z-10 bg-white/95 backdrop-blur-sm py-2 -mx-4 px-4 border-b border-stone-100">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-400">
+              Your Answers
+            </h2>
+          </div>
           {speakingSlots.map((slot) => (
             <div key={slot.type} data-question-type={slot.type}>
               <AnswerCard
@@ -872,10 +874,12 @@ export default function PrepSessionPage() {
 
       {/* REFERENCE MATERIAL — collapsed on mobile by default */}
       {referenceSlots.length > 0 && (
-        <div className="space-y-3">
-          <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider mt-2">
-            Reference Material
-          </p>
+        <div className="space-y-4">
+          <div className="sticky top-[56px] z-10 bg-white/95 backdrop-blur-sm py-2 -mx-4 px-4 border-b border-stone-100">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-400">
+              Reference Material
+            </h2>
+          </div>
           {referenceSlots.map((slot) => (
             <div key={slot.type} data-question-type={slot.type}>
               <AnswerCard

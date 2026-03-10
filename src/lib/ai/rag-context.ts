@@ -486,6 +486,9 @@ export async function logAnswerVersion(params: {
   promptVersionId?: string | null;
   knowledgeChunkIds?: string[];
   goldenExampleIds?: string[];
+  rawContent?: string | null;
+  humanizedContent?: string | null;
+  wasHumanized?: boolean;
 }): Promise<void> {
   try {
     const db = adminDb();
@@ -498,6 +501,9 @@ export async function logAnswerVersion(params: {
       prompt_version_id:   params.promptVersionId ?? null,
       knowledge_chunk_ids: params.knowledgeChunkIds ?? [],
       golden_example_ids:  params.goldenExampleIds ?? [],
+      answer_raw:          params.rawContent ? encrypt(params.rawContent) : null,
+      answer_humanized:    params.humanizedContent ? encrypt(params.humanizedContent) : null,
+      was_humanized:       params.wasHumanized ?? false,
     });
   } catch (err) {
     console.warn("Failed to log answer version (non-fatal):", err);

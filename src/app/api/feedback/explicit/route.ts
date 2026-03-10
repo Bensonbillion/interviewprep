@@ -36,10 +36,13 @@ export async function POST(req: NextRequest) {
       answer_type: answerType,
       rating,
       sounds_natural: rest.soundsNatural ?? null,
+      too_robotic: rest.tooRobotic ?? null,
+      easy_to_say_out_loud: rest.easyToSayOutLoud ?? null,
       too_long: rest.tooLong ?? null,
       too_short: rest.tooShort ?? null,
       too_generic: rest.tooGeneric ?? null,
       missing_detail: rest.missingDetail ?? null,
+      quick_tag: rest.quickTag ?? null,
       how_would_you_say_it: rest.howWouldYouSayIt ? encrypt(rest.howWouldYouSayIt) : null,
       what_would_improve: rest.whatWouldImprove ? encrypt(rest.whatWouldImprove) : null,
     });

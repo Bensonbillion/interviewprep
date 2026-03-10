@@ -33,10 +33,13 @@ export const explicitFeedbackSchema = z.object({
   answerType: z.string().min(1).max(50),
   rating: z.number().int().min(1).max(5),
   soundsNatural: z.boolean().optional(),
+  tooRobotic: z.boolean().optional(),
+  easyToSayOutLoud: z.number().int().min(1).max(5).optional(),
   tooLong: z.boolean().optional(),
   tooShort: z.boolean().optional(),
   tooGeneric: z.boolean().optional(),
   missingDetail: z.boolean().optional(),
+  quickTag: z.string().max(50).optional(),
   howWouldYouSayIt: safeString(5000).optional(),
   whatWouldImprove: safeString(2000).optional(),
 });
