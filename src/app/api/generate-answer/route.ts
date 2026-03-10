@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
       answerType as AnswerType,
       {
         resume: session.resume,
+        extractedResume: session.extractedResume,
         company: session.company,
         relevanceMap: session.relevanceMap,
         jobDescription: session.jobDescription,

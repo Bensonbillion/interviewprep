@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
     // Build the user prompt using existing prompt builders
     const { user: userPrompt, maxTokens } = buildPromptForAnswerType(answerType, {
       resume: session.resume,
+      extractedResume: session.extractedResume,
       company: session.company,
       relevanceMap: session.relevanceMap,
       jobDescription: session.jobDescription,

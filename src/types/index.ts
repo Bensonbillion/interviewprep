@@ -59,6 +59,44 @@ export interface ParsedResume {
   suggestedRoleType?: RoleType; // AI-inferred from job titles + experience level
 }
 
+// ─── Extracted Resume (security-hardened, grounded facts only) ───────────────
+
+export interface ExtractedResumeRole {
+  company: string | null;
+  title: string | null;
+  start: string | null;
+  end: string | null;
+  duration_months: number | null;
+  responsibilities: string[];
+  wins: string[];
+  metrics: string[];
+  tools: string[];
+  promotion: boolean;
+  stories: {
+    ownership: string[];
+    resilience: string[];
+    teamwork: string[];
+    learning: string[];
+    industry_knowledge: string[];
+  };
+}
+
+export interface ExtractedResume {
+  candidate: {
+    name: string | null;
+    location: string | null;
+    current_title: string | null;
+    years_experience_estimate: number | null;
+    industries: string[];
+    sales_motion: string | null;
+    tools_used: string[];
+  };
+  roles: ExtractedResumeRole[];
+  education: string[];
+  certifications: string[];
+  missing_but_important: string[];
+}
+
 // ─── Company Profile ──────────────────────────────────────────────────────────
 
 export type SalesMotion =
@@ -229,6 +267,7 @@ export interface PrepSession {
   resumeId?: string;
   companyId?: string;
   resume: ParsedResume;
+  extractedResume?: ExtractedResume;
   jobDescription: string;
   companyName: string;
   companyUrl?: string;

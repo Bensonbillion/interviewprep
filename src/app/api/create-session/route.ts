@@ -4,6 +4,7 @@ import { verifyApiAuth } from "@/lib/auth/verify";
 import { aiLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 import { CreateSessionInputSchema } from "@/lib/types/schemas";
 import { buildAnswerSlots } from "@/lib/session/answer-slots";
+import { extractResumeForPrep } from "@/lib/ai/extract-resume";
 import type { ParsedResume, CompanyProfile, RelevanceMap, PrepSession } from "@/types";
 import { auditLog } from "@/lib/security/audit";
 
@@ -124,8 +125,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build relevance map
-    const relevanceMap = await buildRelevanceMap(resume, company, jobDescription, targetRole);
+    // Build relevance map + extract grounded resume in parallel
+    const [relevanceMap, extractedResume] = await Promise.all([
+      buildRelevanceMap(resume, company, jobDescription, targetRole),
+      extractResumeForPrep(resume).catch((err) => {
+        console.warn("Resume extraction failed (non-fatal, using fallback):", err);
+        return undefined;
+      }),
+    ]);
 
     // Build answer slots for this stage + background type
     const answerSlots = buildAnswerSlots(
@@ -136,6 +143,7 @@ export async function POST(req: NextRequest) {
     const session: PrepSession = {
       id: crypto.randomUUID(),
       resume,
+      extractedResume,
       jobDescription,
       companyName,
       companyUrl,
