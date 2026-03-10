@@ -7,7 +7,7 @@ import { buildPromptForAnswerType } from "@/lib/ai/prompts";
 import { detectRoleSeniority, getSeniorityInstructions } from "@/lib/ai/seniority";
 import { parseJobListing, buildJobListingContext } from "@/lib/ai/job-listing";
 import { fetchRagContext, assembleSystemPrompt, logAnswerVersion } from "@/lib/ai/rag-context";
-import { shouldHumanize, humanizeAnswer } from "@/lib/ai/humanize-answer";
+import { shouldHumanize } from "@/lib/ai/humanize-answer";
 import { styleLint } from "@/lib/ai/style-lint";
 import type { AnswerType, PrepSession } from "@/types";
 
@@ -120,24 +120,9 @@ export async function POST(req: NextRequest) {
       .replace(/\s*```$/i, "")
       .trim();
 
-    // ── Humanization pass (spoken answer types only) ────────────────────────
-    let finalContent = rawContent;
-    let humanizedContent: string | null = null;
-    let wasHumanized = false;
-
-    if (shouldHumanize(answerType)) {
-      try {
-        humanizedContent = await humanizeAnswer(rawContent);
-        finalContent = humanizedContent;
-        wasHumanized = true;
-      } catch (humanizeErr) {
-        console.warn("Humanization failed (non-fatal):", humanizeErr);
-      }
-    }
-
     // Deterministic style cleanup — contractions for spoken, banned words for all
     const isSpoken = shouldHumanize(answerType);
-    finalContent = styleLint(finalContent, isSpoken);
+    let finalContent = styleLint(rawContent, isSpoken);
 
     // Log regen with both raw and humanized versions (fire-and-forget)
     logAnswerVersion({
@@ -149,9 +134,6 @@ export async function POST(req: NextRequest) {
       promptVersionId: rag.activePromptVersionId,
       knowledgeChunkIds: rag.knowledgeChunkIds,
       goldenExampleIds: rag.goldenExampleIds,
-      rawContent,
-      humanizedContent,
-      wasHumanized,
     });
 
     return NextResponse.json({

@@ -5,7 +5,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { aiLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 import { auditLog } from "@/lib/security/audit";
 import { SPOKEN_VOICE_PROFILE } from "@/lib/ai/prompts";
-import { humanizeAnswer } from "@/lib/ai/humanize-answer";
 import { styleLint } from "@/lib/ai/style-lint";
 import type { PrepSession } from "@/types";
 
@@ -135,22 +134,8 @@ Generate the answer as plain spoken text. No formatting, no bullet points, no ma
       return NextResponse.json({ error: "Failed to generate answer" }, { status: 500 });
     }
 
-    const rawAnswer = textBlock.text.trim();
-
-    // ── Humanization pass ──────────────────────────────────────────────────
-    let answer = rawAnswer;
-    let wasHumanized = false;
-
-    try {
-      answer = await humanizeAnswer(rawAnswer);
-      wasHumanized = true;
-    } catch (humanizeErr) {
-      // Non-fatal — use raw answer
-      console.warn("[custom-answer] Humanization failed (non-fatal):", humanizeErr);
-    }
-
     // Deterministic style cleanup — custom answers are always spoken
-    answer = styleLint(answer, true);
+    const answer = styleLint(textBlock.text.trim(), true);
 
     // Store in database (best-effort, fire-and-forget)
     const questionId = crypto.randomUUID();
@@ -183,7 +168,7 @@ Generate the answer as plain spoken text. No formatting, no bullet points, no ma
       userId: auth.userId,
       resourceType: "custom_answer",
       resourceId: questionId,
-      details: { question: questionText.slice(0, 100), stage: interviewStage, wasHumanized },
+      details: { question: questionText.slice(0, 100), stage: interviewStage },
     });
 
     return NextResponse.json({
