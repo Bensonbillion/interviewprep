@@ -4,6 +4,9 @@ import { verifyApiAuth } from "@/lib/auth/verify";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { aiLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 import { auditLog } from "@/lib/security/audit";
+import { SPOKEN_VOICE_PROFILE } from "@/lib/ai/prompts";
+import { humanizeAnswer } from "@/lib/ai/humanize-answer";
+import { styleLint } from "@/lib/ai/style-lint";
 import type { PrepSession } from "@/types";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -79,17 +82,9 @@ export async function POST(req: NextRequest) {
     const stageLabel = STAGE_LABELS[interviewStage] || interviewStage;
     const targetLength = STAGE_LENGTHS[interviewStage] || "150-250 words";
 
-    const systemPrompt = `You are an expert sales interview coach. Generate a conversational, SPOKEN interview answer for a custom question the candidate wants to practice.
+    const systemPrompt = `YOU ARE GENERATING TEXT THAT A REAL PERSON WILL SAY OUT LOUD IN A LIVE INTERVIEW. It must sound like natural speech.
 
-CORE PRINCIPLE — SPOKEN, NOT WRITTEN:
-This answer will be said out loud in a live interview. It must sound like a real human talking — contractions, natural transitions, mixed sentence lengths. Apply this test: "Would someone actually SAY this out loud?"
-
-SPOKEN LANGUAGE RULES:
-- Use contractions: "I've", "it's", "they're", "didn't"
-- Mix sentence lengths: one short punchy sentence after a long one
-- First-person active voice: "I built X" not "The candidate built X"
-- Never use bullet points, asterisks, or formatting — this is pure speech
-- No corporate jargon or LinkedIn-speak
+You are an expert sales interview coach. Generate a conversational, SPOKEN interview answer for a custom question the candidate wants to practice.
 
 STRUCTURE:
 If the question is behavioral (about past experience), use this four-layer structure:
@@ -104,7 +99,8 @@ If the question is situational or opinion-based, use:
 3. Brief example or anecdote
 4. Forward-looking connection to this role
 
-LENGTH: ${targetLength} — concise enough for a ${stageLabel}.`;
+LENGTH: ${targetLength} — concise enough for a ${stageLabel}.
+${SPOKEN_VOICE_PROFILE}`;
 
     const userPrompt = `QUESTION TO ANSWER: "${questionText}"
 
@@ -139,7 +135,22 @@ Generate the answer as plain spoken text. No formatting, no bullet points, no ma
       return NextResponse.json({ error: "Failed to generate answer" }, { status: 500 });
     }
 
-    const answer = textBlock.text.trim();
+    const rawAnswer = textBlock.text.trim();
+
+    // ── Humanization pass ──────────────────────────────────────────────────
+    let answer = rawAnswer;
+    let wasHumanized = false;
+
+    try {
+      answer = await humanizeAnswer(rawAnswer);
+      wasHumanized = true;
+    } catch (humanizeErr) {
+      // Non-fatal — use raw answer
+      console.warn("[custom-answer] Humanization failed (non-fatal):", humanizeErr);
+    }
+
+    // Deterministic style cleanup — custom answers are always spoken
+    answer = styleLint(answer, true);
 
     // Store in database (best-effort, fire-and-forget)
     const questionId = crypto.randomUUID();
@@ -172,7 +183,7 @@ Generate the answer as plain spoken text. No formatting, no bullet points, no ma
       userId: auth.userId,
       resourceType: "custom_answer",
       resourceId: questionId,
-      details: { question: questionText.slice(0, 100), stage: interviewStage },
+      details: { question: questionText.slice(0, 100), stage: interviewStage, wasHumanized },
     });
 
     return NextResponse.json({

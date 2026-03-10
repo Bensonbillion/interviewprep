@@ -8,6 +8,8 @@ import { detectRoleSeniority, getSeniorityInstructions } from "@/lib/ai/seniorit
 import { parseJobListing, buildJobListingContext } from "@/lib/ai/job-listing";
 import { fetchRagContext, assembleSystemPrompt, logAnswerVersion } from "@/lib/ai/rag-context";
 import { checkAnswerQuality, logQualityCheck } from "@/lib/ai/quality-check";
+import { shouldHumanize, humanizeAnswer } from "@/lib/ai/humanize-answer";
+import { styleLint } from "@/lib/ai/style-lint";
 import type { AnswerType, PrepSession } from "@/types";
 import { auditLog } from "@/lib/security/audit";
 
@@ -172,6 +174,26 @@ export async function POST(req: NextRequest) {
       ? checkAnswerQuality(rawContent, answerType, seniority)
       : qc;
 
+    // ── Humanization pass (spoken answer types only) ────────────────────────
+    let finalContent = rawContent;
+    let humanizedContent: string | null = null;
+    let wasHumanized = false;
+
+    if (shouldHumanize(answerType as AnswerType)) {
+      try {
+        humanizedContent = await humanizeAnswer(rawContent);
+        finalContent = humanizedContent;
+        wasHumanized = true;
+      } catch (humanizeErr) {
+        // Humanization failed — use raw answer (non-fatal)
+        console.warn("Humanization failed (non-fatal):", humanizeErr);
+      }
+    }
+
+    // Deterministic style cleanup — contractions for spoken, banned words for all
+    const isSpoken = shouldHumanize(answerType as AnswerType);
+    finalContent = styleLint(finalContent, isSpoken);
+
     // Log quality check (fire-and-forget)
     logQualityCheck({
       answerId,
@@ -182,15 +204,18 @@ export async function POST(req: NextRequest) {
       wasRegenerated,
     });
 
-    // Log generation (fire-and-forget)
+    // Log generation with both raw and humanized versions (fire-and-forget)
     logAnswerVersion({
       sessionId,
       answerType: answerType as AnswerType,
-      content: rawContent,
+      content: finalContent,
       generationType: wasRegenerated ? "regen" : "initial",
       promptVersionId: rag.activePromptVersionId,
       knowledgeChunkIds: rag.knowledgeChunkIds,
       goldenExampleIds: rag.goldenExampleIds,
+      rawContent,
+      humanizedContent,
+      wasHumanized,
     });
 
     auditLog({
@@ -204,13 +229,14 @@ export async function POST(req: NextRequest) {
         company: session.company?.name,
         qualityIssues: qc.criticalCount + qc.warningCount,
         wasRegenerated,
+        wasHumanized,
       },
     });
 
     return NextResponse.json({
       answerId,
       answerType,
-      content: rawContent,
+      content: finalContent,
       model,
       ...(finalQc.coachingTips.length > 0 && { coachingTips: finalQc.coachingTips }),
     });
