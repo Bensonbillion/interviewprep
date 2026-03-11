@@ -389,6 +389,18 @@ function renderInlineFormatting(text: string): React.ReactNode {
 
 // ─── Formatted text renderer (handles paragraphs, lists, headings, bold) ────
 function FormattedTextContent({ content, isSpoken }: { content: string; isSpoken?: boolean }) {
+  // Safety net: if content looks like JSON, parse and render structurally
+  // This catches cases where tryParseJSON failed upstream
+  const trimmedContent = typeof content === "string" ? content.trim() : "";
+  if (trimmedContent.startsWith("{") || trimmedContent.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmedContent);
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        return <GenericStructuredContent data={parsed as Record<string, unknown>} />;
+      }
+    } catch { /* not JSON — render as text below */ }
+  }
+
   const blocks = content.split(/\n\n+/).filter((b) => b.trim());
 
   return (
@@ -530,29 +542,53 @@ const SPOKEN_ANSWER_TYPES = new Set([
 ]);
 
 // ─── JSON parser with code-fence stripping ──────────────────────────────────
-function tryParseJSON(raw: string): unknown | null {
-  let cleaned = raw.trim();
-  // Strip markdown code fences (```json ... ``` or ``` ... ```)
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json|JSON)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-  }
-  if (cleaned.startsWith("{") || cleaned.startsWith("[")) {
-    try {
-      return JSON.parse(cleaned);
-    } catch {
-      // fall through to extraction attempt
+function tryParseJSON(raw: string | unknown): unknown | null {
+  // Handle non-string inputs (already-parsed objects, null, etc.)
+  if (raw == null) return null;
+  if (typeof raw === "object") return raw;
+
+  const str = typeof raw === "string" ? raw : String(raw);
+
+  // Strip BOM and trim
+  let cleaned = str.replace(/^\uFEFF/, "").trim();
+
+  // Strip markdown code fences — handle ```json, ```JSON, ``` at any position
+  cleaned = cleaned
+    .replace(/^```(?:json|JSON)?\s*\n?/, "")
+    .replace(/\n?\s*```\s*$/, "");
+
+  // Also strip code fences that appear after leading prose text:
+  //   "Here are the answers:\n```json\n{...}\n```"
+  const innerFence = cleaned.match(/```(?:json|JSON)?\s*\n([\s\S]*?)\n\s*```/);
+  if (innerFence) {
+    const candidate = innerFence[1].trim();
+    if (candidate.startsWith("{") || candidate.startsWith("[")) {
+      try { return JSON.parse(candidate); } catch { /* fall through */ }
     }
   }
-  // Fallback: extract JSON object or array from surrounding text
-  // (handles cases where the AI wraps JSON in prose or markdown headings)
-  const objMatch = cleaned.match(/(\{[\s\S]*\})\s*$/);
-  if (objMatch) {
-    try { return JSON.parse(objMatch[1]); } catch { /* ignore */ }
+
+  // Direct parse after fence stripping
+  cleaned = cleaned.trim();
+  if (cleaned.startsWith("{") || cleaned.startsWith("[")) {
+    try { return JSON.parse(cleaned); } catch { /* fall through */ }
   }
-  const arrMatch = cleaned.match(/(\[[\s\S]*\])\s*$/);
-  if (arrMatch) {
-    try { return JSON.parse(arrMatch[1]); } catch { /* ignore */ }
+
+  // Aggressive extraction: find the outermost balanced { } or [ ]
+  // Walk from the FIRST { to the LAST } (covers JSON wrapped in prose)
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    const candidate = cleaned.slice(firstBrace, lastBrace + 1);
+    try { return JSON.parse(candidate); } catch { /* fall through */ }
   }
+
+  const firstBracket = cleaned.indexOf("[");
+  const lastBracket = cleaned.lastIndexOf("]");
+  if (firstBracket !== -1 && lastBracket > firstBracket) {
+    const candidate = cleaned.slice(firstBracket, lastBracket + 1);
+    try { return JSON.parse(candidate); } catch { /* ignore */ }
+  }
+
   return null;
 }
 
@@ -927,6 +963,12 @@ function ContentRenderer({
       timing?: string;
       commonMistakes?: string[];
       closer?: string;
+      quickTalkTrack?: {
+        thirtySecondTmay?: string;
+        grandmotherCompanyDescription?: string;
+        preparedMetric?: string;
+        closingLine?: string;
+      };
       // Old format (backward compat)
       keyPoints?: string[];
       companyFacts?: string[];
@@ -995,6 +1037,35 @@ function ContentRenderer({
             <div className="border-t border-blue-400/30 pt-3">
               <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-1.5">Your Closer</p>
               <p className="text-sm text-white italic">&ldquo;{data.closer.replace(/^["']|["']$/g, "")}&rdquo;</p>
+            </div>
+          )}
+          {data.quickTalkTrack && (
+            <div className="border-t border-blue-400/30 pt-3 space-y-2.5">
+              <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide">Quick Talk Track</p>
+              {data.quickTalkTrack.thirtySecondTmay && (
+                <div className="bg-white/10 rounded-lg px-3 py-2">
+                  <p className="text-[10px] font-bold text-blue-300 uppercase tracking-wide mb-0.5">30-Second TMAY</p>
+                  <p className="text-sm text-white leading-relaxed">{data.quickTalkTrack.thirtySecondTmay}</p>
+                </div>
+              )}
+              {data.quickTalkTrack.grandmotherCompanyDescription && (
+                <div className="bg-white/10 rounded-lg px-3 py-2">
+                  <p className="text-[10px] font-bold text-blue-300 uppercase tracking-wide mb-0.5">Company in Plain English</p>
+                  <p className="text-sm text-white leading-relaxed">{data.quickTalkTrack.grandmotherCompanyDescription}</p>
+                </div>
+              )}
+              {data.quickTalkTrack.preparedMetric && (
+                <div className="bg-white/10 rounded-lg px-3 py-2">
+                  <p className="text-[10px] font-bold text-blue-300 uppercase tracking-wide mb-0.5">Your Best Number</p>
+                  <p className="text-sm text-white font-semibold">{data.quickTalkTrack.preparedMetric}</p>
+                </div>
+              )}
+              {data.quickTalkTrack.closingLine && (
+                <div className="bg-white/10 rounded-lg px-3 py-2">
+                  <p className="text-[10px] font-bold text-blue-300 uppercase tracking-wide mb-0.5">Closing Line</p>
+                  <p className="text-sm text-white italic">&ldquo;{data.quickTalkTrack.closingLine.replace(/^["']|["']$/g, "")}&rdquo;</p>
+                </div>
+              )}
             </div>
           )}
         </div>

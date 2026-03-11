@@ -1039,7 +1039,7 @@ Example structure: "So basically, [Company] is building [X] for [Y customers] �
 SECTION 2 — "DEEP RESEARCH" (the remaining fields):
 The full company research brief: product details, competitors, recent news, ICP, sales motion, funding. This is REFERENCE material for studying — formatted for reading, not speaking.
 
-Return JSON:
+IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
 {
   "sayThis": "3–4 sentence spoken summary — natural, conversational, confident",
   "oneLiner": "...",
@@ -1289,7 +1289,7 @@ Generate EXACTLY this structure — concise, fits on ONE mobile screen:
 SENIORITY CALIBRATION (${seniorityLabel}):
 ${ctx.seniority === "entry" ? "- Coaching tone. Briefly explain WHY each point matters — this may be their first real sales interview." : ctx.seniority === "senior" ? "- Brief and strategic. Skip the obvious. Focus on the political dynamics and executive-level signals." : "- Direct. Assumes basic interview knowledge. Focus on what's specific to THIS company and stage."}
 
-Return JSON:
+IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
 {
   "testing": ["...", "...", "..."],
   "oneThingThatMatters": "...",
@@ -1383,7 +1383,7 @@ Write a 2-sentence coaching note reminding the candidate these are NOT a checkli
 COMPANY:
 ${buildCompanyContext(ctx.company)}
 
-Return JSON:
+IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
 {
   "coachingNote": "2-sentence coaching note about how to use these",
   "questions": [
@@ -1696,7 +1696,7 @@ REQUIREMENTS:
 - switching_triggers should be operational pain points, not "they're more expensive"
 - discovery_question should feel natural in a cold call, not combative
 
-Return JSON:
+IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
 {
   "competitors": [
     {
