@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Serif_Display, DM_Sans, JetBrains_Mono } from "next/font/google";
+import { DM_Serif_Display, Inter, JetBrains_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 import { Suspense } from "react";
@@ -17,7 +17,7 @@ const dmSerif = DM_Serif_Display({
   display: "swap",
 });
 
-const dmSans = DM_Sans({
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
@@ -107,7 +107,7 @@ export default async function RootLayout({
         <JsonLd data={softwareApplicationSchema()} />
         <AnalyticsScripts nonce={nonce} />
       </head>
-      <body className={`${dmSerif.variable} ${dmSans.variable} ${jetbrainsMono.variable} antialiased`}>
+      <body className={`${dmSerif.variable} ${inter.variable} ${jetbrainsMono.variable} antialiased`}>
         <GTMNoScript />
         <Suspense fallback={null}>
           <GTMPageViewTracker />

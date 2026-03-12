@@ -91,7 +91,63 @@
   --radius-pill: 9999px;
 }
 
-/* ── Base variables — light mode only, no dark mode ─────────────────────── */
+/* ── Design system Tailwind extensions ──────────────────────────────────── */
+@theme inline {
+  /* Cream scale */
+  --color-cream-50: #FDFCFA;
+  --color-cream-100: #F7F5F2;
+  --color-cream-200: #F0EDE6;
+  --color-cream-300: #E8E4DE;
+  --color-cream-400: #D4CFC7;
+
+  /* Warm stone overrides */
+  --color-stone-50: #FDFCFA;
+  --color-stone-100: #F7F5F2;
+  --color-stone-200: #F0EDE6;
+  --color-stone-300: #E8E4DE;
+  --color-stone-400: #B0A89C;
+  --color-stone-500: #8A857F;
+  --color-stone-600: #6B6560;
+  --color-stone-700: #5A554F;
+  --color-stone-800: #3D3833;
+  --color-stone-900: #1A1A1A;
+  --color-stone-950: #141210;
+
+  /* Coral */
+  --color-coral: #E8735A;
+  --color-coral-light: #F0917D;
+  --color-coral-dark: #C45D45;
+  --color-coral-50: rgba(232,115,90,0.06);
+  --color-coral-100: rgba(232,115,90,0.10);
+  --color-coral-200: rgba(232,115,90,0.20);
+
+  /* Brand blue */
+  --color-brand-blue: #4A7AFF;
+  --color-brand-blue-dark: #2B5FC7;
+  --color-brand-blue-light: #7BA3FF;
+
+  /* Font families */
+  --font-body: 'Inter', -apple-system, 'SF Pro Text', system-ui, sans-serif;
+  --font-display: 'DM Serif Display', Georgia, serif;
+
+  /* Font sizes */
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.6;
+  --text-body-sm: 0.9375rem;
+  --text-body-sm--line-height: 1.55;
+
+  /* Border radius */
+  --radius-card: 16px;
+  --radius-pill: 100px;
+
+  /* Box shadows */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.03);
+  --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04);
+  --shadow-glass: 0 2px 16px rgba(0,0,0,0.04), 0 0 0 1px rgba(255,255,255,0.3) inset;
+  --shadow-glass-lifted: 0 8px 32px rgba(0,0,0,0.08), 0 0 0 1px rgba(255,255,255,0.4) inset;
+}
+
+/* ── Base variables — shadcn + layout ──────────────────────────────────── */
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
@@ -136,9 +192,122 @@
   --page-max-width: 1120px;
   --section-padding-y: 80px;
   --section-padding-y-mobile: 48px;
+
+  /* === PAGE BACKGROUNDS === */
+  --bg-page: #FDFCFA;
+  --bg-card: #FFFFFF;
+  --bg-card-elevated: #F7F5F2;
+
+  /* === TEXT COLORS (all pass WCAG AAA on cream) === */
+  --text-primary: #1A1A1A;
+  --text-secondary: #5A554F;
+  --text-tertiary: #8A857F;
+  --text-on-dark: #E8E0D4;
+  --text-on-dark-secondary: #B0A89C;
+
+  /* === BRAND ACCENTS === */
+  --coral: #E8735A;
+  --coral-text: #C45D45;
+  --coral-bg: rgba(232,115,90,0.08);
+  --coral-border: rgba(232,115,90,0.20);
+
+  --blue: #4A7AFF;
+  --blue-text: #2B5FC7;
+  --blue-bg: rgba(74,122,255,0.06);
+  --blue-border: rgba(74,122,255,0.12);
+
+  /* === SEMANTIC COLORS === */
+  --success: #2D8A5F;
+  --success-bg: rgba(45,138,95,0.06);
+  --warning: #C68A1A;
+  --warning-bg: rgba(198,138,26,0.06);
+  --error: #C43B3B;
+  --error-bg: rgba(196,59,59,0.06);
+
+  /* === CONTENT TYPE COLOR CODING (for memorization) === */
+  --type-spoken: #4A7AFF;
+  --type-coaching: #E8735A;
+  --type-reference: #8A857F;
+  --type-warning: #C68A1A;
+  --type-success: #2D8A5F;
+
+  /* === GLASS EFFECTS (navigation frame only) === */
+  --glass-bg: rgba(253,252,250,0.75);
+  --glass-bg-hover: rgba(253,252,250,0.85);
+  --glass-border: rgba(255,255,255,0.25);
+  --glass-border-strong: rgba(255,255,255,0.40);
+  --glass-shadow: 0 2px 16px rgba(0,0,0,0.04),
+                  0 0 0 1px rgba(255,255,255,0.3) inset;
+  --glass-shadow-lifted: 0 8px 32px rgba(0,0,0,0.08),
+                          0 0 0 1px rgba(255,255,255,0.4) inset;
+  --glass-blur: blur(10px) saturate(160%);
+
+  /* === CARD STYLES (solid, no glass) === */
+  --card-shadow: 0 1px 3px rgba(0,0,0,0.04),
+                 0 0 0 1px rgba(0,0,0,0.03);
+  --card-shadow-hover: 0 4px 12px rgba(0,0,0,0.06),
+                       0 0 0 1px rgba(0,0,0,0.04);
+  --card-radius: 16px;
+
+  /* === TYPOGRAPHY === */
+  --font-body: 'Inter', -apple-system, 'SF Pro Text', system-ui, sans-serif;
+  --font-display: 'DM Serif Display', Georgia, serif;
+  --text-body: 1.0625rem;
+  --leading-body: 1.6;
+  --text-sm: 0.875rem;
+  --text-xs: 0.75rem;
 }
 
-/* Dark mode intentionally removed. */
+/* === WARM DARK MODE (optimized for 10pm-1am study) === */
+.dark {
+  --bg-page: #141210;
+  --bg-card: #1C1815;
+  --bg-card-elevated: #252019;
+
+  --text-primary: #E8E0D4;
+  --text-secondary: #B0A89C;
+  --text-tertiary: #78716C;
+
+  --coral: #F0917D;
+  --coral-text: #F0917D;
+  --coral-bg: rgba(240,145,125,0.10);
+  --coral-border: rgba(240,145,125,0.20);
+
+  --blue: #7BA3FF;
+  --blue-text: #7BA3FF;
+  --blue-bg: rgba(123,163,255,0.08);
+  --blue-border: rgba(123,163,255,0.15);
+
+  --success: #5CB88A;
+  --warning: #E0A73E;
+  --error: #E06060;
+
+  --glass-bg: rgba(28,24,21,0.80);
+  --glass-border: rgba(255,255,255,0.08);
+  --glass-shadow: 0 2px 16px rgba(0,0,0,0.3),
+                  0 0 0 1px rgba(255,255,255,0.05) inset;
+
+  --card-shadow: 0 1px 3px rgba(0,0,0,0.2),
+                 0 0 0 1px rgba(255,255,255,0.03);
+}
+
+/* === ACCESSIBILITY OVERRIDES === */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-bg: rgba(253,252,250,0.95);
+    --glass-blur: none;
+  }
+  .dark {
+    --glass-bg: rgba(28,24,21,0.95);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
 
 @layer base {
   * {
