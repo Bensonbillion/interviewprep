@@ -20,11 +20,10 @@ import {
   Zap,
   Lock,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import type { AnswerSlot, AnswerType, PrepSession } from "@/types";
 import { tracker } from "@/lib/feedback/implicit-tracker";
 import { AnswerFeedback } from "@/components/prep/AnswerFeedback";
+import { ContentRouter, FormattedTextContent, renderInlineFormatting } from "@/components/prep/content-renderers";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -88,7 +87,7 @@ const COLLAPSIBLE_REFERENCE_TYPES = new Set<AnswerType>([
 
 // Answer types that are SPOKEN prose — show speaking time + progressive disclosure.
 // Types that return JSON (behavioral_star, objection_response, career_switcher_bridge,
-// coachability_game_plan, role_play_script) render through ContentRenderer's JSON handlers.
+// coachability_game_plan, role_play_script) render through ContentRouter's JSON handlers.
 const SPOKEN_TYPES = new Set<AnswerType>([
   "tell_me_about_yourself",
   "why_sales",
@@ -177,9 +176,9 @@ function SpeakingTimeBar({ words }: { words: number }) {
     seconds <= 60 ? "bg-green-400" : seconds <= 90 ? "bg-amber-400" : "bg-red-400";
 
   return (
-    <div className="flex items-center gap-2 text-xs text-stone-400">
+    <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
       <span className="flex-shrink-0">🎙</span>
-      <div className="w-16 h-1 bg-stone-200 rounded-full overflow-hidden">
+      <div className="w-16 h-1 bg-stone-200 dark:bg-white/10 rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
       <span>{label}</span>
@@ -371,1146 +370,35 @@ export interface AnswerCardProps {
   defaultExpanded?: boolean;
 }
 
-// ─── Content renderer ─────────────────────────────────────────────────────────
+// ─── Content type color-coding (left border stripe) ─────────────────────────
 
-// ─── Inline formatting: **bold** and *italic* ──────────────────────────────
-function renderInlineFormatting(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={i} className="font-semibold text-stone-900">{part.slice(2, -2)}</strong>;
-    }
-    if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
-      return <em key={i} className="italic">{part.slice(1, -1)}</em>;
-    }
-    return <span key={i}>{part}</span>;
-  });
-}
+const CONTENT_TYPE_STRIPE: Partial<Record<AnswerType, string>> = {
+  // Spoken (blue)
+  tell_me_about_yourself: "border-l-[3px] border-[var(--type-spoken)]",
+  why_sales: "border-l-[3px] border-[var(--type-spoken)]",
+  why_this_company: "border-l-[3px] border-[var(--type-spoken)]",
+  behavioral_star: "border-l-[3px] border-[var(--type-spoken)]",
+  resume_walkthrough: "border-l-[3px] border-[var(--type-spoken)]",
+  constructive_feedback: "border-l-[3px] border-[var(--type-spoken)]",
+  career_switcher_bridge: "border-l-[3px] border-[var(--type-spoken)]",
+  // Coaching (coral)
+  coachability_coaching: "border-l-[3px] border-[var(--type-coaching)]",
+  coachability_game_plan: "border-l-[3px] border-[var(--type-coaching)]",
+  // Tactical (coral)
+  comp_expectations: "border-l-[3px] border-[var(--type-coaching)]",
+  role_play_script: "border-l-[3px] border-[var(--type-coaching)]",
+  objection_response: "border-l-[3px] border-[var(--type-coaching)]",
+  // Reference (muted)
+  company_brief: "border-l-[3px] border-[var(--type-reference)]",
+  cheat_sheet: "border-l-[3px] border-[var(--type-reference)]",
+  competitor_battle_card: "border-l-[3px] border-[var(--type-reference)]",
+  questions_to_ask: "border-l-[3px] border-[var(--type-reference)]",
+  cold_email: "border-l-[3px] border-[var(--type-reference)]",
+  pain_point_analysis: "border-l-[3px] border-[var(--type-reference)]",
+  assignment_guide: "border-l-[3px] border-[var(--type-reference)]",
+};
 
-// ─── Formatted text renderer (handles paragraphs, lists, headings, bold) ────
-function FormattedTextContent({ content, isSpoken }: { content: string; isSpoken?: boolean }) {
-  // Safety net: if content looks like JSON, parse and render structurally
-  // This catches cases where tryParseJSON failed upstream
-  const trimmedContent = typeof content === "string" ? content.trim() : "";
-  if (trimmedContent.startsWith("{") || trimmedContent.startsWith("[")) {
-    try {
-      const parsed = JSON.parse(trimmedContent);
-      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-        return <GenericStructuredContent data={parsed as Record<string, unknown>} />;
-      }
-    } catch { /* not JSON — render as text below */ }
-  }
-
-  const blocks = content.split(/\n\n+/).filter((b) => b.trim());
-
-  return (
-    <div className="space-y-3 max-w-prose">
-      {blocks.map((block, i) => {
-        const trimmed = block.trim();
-
-        // Markdown headings
-        if (trimmed.startsWith("### ")) {
-          return (
-            <h4 key={i} className="text-sm font-semibold text-stone-900 mt-2 first:mt-0">
-              {trimmed.slice(4)}
-            </h4>
-          );
-        }
-        if (trimmed.startsWith("## ")) {
-          return (
-            <h3 key={i} className="text-base font-semibold text-stone-900 mt-3 first:mt-0">
-              {trimmed.slice(3)}
-            </h3>
-          );
-        }
-
-        // Horizontal rules
-        if (trimmed === "---" || trimmed === "***") {
-          return <hr key={i} className="border-cream-300 my-2" />;
-        }
-
-        const lines = trimmed.split("\n");
-
-        // Detect bullet/numbered lists
-        const isList = lines.every(
-          (l) =>
-            /^\s*[-•]\s/.test(l) ||
-            /^\s*\d+[\.\)]\s/.test(l)
-        );
-
-        if (isList) {
-          return (
-            <ul key={i} className="space-y-1.5">
-              {lines.map((line, j) => {
-                const text = line
-                  .trim()
-                  .replace(/^[-•]\s+/, "")
-                  .replace(/^\d+[\.\)]\s+/, "");
-                return (
-                  <li key={j} className="flex gap-2 text-sm sm:text-base text-stone-700 leading-relaxed">
-                    <span className="text-stone-400 mt-0.5 flex-shrink-0">•</span>
-                    <span>{renderInlineFormatting(text)}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          );
-        }
-
-        // Regular paragraph — first paragraph gets emphasis for spoken answers
-        return (
-          <p
-            key={i}
-            className={`text-sm sm:text-base leading-relaxed ${
-              i === 0 && isSpoken ? "text-stone-900 font-medium" : "text-stone-700"
-            }`}
-          >
-            {lines.map((line, j) => (
-              <span key={j}>
-                {j > 0 && <br />}
-                {renderInlineFormatting(line)}
-              </span>
-            ))}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── Generic structured JSON renderer (catches unknown JSON gracefully) ─────
-function GenericStructuredContent({ data }: { data: Record<string, unknown> }) {
-  return (
-    <div className="space-y-4">
-      {Object.entries(data).map(([key, value]) => {
-        if (key.startsWith("_") || key === "type" || key === "version") return null;
-        const label = key
-          .replace(/([A-Z])/g, " $1")
-          .replace(/_/g, " ")
-          .replace(/^\w/, (c) => c.toUpperCase())
-          .trim();
-
-        return (
-          <div key={key}>
-            <h4 className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-1.5">
-              {label}
-            </h4>
-            {Array.isArray(value) ? (
-              <ul className="space-y-1.5">
-                {value.map((item, i) => (
-                  <li key={i} className="flex gap-2 text-sm text-ink-light">
-                    <span className="text-ink-muted mt-0.5 flex-shrink-0">•</span>
-                    <span className="leading-relaxed">
-                      {typeof item === "string"
-                        ? renderInlineFormatting(item)
-                        : typeof item === "object" && item !== null
-                        ? Object.entries(item as Record<string, unknown>)
-                            .map(([k, v]) => `${k}: ${String(v)}`)
-                            .join(" · ")
-                        : String(item)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : typeof value === "object" && value !== null ? (
-              <div className="bg-cream-100 rounded-lg p-3">
-                <GenericStructuredContent data={value as Record<string, unknown>} />
-              </div>
-            ) : (
-              <p className="text-sm text-ink-light leading-relaxed">{String(value)}</p>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── Spoken answer types (rendered with paragraph emphasis) ─────────────────
-const SPOKEN_ANSWER_TYPES = new Set([
-  "tell_me_about_yourself",
-  "resume_walkthrough",
-  "why_sales",
-  "why_this_company",
-  "career_switcher_bridge",
-  "coachability_coaching",
-  "comp_expectations",
-  "constructive_feedback",
-  "cold_email",
-  "pain_point_analysis",
-  "assignment_guide",
-]);
-
-// ─── JSON parser with code-fence stripping ──────────────────────────────────
-function tryParseJSON(raw: string | unknown): unknown | null {
-  // Handle non-string inputs (already-parsed objects, null, etc.)
-  if (raw == null) return null;
-  if (typeof raw === "object") return raw;
-
-  const str = typeof raw === "string" ? raw : String(raw);
-
-  // Strip BOM and trim
-  let cleaned = str.replace(/^\uFEFF/, "").trim();
-
-  // Strip markdown code fences — handle ```json, ```JSON, ``` at any position
-  cleaned = cleaned
-    .replace(/^```(?:json|JSON)?\s*\n?/, "")
-    .replace(/\n?\s*```\s*$/, "");
-
-  // Also strip code fences that appear after leading prose text:
-  //   "Here are the answers:\n```json\n{...}\n```"
-  const innerFence = cleaned.match(/```(?:json|JSON)?\s*\n([\s\S]*?)\n\s*```/);
-  if (innerFence) {
-    const candidate = innerFence[1].trim();
-    if (candidate.startsWith("{") || candidate.startsWith("[")) {
-      try { return JSON.parse(candidate); } catch { /* fall through */ }
-    }
-  }
-
-  // Direct parse after fence stripping
-  cleaned = cleaned.trim();
-  if (cleaned.startsWith("{") || cleaned.startsWith("[")) {
-    try { return JSON.parse(cleaned); } catch { /* fall through */ }
-  }
-
-  // Aggressive extraction: find the outermost balanced { } or [ ]
-  // Walk from the FIRST { to the LAST } (covers JSON wrapped in prose)
-  const firstBrace = cleaned.indexOf("{");
-  const lastBrace = cleaned.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace > firstBrace) {
-    const candidate = cleaned.slice(firstBrace, lastBrace + 1);
-    try { return JSON.parse(candidate); } catch { /* fall through */ }
-  }
-
-  const firstBracket = cleaned.indexOf("[");
-  const lastBracket = cleaned.lastIndexOf("]");
-  if (firstBracket !== -1 && lastBracket > firstBracket) {
-    const candidate = cleaned.slice(firstBracket, lastBracket + 1);
-    try { return JSON.parse(candidate); } catch { /* ignore */ }
-  }
-
-  return null;
-}
-
-// ─── STAR section parser for behavioral answers ─────────────────────────────
-const STAR_BADGES = [
-  { pattern: /^(?:\*{0,2})Situation(?:\*{0,2})\s*[:—–-]\s*/i, letter: "S", label: "Situation", bg: "bg-blue-500", ring: "ring-blue-200" },
-  { pattern: /^(?:\*{0,2})Task(?:\*{0,2})\s*[:—–-]\s*/i, letter: "T", label: "Task", bg: "bg-amber-500", ring: "ring-amber-200" },
-  { pattern: /^(?:\*{0,2})Action[s]?(?:\*{0,2})\s*[:—–-]\s*/i, letter: "A", label: "Action", bg: "bg-green-500", ring: "ring-green-200" },
-  { pattern: /^(?:\*{0,2})Result[s]?(?:\*{0,2})\s*[:—–-]\s*/i, letter: "R", label: "Result", bg: "bg-purple-500", ring: "ring-purple-200" },
-] as const;
-
-function STARContent({ text }: { text: string }) {
-  const sections: Array<{ letter: string; label: string; bg: string; ring: string; content: string }> = [];
-  // Split by double newlines OR single newlines that precede a STAR header
-  const paragraphs = text.split(/\n(?=\*{0,2}(?:Situation|Task|Actions?|Results?)\*{0,2}\s*[:—–-])/i);
-  let currentSection: (typeof sections)[number] | null = null;
-  let buffer: string[] = [];
-
-  const flush = () => {
-    if (currentSection) {
-      sections.push({ ...currentSection, content: buffer.join("\n\n").trim() });
-    }
-    buffer = [];
-  };
-
-  for (const para of paragraphs) {
-    const firstLine = para.trim().split("\n")[0];
-    const badge = STAR_BADGES.find((b) => b.pattern.test(firstLine));
-    if (badge) {
-      flush();
-      const cleaned = para.trim().replace(badge.pattern, "");
-      currentSection = { letter: badge.letter, label: badge.label, bg: badge.bg, ring: badge.ring, content: "" };
-      buffer.push(cleaned);
-    } else {
-      buffer.push(para);
-    }
-  }
-  flush();
-
-  // Need at least 2 STAR sections to use badge layout
-  if (sections.length < 2) {
-    return <FormattedTextContent content={text} isSpoken />;
-  }
-
-  return (
-    <div className="space-y-3">
-      {sections.map((s, i) => (
-        <div key={i} className="flex gap-3">
-          <div className="flex-shrink-0 mt-0.5">
-            <div className={`w-7 h-7 rounded-full ${s.bg} ring-2 ${s.ring} flex items-center justify-center`}>
-              <span className="text-xs font-bold text-white">{s.letter}</span>
-            </div>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-1">{s.label}</p>
-            <p className="text-sm text-ink-light leading-relaxed">{renderInlineFormatting(s.content)}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ContentRenderer({
-  content,
-  slot,
-  session,
-}: {
-  content: string | undefined;
-  slot: AnswerSlot;
-  session: PrepSession;
-}) {
-  if (!content) return null;
-
-  const parsed = tryParseJSON(content);
-
-  if (parsed === null) {
-    // Plain text — use paragraph-aware formatter
-    return <FormattedTextContent content={content} isSpoken={SPOKEN_ANSWER_TYPES.has(slot.type)} />;
-  }
-
-  // ─ behavioral_star ─
-  if (slot.type === "behavioral_star") {
-    const data = parsed as {
-      answers?: Array<{ question: string; answer: string; resumeSource: string }>;
-    };
-    return (
-      <div className="space-y-6">
-        {(data.answers ?? []).map((a, i) => (
-          <div key={i}>
-            <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-2">
-              Q{i + 1}: {a.question}
-            </p>
-            <STARContent text={a.answer} />
-            <p className="text-xs text-ink-muted mt-2 italic">Source: {a.resumeSource}</p>
-            {i < (data.answers?.length ?? 0) - 1 && <Separator className="mt-4" />}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // ─ role_play_script ─
-  if (slot.type === "role_play_script") {
-    const data = parsed as {
-      // New SDR conversation framework fields
-      coachingNote?: string;
-      patternInterruptOpener?: string;
-      valueHypothesis?: string;
-      bridgeToNextStep?: string;
-      // AE discovery demo fields
-      pivotToDemo?: string;
-      nextStepsClose?: string;
-      // Shared fields
-      opener?: string; // legacy SDR compat
-      discoveryQuestions?: string[];
-      valueProp?: string; // legacy SDR compat
-      objectionResponses?: Array<{ objection: string; response: string }>;
-      close?: string; // legacy SDR compat
-    };
-    const isAEFormat = !!data.pivotToDemo || !!data.nextStepsClose;
-    const isNewSDRFormat = !!data.patternInterruptOpener || !!data.valueHypothesis || !!data.bridgeToNextStep;
-
-    // New SDR conversation framework renderer
-    if (isNewSDRFormat) {
-      return (
-        <div className="space-y-5">
-          {/* Coaching note — framework reminder, rendered prominently at top */}
-          {data.coachingNote && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-              <p className="text-xs font-bold text-amber-800 uppercase tracking-wide mb-1">💡 How to Use This</p>
-              <p className="text-sm text-amber-900 leading-relaxed">{data.coachingNote}</p>
-            </div>
-          )}
-          {/* Step 1: Pattern interrupt opener */}
-          {data.patternInterruptOpener && (
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
-              <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
-                <span className="text-xs font-bold text-ink uppercase tracking-wide">1 · Pattern Interrupt Opener</span>
-                <span className="text-xs text-ink-muted ml-auto">~10 sec</span>
-              </div>
-              <p className="px-4 py-3 text-sm text-ink-light leading-relaxed">{data.patternInterruptOpener}</p>
-            </div>
-          )}
-          {/* Step 2: Value hypothesis */}
-          {data.valueHypothesis && (
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
-              <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
-                <span className="text-xs font-bold text-ink uppercase tracking-wide">2 · Value Hypothesis</span>
-                <span className="text-xs text-ink-muted ml-auto">~15–20 sec</span>
-              </div>
-              <p className="px-4 py-3 text-sm text-ink-light leading-relaxed">{data.valueHypothesis}</p>
-            </div>
-          )}
-          {/* Step 3: Discovery questions */}
-          {data.discoveryQuestions?.length ? (
-            <div className="border border-gray-200 rounded-xl overflow-hidden">
-              <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
-                <span className="text-xs font-bold text-ink uppercase tracking-wide">3 · Discovery Questions</span>
-                <span className="text-xs text-ink-muted ml-auto">bulk of call — prospect talks 54%+</span>
-              </div>
-              <ol className="px-4 py-3 space-y-2">
-                {data.discoveryQuestions.map((q, i) => (
-                  <li key={i} className="flex items-start gap-2.5">
-                    <span className="text-xs font-bold text-primary-500 mt-0.5 flex-shrink-0">Q{i + 1}</span>
-                    <p className="text-sm text-ink-light">{q}</p>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          ) : null}
-          {/* Objection responses */}
-          {data.objectionResponses?.length ? (
-            <div>
-              <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-2">
-                Objection Responses
-              </p>
-              <div className="space-y-3">
-                {data.objectionResponses.map((o, i) => (
-                  <div key={i} className="bg-[#F0F7FF] rounded-lg p-3">
-                    <p className="text-xs font-medium text-ink mb-1.5">&ldquo;{o.objection}&rdquo;</p>
-                    <p className="text-sm text-ink-light leading-relaxed">{o.response}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-          {/* Step 4: Bridge to next step */}
-          {data.bridgeToNextStep && (
-            <div className="border border-primary-200 rounded-xl overflow-hidden">
-              <div className="px-4 py-2 bg-primary-50 border-b border-primary-100 flex items-center gap-2">
-                <span className="text-xs font-bold text-primary-700 uppercase tracking-wide">4 · Bridge to Next Step</span>
-                <span className="text-xs text-primary-500 ml-auto">~10 sec</span>
-              </div>
-              <p className="px-4 py-3 text-sm text-ink-light leading-relaxed">{data.bridgeToNextStep}</p>
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    // Legacy SDR format + AE discovery demo format
-    return (
-      <div className="space-y-5">
-        {(data.opener) && (
-          <div>
-            <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-1.5">
-              {isAEFormat ? "Opening / Agenda Setting" : "Opener"}
-            </p>
-            <p className="text-sm text-ink-light leading-relaxed">{data.opener}</p>
-          </div>
-        )}
-        {data.discoveryQuestions?.length ? (
-          <div>
-            <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-1.5">
-              Discovery Questions
-            </p>
-            <ol className="list-decimal list-inside space-y-1.5">
-              {data.discoveryQuestions.map((q, i) => (
-                <li key={i} className="text-sm text-ink-light">{q}</li>
-              ))}
-            </ol>
-          </div>
-        ) : null}
-        {(data.valueProp ?? data.pivotToDemo) ? (
-          <div>
-            <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-1.5">
-              {isAEFormat ? "Pivot to Demo" : "Value Prop"}
-            </p>
-            <p className="text-sm text-ink-light leading-relaxed">
-              {data.pivotToDemo ?? data.valueProp}
-            </p>
-          </div>
-        ) : null}
-        {data.objectionResponses?.length ? (
-          <div>
-            <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-2">
-              Objection Responses
-            </p>
-            <div className="space-y-3">
-              {data.objectionResponses.map((o, i) => (
-                <div key={i} className="bg-[#F0F7FF] rounded-lg p-3">
-                  <p className="text-xs font-medium text-ink-light mb-1">&ldquo;{o.objection}&rdquo;</p>
-                  <p className="text-sm text-ink-light">{o.response}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {(data.close ?? data.nextStepsClose) ? (
-          <div>
-            <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-1.5">
-              {isAEFormat ? "Next Steps Close" : "Close"}
-            </p>
-            <p className="text-sm text-ink-light leading-relaxed">
-              {data.nextStepsClose ?? data.close}
-            </p>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  // ─ objection_response ─
-  if (slot.type === "objection_response") {
-    const data = parsed as { responses?: Array<{ objection: string; response: string }> };
-    return (
-      <div className="space-y-3">
-        {(data.responses ?? []).map((o, i) => (
-          <div key={i} className="bg-[#F0F7FF] rounded-lg p-3">
-            <p className="text-xs font-medium text-ink-light mb-1">&ldquo;{o.objection}&rdquo;</p>
-            <p className="text-sm text-ink-light">{o.response}</p>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // ─ questions_to_ask ─
-  if (slot.type === "questions_to_ask") {
-    const data = parsed as {
-      coachingNote?: string;
-      questions?: Array<{
-        questionType?: string;
-        primary?: string;
-        followUp?: string | null;
-        why?: string;
-        // legacy fields (backward compat)
-        context?: string;
-        question?: string;
-        followUpChain?: string;
-      }>;
-    };
-    const TYPE_LABELS: Record<string, string> = {
-      role_mechanics: "Role mechanics",
-      performance: "Performance",
-      growth_path: "Growth path",
-      close: "Close",
-    };
-    return (
-      <div className="space-y-4">
-        {data.coachingNote && (
-          <div className="bg-amber-50/60 border-l-2 border-amber-300 px-2.5 py-1.5 rounded-r-lg">
-            <p className="text-xs text-amber-800 leading-snug">💡 {data.coachingNote}</p>
-          </div>
-        )}
-        {(data.questions ?? []).map((q, i) => {
-          const primaryText = q.primary ?? q.question ?? "";
-          const followUpText = q.followUp ?? q.followUpChain;
-          const typeLabel = q.questionType ? TYPE_LABELS[q.questionType] : undefined;
-          const isClose = q.questionType === "close";
-          return (
-            <div key={i} className={isClose ? "bg-primary-50/60 rounded-lg px-3 py-2.5 -mx-1" : undefined}>
-              {typeLabel && (
-                <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wide mb-1">{typeLabel}</p>
-              )}
-              <p className="text-sm font-medium text-ink">{i + 1}. {primaryText}</p>
-              {followUpText && (
-                <p className="text-xs text-ink-muted mt-1 pl-3 border-l-2 border-gray-200">
-                  <span className="font-medium text-ink-light">If they give a short answer:</span> {followUpText}
-                </p>
-              )}
-              {q.why && <p className="text-xs text-ink-muted mt-0.5 italic">{q.why}</p>}
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
-  // ─ cheat_sheet ─
-
-  // Stage-specific detection technique coaching — deterministic, not AI-generated.
-  // Source of truth for "what the interviewer is actually watching for."
-  const STAGE_DETECTION_COACHING: Record<string, {
-    technique: string;
-    testing: string;
-    coach: string;
-  }> = {
-    recruiter: {
-      technique: "SCREENING FILTER",
-      testing: "Can you communicate clearly in under 90 seconds? Did you research the company? Are you serious or spray-and-praying?",
-      coach: "They're making a yes/no decision in the first 2 minutes. Be concise. Show you know what the company does. Ask at least one sharp question.",
-    },
-    hiring_manager: {
-      technique: "DETAIL DRILL + OWNERSHIP TEST",
-      testing: "Did you actually DO the things on your resume? Can you go deeper than the headline? Do you think like someone ready for more ownership?",
-      coach: "They WILL probe your stories. Be ready to go one level deeper on any claim you make. Use 'I' not 'we' when describing your actions. Have a specific number for every achievement.",
-    },
-    role_play: {
-      technique: "COACHABILITY TEST",
-      testing: "Can you take feedback and immediately implement it? This is the #1 predictor of SDR success — not the roleplay itself.",
-      coach: "The first roleplay is a baseline. The SECOND one is the actual test. When they give feedback, absorb it visibly — nod, paraphrase it back, then implement it even if imperfectly. Effort > perfection.",
-    },
-    panel: {
-      technique: "MULTI-STAKEHOLDER PRESSURE",
-      testing: "Can you adapt your communication style across seniority levels? Can you handle being challenged by multiple people simultaneously?",
-      coach: "Different panelists care about different things. VP wants strategic thinking. SDR Manager wants tactical detail. AE wants to know you'll generate quality pipeline. Read the room and adjust.",
-    },
-    take_home: {
-      technique: "RESEARCH DEPTH TEST",
-      testing: "Did you actually understand the ICP and market, or did you Google the company for 10 minutes? Can you think like a rep, not a job applicant?",
-      coach: "Every good submission has one specific, non-obvious insight about the buyer. Find the thing that proves you did the work. Generic submissions look identical to each other.",
-    },
-  };
-
-  if (slot.type === "cheat_sheet") {
-    const data = parsed as {
-      // New format
-      testing?: string[];
-      oneThingThatMatters?: string;
-      timing?: string;
-      commonMistakes?: string[];
-      closer?: string;
-      quickTalkTrack?: {
-        thirtySecondTmay?: string;
-        grandmotherCompanyDescription?: string;
-        preparedMetric?: string;
-        closingLine?: string;
-      };
-      // Old format (backward compat)
-      keyPoints?: string[];
-      companyFacts?: string[];
-      strongestStory?: string;
-      criticalTip?: string;
-    };
-    const isNewFormat = Array.isArray(data.testing);
-    const detectionCoaching = STAGE_DETECTION_COACHING[session.stage];
-    if (isNewFormat) {
-      return (
-        <div className="bg-gradient-to-br from-[#1e40af] to-[#2563eb] rounded-xl p-5 space-y-4">
-          {/* Detection technique coaching — hardcoded per stage */}
-          {detectionCoaching && (
-            <div className="bg-white/10 border border-white/20 rounded-lg p-3.5 space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">What They&apos;re Actually Testing For</span>
-                <span className="ml-auto text-[10px] font-bold bg-white/15 text-white px-2 py-0.5 rounded-full tracking-wide">
-                  {detectionCoaching.technique}
-                </span>
-              </div>
-              <p className="text-xs text-white/80 leading-relaxed">{detectionCoaching.testing}</p>
-              <div className="border-l-2 border-yellow-300/60 pl-2.5">
-                <p className="text-xs text-yellow-100 leading-relaxed">{detectionCoaching.coach}</p>
-              </div>
-            </div>
-          )}
-          {data.testing?.length ? (
-            <div>
-              <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-2">Personalized for You</p>
-              <ul className="space-y-1.5">
-                {data.testing.map((t, i) => (
-                  <li key={i} className="text-sm text-white flex items-start gap-2">
-                    <span className="text-blue-300 flex-shrink-0 mt-0.5">•</span>
-                    {t}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {data.oneThingThatMatters && (
-            <div className="border border-yellow-300/40 bg-yellow-400/15 rounded-lg px-3 py-2.5">
-              <p className="text-xs font-semibold text-yellow-300 mb-1">The One Thing That Matters</p>
-              <p className="text-sm font-semibold text-yellow-50">{data.oneThingThatMatters}</p>
-            </div>
-          )}
-          {data.timing && (
-            <div className="flex items-start gap-2">
-              <span className="text-blue-300 text-sm flex-shrink-0">⏱</span>
-              <p className="text-sm text-blue-100">{data.timing}</p>
-            </div>
-          )}
-          {data.commonMistakes?.length ? (
-            <div>
-              <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-2">Common Mistakes</p>
-              <ul className="space-y-1.5">
-                {data.commonMistakes.map((m, i) => (
-                  <li key={i} className="text-sm text-white/90 flex items-start gap-2">
-                    <span className="text-red-300 flex-shrink-0 mt-0.5">✕</span>
-                    {m}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {data.closer && (
-            <div className="border-t border-blue-400/30 pt-3">
-              <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-1.5">Your Closer</p>
-              <p className="text-sm text-white italic">&ldquo;{data.closer.replace(/^["']|["']$/g, "")}&rdquo;</p>
-            </div>
-          )}
-          {data.quickTalkTrack && (
-            <div className="border-t border-blue-400/30 pt-3 space-y-2.5">
-              <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide">Quick Talk Track</p>
-              {data.quickTalkTrack.thirtySecondTmay && (
-                <div className="bg-white/10 rounded-lg px-3 py-2">
-                  <p className="text-[10px] font-bold text-blue-300 uppercase tracking-wide mb-0.5">30-Second TMAY</p>
-                  <p className="text-sm text-white leading-relaxed">{data.quickTalkTrack.thirtySecondTmay}</p>
-                </div>
-              )}
-              {data.quickTalkTrack.grandmotherCompanyDescription && (
-                <div className="bg-white/10 rounded-lg px-3 py-2">
-                  <p className="text-[10px] font-bold text-blue-300 uppercase tracking-wide mb-0.5">Company in Plain English</p>
-                  <p className="text-sm text-white leading-relaxed">{data.quickTalkTrack.grandmotherCompanyDescription}</p>
-                </div>
-              )}
-              {data.quickTalkTrack.preparedMetric && (
-                <div className="bg-white/10 rounded-lg px-3 py-2">
-                  <p className="text-[10px] font-bold text-blue-300 uppercase tracking-wide mb-0.5">Your Best Number</p>
-                  <p className="text-sm text-white font-semibold">{data.quickTalkTrack.preparedMetric}</p>
-                </div>
-              )}
-              {data.quickTalkTrack.closingLine && (
-                <div className="bg-white/10 rounded-lg px-3 py-2">
-                  <p className="text-[10px] font-bold text-blue-300 uppercase tracking-wide mb-0.5">Closing Line</p>
-                  <p className="text-sm text-white italic">&ldquo;{data.quickTalkTrack.closingLine.replace(/^["']|["']$/g, "")}&rdquo;</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      );
-    }
-    // Old format fallback
-    return (
-      <div className="bg-gradient-to-br from-[#1e40af] to-[#2563eb] rounded-xl p-5 space-y-4">
-        {detectionCoaching && (
-          <div className="bg-white/10 border border-white/20 rounded-lg p-3.5 space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">What They&apos;re Actually Testing For</span>
-              <span className="ml-auto text-[10px] font-bold bg-white/15 text-white px-2 py-0.5 rounded-full tracking-wide">
-                {detectionCoaching.technique}
-              </span>
-            </div>
-            <p className="text-xs text-white/80 leading-relaxed">{detectionCoaching.testing}</p>
-            <div className="border-l-2 border-yellow-300/60 pl-2.5">
-              <p className="text-xs text-yellow-100 leading-relaxed">{detectionCoaching.coach}</p>
-            </div>
-          </div>
-        )}
-        {data.keyPoints?.length ? (
-          <div>
-            <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-2">Key Points</p>
-            <ul className="space-y-1.5">
-              {data.keyPoints.map((kp, i) => (
-                <li key={i} className="text-sm text-white flex items-start gap-2">
-                  <span className="text-blue-300 flex-shrink-0 mt-0.5">•</span>
-                  {kp}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        {data.companyFacts?.length ? (
-          <div>
-            <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-2">Company Facts</p>
-            <ul className="space-y-1.5">
-              {data.companyFacts.map((cf, i) => (
-                <li key={i} className="text-sm text-white flex items-start gap-2">
-                  <span className="text-blue-300 flex-shrink-0 mt-0.5">•</span>
-                  {cf}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        {data.strongestStory ? (
-          <div>
-            <p className="text-xs font-semibold text-blue-200 uppercase tracking-wide mb-1.5">Strongest Story</p>
-            <p className="text-sm text-white">{data.strongestStory}</p>
-          </div>
-        ) : null}
-        {data.criticalTip ? (
-          <div className="border border-yellow-300/40 bg-yellow-400/15 rounded-lg p-3">
-            <p className="text-xs font-semibold text-yellow-300 mb-1">Critical Tip</p>
-            <p className="text-sm text-yellow-50">{data.criticalTip}</p>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  // ─ company_brief ─
-  if (slot.type === "company_brief") {
-    const data = parsed as {
-      sayThis?: string;
-      oneLiner?: string;
-      productExplainer?: string;
-      icpSummary?: string;
-      salesMotionSummary?: string;
-      competitiveLandscape?: string;
-      talkingPoints?: string[];
-      likelyCompanyQuestions?: string[];
-    };
-    return (
-      <div className="space-y-4">
-        {data.sayThis && (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-            <p className="text-[10px] font-semibold text-green-700 uppercase tracking-wide mb-2 flex items-center gap-1">
-              <span>🗣️</span> Say This
-            </p>
-            <p className="text-sm text-green-900 leading-relaxed">{data.sayThis}</p>
-          </div>
-        )}
-        {(data.oneLiner || data.productExplainer || data.icpSummary || data.salesMotionSummary || data.competitiveLandscape || data.talkingPoints?.length || data.likelyCompanyQuestions?.length) && (
-          <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wide pt-1">Deep Research</p>
-        )}
-        {data.oneLiner && (
-          <p className="text-sm font-semibold text-ink border-l-4 border-primary-500 pl-3">
-            {data.oneLiner}
-          </p>
-        )}
-        {data.productExplainer && (
-          <div>
-            <p className="text-xs font-semibold text-ink-muted uppercase mb-1">Product</p>
-            <p className="text-sm text-ink-light">{data.productExplainer}</p>
-          </div>
-        )}
-        {data.icpSummary && (
-          <div>
-            <p className="text-xs font-semibold text-ink-muted uppercase mb-1">Who They Sell To</p>
-            <p className="text-sm text-ink-light">{data.icpSummary}</p>
-          </div>
-        )}
-        {data.salesMotionSummary && (
-          <div>
-            <p className="text-xs font-semibold text-ink-muted uppercase mb-1">How They Sell</p>
-            <p className="text-sm text-ink-light">{data.salesMotionSummary}</p>
-          </div>
-        )}
-        {data.competitiveLandscape && (
-          <div>
-            <p className="text-xs font-semibold text-ink-muted uppercase mb-1">Competitive Landscape</p>
-            <p className="text-sm text-ink-light">{data.competitiveLandscape}</p>
-          </div>
-        )}
-        {data.talkingPoints?.length ? (
-          <div>
-            <p className="text-xs font-semibold text-ink-muted uppercase mb-2">Drop These In Conversation</p>
-            <ul className="space-y-1.5">
-              {data.talkingPoints.map((tp, i) => (
-                <li key={i} className="text-sm text-ink-light flex items-start gap-2">
-                  <span className="text-primary-500 flex-shrink-0">•</span>
-                  {tp}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        {data.likelyCompanyQuestions?.length ? (
-          <div>
-            <p className="text-xs font-semibold text-ink-muted uppercase mb-2">Be Ready For</p>
-            <ul className="space-y-1">
-              {data.likelyCompanyQuestions.map((q, i) => (
-                <li key={i} className="text-sm text-ink-light">
-                  <span className="text-primary-500">{i + 1}.</span> {q}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  // ─ career_switcher_bridge ─
-  if (slot.type === "career_switcher_bridge") {
-    const data = parsed as {
-      bridges?: Array<{
-        previousExperience: string;
-        transferableSkill: string;
-        bridgePhrasing: string;
-        salesApplication: string;
-      }>;
-    };
-    return (
-      <div className="space-y-5">
-        {(data.bridges ?? []).map((b, i) => (
-          <div key={i} className="border border-[#DBEAFE] rounded-lg p-4">
-            <p className="text-xs font-semibold text-ink-muted mb-1">{b.previousExperience}</p>
-            <Badge variant="outline" className="text-xs mb-3">{b.transferableSkill}</Badge>
-            <p className="text-sm text-ink-light mb-2 italic">&ldquo;{b.bridgePhrasing}&rdquo;</p>
-            <p className="text-xs text-ink-muted">Apply when: {b.salesApplication}</p>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // ─ competitor_battle_card ─
-  if (slot.type === "competitor_battle_card") {
-    const data = parsed as {
-      competitors?: Array<{
-        name: string;
-        strengths: string[];
-        where_we_win: string[];
-        switching_triggers: string[];
-        discovery_question: string;
-      }>;
-    };
-    return (
-      <div className="space-y-5">
-        {(data.competitors ?? []).map((c, i) => (
-          <div key={i} className="border border-gray-200 rounded-xl overflow-hidden">
-            {/* Competitor header */}
-            <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
-              <span className="text-sm font-bold text-ink">⚔️ {c.name}</span>
-            </div>
-            <div className="px-4 py-3 space-y-3">
-              {/* Strengths */}
-              <div>
-                <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-1.5">
-                  Their Strengths
-                </p>
-                <ul className="space-y-1">
-                  {c.strengths.map((s, j) => (
-                    <li key={j} className="text-sm text-ink-light flex items-start gap-2">
-                      <span className="text-gray-400 flex-shrink-0">•</span>{s}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              {/* Where we win */}
-              <div>
-                <p className="text-xs font-semibold text-green-700 uppercase tracking-wide mb-1.5">
-                  Where We Win
-                </p>
-                <ul className="space-y-1">
-                  {c.where_we_win.map((s, j) => (
-                    <li key={j} className="text-sm text-ink-light flex items-start gap-2">
-                      <span className="text-green-500 flex-shrink-0">✓</span>{s}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              {/* Switching triggers */}
-              <div>
-                <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1.5">
-                  Why Customers Switch
-                </p>
-                <ul className="space-y-1">
-                  {c.switching_triggers.map((s, j) => (
-                    <li key={j} className="text-sm text-ink-light flex items-start gap-2">
-                      <span className="text-amber-500 flex-shrink-0">→</span>{s}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              {/* Discovery question callout */}
-              <div className="bg-primary-50 border-l-4 border-primary-400 rounded-r-lg px-3 py-2.5">
-                <p className="text-xs font-semibold text-primary-700 mb-1">Discovery Question</p>
-                <p className="text-sm text-primary-800 italic">&ldquo;{c.discovery_question}&rdquo;</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // ─ coachability_game_plan ─
-  if (slot.type === "coachability_game_plan") {
-    const data = parsed as {
-      beforeRoleplay?: string;
-      selfAssessment?: string;
-      receivingFeedback?: string;
-      theRedo?: string;
-      metaSignal?: string;
-    };
-    const sections: Array<{ key: keyof typeof data; emoji: string; label: string; accent: string }> = [
-      { key: "beforeRoleplay", emoji: "🧠", label: "Before the Roleplay", accent: "border-primary-300 bg-primary-50" },
-      { key: "selfAssessment", emoji: "🔎", label: "The Self-Assessment (Test #1)", accent: "border-amber-300 bg-amber-50" },
-      { key: "receivingFeedback", emoji: "👂", label: "Receiving Feedback", accent: "border-blue-300 bg-blue-50" },
-      { key: "theRedo", emoji: "🔁", label: "The Redo (Where the Job is Won)", accent: "border-green-300 bg-green-50" },
-      { key: "metaSignal", emoji: "⚡", label: "The Meta-Signal", accent: "border-red-300 bg-red-50" },
-    ];
-    return (
-      <div className="space-y-4">
-        {sections.map(({ key, emoji, label, accent }) => {
-          const text = data[key];
-          if (!text) return null;
-          return (
-            <div key={key} className={`border-l-4 rounded-r-xl px-4 py-3 ${accent}`}>
-              <p className="text-xs font-bold text-ink uppercase tracking-wide mb-1.5">
-                {emoji} {label}
-              </p>
-              <p className="text-sm text-ink-light leading-relaxed whitespace-pre-wrap">{text}</p>
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
-  // ─ comp_expectations ─
-  if (slot.type === "comp_expectations") {
-    const data = parsed as {
-      script?: string;
-      range?: string;
-      research?: string;
-      notes?: string;
-      reasoning?: string;
-    };
-    if (data.script) {
-      return (
-        <div className="space-y-4">
-          <div className="bg-gray-50 border-l-4 border-primary-400 rounded-r-xl px-4 py-3">
-            <p className="text-[10px] font-semibold text-ink-muted uppercase tracking-wide mb-2">Your Script</p>
-            <p className="text-sm text-ink leading-relaxed italic">{data.script}</p>
-          </div>
-          {data.range && (
-            <div>
-              <p className="text-xs font-semibold text-ink-muted uppercase mb-1">Comp Range</p>
-              <p className="text-sm text-ink-light font-medium">{data.range}</p>
-            </div>
-          )}
-          {data.research && (
-            <div>
-              <p className="text-xs font-semibold text-ink-muted uppercase mb-1">Research</p>
-              <p className="text-sm text-ink-light leading-relaxed">{data.research}</p>
-            </div>
-          )}
-          {(data.reasoning || data.notes) && (
-            <div>
-              <p className="text-xs font-semibold text-ink-muted uppercase mb-1">Notes</p>
-              <p className="text-sm text-ink-light leading-relaxed">{data.reasoning || data.notes}</p>
-            </div>
-          )}
-        </div>
-      );
-    }
-  }
-
-  // ─ cold_email ─
-  if (slot.type === "cold_email") {
-    const data = parsed as {
-      subject?: string;
-      body?: string;
-      notes?: string;
-      followUp?: string;
-    };
-    if (data.subject || data.body) {
-      return (
-        <div className="space-y-4">
-          {data.subject && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-ink-muted uppercase">Subject:</span>
-              <span className="text-sm font-semibold text-ink">{data.subject}</span>
-            </div>
-          )}
-          {data.body && (
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
-              <FormattedTextContent content={data.body} />
-            </div>
-          )}
-          {data.followUp && (
-            <div className="bg-amber-50/60 border-l-2 border-amber-300 px-3 py-2 rounded-r-lg">
-              <p className="text-xs font-semibold text-amber-800 mb-1">Follow-up</p>
-              <p className="text-sm text-amber-900 leading-relaxed">{data.followUp}</p>
-            </div>
-          )}
-          {data.notes && (
-            <div>
-              <p className="text-xs font-semibold text-ink-muted uppercase mb-1">Notes</p>
-              <p className="text-sm text-ink-light leading-relaxed">{data.notes}</p>
-            </div>
-          )}
-        </div>
-      );
-    }
-  }
-
-  // ─ pain_point_analysis ─
-  if (slot.type === "pain_point_analysis") {
-    const data = parsed as {
-      painPoints?: Array<{ pain: string; evidence: string; question: string }>;
-      summary?: string;
-    };
-    if (data.painPoints?.length) {
-      return (
-        <div className="space-y-4">
-          {data.summary && <p className="text-sm text-ink-light leading-relaxed">{data.summary}</p>}
-          {data.painPoints.map((pp, i) => (
-            <div key={i} className="border border-gray-200 rounded-xl overflow-hidden">
-              <div className="px-4 py-2.5 bg-red-50 border-b border-red-100">
-                <p className="text-sm font-semibold text-red-900">🔍 {pp.pain}</p>
-              </div>
-              <div className="px-4 py-3 space-y-2">
-                <p className="text-sm text-ink-light leading-relaxed">{pp.evidence}</p>
-                <div className="bg-primary-50 border-l-4 border-primary-400 rounded-r-lg px-3 py-2">
-                  <p className="text-xs font-semibold text-primary-700 mb-1">Discovery Question</p>
-                  <p className="text-sm text-primary-800 italic">&ldquo;{pp.question}&rdquo;</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-  }
-
-  // ─ assignment_guide ─
-  if (slot.type === "assignment_guide") {
-    const data = parsed as {
-      overview?: string;
-      checklist?: string[];
-      structure?: Array<{ section: string; tips: string }>;
-      tips?: string[];
-    };
-    if (data.checklist?.length || data.structure?.length) {
-      return (
-        <div className="space-y-4">
-          {data.overview && <p className="text-sm text-ink-light leading-relaxed">{data.overview}</p>}
-          {data.structure?.length ? (
-            <div className="space-y-3">
-              {data.structure.map((s, i) => (
-                <div key={i}>
-                  <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-1">{s.section}</p>
-                  <p className="text-sm text-ink-light leading-relaxed">{s.tips}</p>
-                </div>
-              ))}
-            </div>
-          ) : null}
-          {data.checklist?.length ? (
-            <div>
-              <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-2">Checklist</p>
-              <ul className="space-y-1.5">
-                {data.checklist.map((item, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-ink-light">
-                    <span className="text-green-500 flex-shrink-0 mt-0.5">☐</span>
-                    <span className="leading-relaxed">{renderInlineFormatting(item)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {data.tips?.length ? (
-            <div>
-              <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-2">Tips</p>
-              <ul className="space-y-1.5">
-                {data.tips.map((tip, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-ink-light">
-                    <span className="text-amber-500 flex-shrink-0 mt-0.5">💡</span>
-                    <span className="leading-relaxed">{renderInlineFormatting(tip)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-      );
-    }
-  }
-
-  // Unknown JSON type — render with generic structured layout instead of raw JSON
-  if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-    return <GenericStructuredContent data={parsed as Record<string, unknown>} />;
-  }
-
-  // Array or other JSON — render as formatted text
-  return <FormattedTextContent content={content} />;
-}
-
+// (Content renderers moved to content-renderers.tsx)
 // ─── AnswerCard ────────────────────────────────────────────────────────────────
 
 export function AnswerCard({
@@ -1607,23 +495,23 @@ export function AnswerCard({
   // ─── Loading state ──────────────────────────────────────────────────────────
   if (slot.status === "loading") {
     return (
-      <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-stone-100">
+      <div className={`rounded-[var(--card-radius)] border border-stone-200/50 dark:border-white/5 bg-[var(--bg-card)] shadow-card overflow-hidden ${CONTENT_TYPE_STRIPE[slot.type] ?? ""}`}>
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-stone-100 dark:border-white/5">
           <span className="text-xl leading-none flex-shrink-0 select-none">{EMOJIS[slot.type]}</span>
           <div>
-            <h3 className="font-semibold text-stone-900 text-sm">{slot.label}</h3>
-            <p className="text-xs text-stone-500 mt-0.5 line-clamp-1">{slot.description}</p>
+            <h3 className="font-semibold text-[var(--text-primary)] text-sm">{slot.label}</h3>
+            <p className="text-xs text-[var(--text-tertiary)] mt-0.5 line-clamp-1">{slot.description}</p>
           </div>
         </div>
         <div className="px-5 py-5">
           <div className="space-y-2.5 animate-pulse">
-            <div className="h-3 bg-gray-100 rounded-full w-full" />
-            <div className="h-3 bg-gray-100 rounded-full w-11/12" />
-            <div className="h-3 bg-gray-100 rounded-full w-4/5" />
-            <div className="h-3 bg-gray-100 rounded-full w-full" />
-            <div className="h-3 bg-gray-100 rounded-full w-3/5" />
+            <div className="h-3 bg-stone-100 dark:bg-white/5 rounded-full w-full" />
+            <div className="h-3 bg-stone-100 dark:bg-white/5 rounded-full w-11/12" />
+            <div className="h-3 bg-stone-100 dark:bg-white/5 rounded-full w-4/5" />
+            <div className="h-3 bg-stone-100 dark:bg-white/5 rounded-full w-full" />
+            <div className="h-3 bg-stone-100 dark:bg-white/5 rounded-full w-3/5" />
           </div>
-          <p className="text-xs text-ink-muted mt-4 flex items-center gap-1.5">
+          <p className="text-xs text-[var(--text-tertiary)] mt-4 flex items-center gap-1.5">
             <Loader2 className="w-3 h-3 animate-spin" />
             Generating…
           </p>
@@ -1830,58 +718,58 @@ export function AnswerCard({
 
   return (
     <div
-      className={`rounded-xl border overflow-hidden ${
+      className={`rounded-[var(--card-radius)] border overflow-hidden shadow-card hover:shadow-card-hover transition-shadow ${CONTENT_TYPE_STRIPE[slot.type] ?? ""} ${
         justUnlocked
-          ? "animate-unlock-flash bg-white border-stone-200"
+          ? "animate-unlock-flash bg-[var(--bg-card)] border-stone-200/50 dark:border-white/5"
           : isCollapsible && !isExpanded && !isLocked
-          ? "bg-gray-50 border-gray-200 md:bg-amber-50/30 md:border-amber-200"
+          ? "bg-[var(--bg-card-elevated)] dark:bg-[var(--bg-card)] border-stone-200/50 dark:border-white/5 md:bg-[var(--bg-card)] md:border-stone-200/50"
           : isReference && !isLocked
-          ? "bg-amber-50/30 border-amber-200"
-          : "bg-white border-stone-200"
+          ? "bg-[var(--bg-card)] border-stone-200/50 dark:border-white/5"
+          : "bg-[var(--bg-card)] border-stone-200/50 dark:border-white/5"
       }`}
     >
       {/* ── Header (always visible) ─────────────────────────────────────── */}
-      <div className={`flex items-start justify-between px-5 py-4 border-b ${isReference && !isLocked ? "border-amber-100" : "border-stone-100"}`}>
+      <div className={`flex items-start justify-between px-5 py-4 border-b border-stone-100 dark:border-white/5`}>
         <div className="flex items-start gap-3 min-w-0 flex-1">
           <span className="text-xl leading-none mt-0.5 flex-shrink-0 select-none">
             {EMOJIS[slot.type]}
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-stone-900 text-base leading-snug">{slot.label}</h3>
+              <h3 className="font-semibold text-[var(--text-primary)] text-base leading-snug">{slot.label}</h3>
 
               {/* Reference badge — study material, not a spoken answer */}
               {isReference && !isLocked && (
-                <span className="inline-flex items-center px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-medium rounded uppercase tracking-wide">
+                <span className="inline-flex items-center px-1.5 py-0.5 bg-stone-100 dark:bg-white/10 text-[var(--text-tertiary)] text-[10px] font-medium rounded uppercase tracking-wide">
                   Reference
                 </span>
               )}
 
               {/* Primary badge — only when unlocked */}
               {isPrimaryForRound && !isLocked && (
-                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-primary-50 text-primary-600 text-xs font-medium rounded-full">
+                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-[var(--coral-bg)] text-[var(--coral-text)] text-xs font-medium rounded-full border border-[var(--coral-border)]">
                   ★ Most important for this round
                 </span>
               )}
 
               {/* Version navigator — only when unlocked */}
               {totalVersions > 1 && !isLocked && (
-                <div className="flex items-center gap-0.5 bg-gray-100 rounded-full px-1 py-0.5">
+                <div className="flex items-center gap-0.5 bg-stone-100 dark:bg-white/10 rounded-full px-1 py-0.5">
                   <button
                     onClick={() => setVersionIndex(Math.min(versionIndex + 1, totalVersions - 1))}
                     disabled={versionIndex >= totalVersions - 1}
-                    className="p-0.5 text-ink-muted hover:text-ink disabled:opacity-30 transition-opacity"
+                    className="p-1.5 -m-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition-opacity"
                     title="Older version"
                   >
                     <ChevronLeft className="w-3 h-3" />
                   </button>
-                  <span className="text-xs text-ink-muted px-0.5 tabular-nums">
+                  <span className="text-xs text-[var(--text-tertiary)] px-0.5 tabular-nums">
                     v{totalVersions - versionIndex}/{totalVersions}
                   </span>
                   <button
                     onClick={() => setVersionIndex(Math.max(versionIndex - 1, 0))}
                     disabled={versionIndex <= 0}
-                    className="p-0.5 text-ink-muted hover:text-ink disabled:opacity-30 transition-opacity"
+                    className="p-1.5 -m-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition-opacity"
                     title="Newer version"
                   >
                     <ChevronRight className="w-3 h-3" />
@@ -1889,15 +777,15 @@ export function AnswerCard({
                 </div>
               )}
             </div>
-            <p className="text-xs text-ink-muted mt-0.5 line-clamp-1 leading-snug">
+            <p className="text-xs text-[var(--text-tertiary)] mt-0.5 line-clamp-1 leading-snug">
               {slot.description}
             </p>
             {/* Coaching tip — callout box, only when unlocked */}
             {coachingTip && !isLocked && (
-              <div className="bg-amber-50 border-l-4 border-amber-400 p-3 rounded-r-lg mt-2">
-                <p className="text-sm text-amber-800 flex gap-2">
+              <div className="bg-[var(--coral-bg)] border-l-[3px] border-coral dark:border-[var(--coral)] p-3 rounded-r-lg mt-2">
+                <p className="text-sm text-[var(--text-secondary)] flex gap-2">
                   <span className="flex-shrink-0">💡</span>
-                  <span><strong className="font-semibold">Pro tip:</strong> {coachingTip}</span>
+                  <span><strong className="font-semibold text-[var(--text-primary)]">Pro tip:</strong> {coachingTip}</span>
                 </p>
               </div>
             )}
@@ -1917,7 +805,7 @@ export function AnswerCard({
             {versionIndex === 0 && !isEditing && (
               <button
                 onClick={handleStartEdit}
-                className="flex items-center gap-1 px-2 py-1.5 text-xs text-ink-muted hover:text-ink hover:bg-gray-50 rounded-lg transition-colors"
+                className="flex items-center gap-1 px-2 py-1.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-stone-50 dark:hover:bg-white/5 rounded-lg transition-colors"
                 title="Edit this answer"
               >
                 <Edit3 className="w-3.5 h-3.5" />
@@ -1927,33 +815,33 @@ export function AnswerCard({
             <button
               onClick={handleRegenerate}
               disabled={isRegenerating || isEditing}
-              className="flex items-center gap-1 px-2 py-1.5 text-xs text-ink-muted hover:text-ink hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-40"
+              className="flex items-center gap-1 px-2 py-1.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-stone-50 dark:hover:bg-white/5 rounded-lg transition-colors disabled:opacity-40"
               title={freeRegenLeft > 0 ? `Refine · ${freeRegenLeft} free left` : "Refine · uses 1 credit"}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? "animate-spin" : ""}`} />
               {totalVersions > 1 ? (
                 <span className="tabular-nums">v{totalVersions}</span>
               ) : freeRegenLeft > 0 ? (
-                <span className="text-primary-500 tabular-nums">{freeRegenLeft}</span>
+                <span className="text-coral tabular-nums">{freeRegenLeft}</span>
               ) : null}
             </button>
             <button
               onClick={() => handleRate("up")}
-              className={`p-1.5 rounded-lg transition-colors ${slot.rating === "up" ? "text-green-600 bg-green-50" : "text-ink-muted hover:text-ink hover:bg-gray-50"}`}
+              className={`p-2.5 -m-1 rounded-lg transition-colors ${slot.rating === "up" ? "text-green-600 bg-green-50 dark:bg-green-900/30" : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-stone-50 dark:hover:bg-white/5"}`}
               title="Good answer"
             >
-              <ThumbsUp className="w-3.5 h-3.5" />
+              <ThumbsUp className="w-4 h-4" />
             </button>
             <button
               onClick={() => handleRate("down")}
-              className={`p-1.5 rounded-lg transition-colors ${slot.rating === "down" ? "text-red-500 bg-red-50" : "text-ink-muted hover:text-ink hover:bg-gray-50"}`}
+              className={`p-2.5 -m-1 rounded-lg transition-colors ${slot.rating === "down" ? "text-red-500 bg-red-50 dark:bg-red-900/30" : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-stone-50 dark:hover:bg-white/5"}`}
               title="Needs improvement"
             >
-              <ThumbsDown className="w-3.5 h-3.5" />
+              <ThumbsDown className="w-4 h-4" />
             </button>
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1 px-2 py-1.5 text-xs text-ink-muted hover:text-ink hover:bg-gray-50 rounded-lg transition-colors"
+              className="flex items-center gap-1 px-2 py-1.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-stone-50 dark:hover:bg-white/5 rounded-lg transition-colors"
               title="Copy to clipboard"
             >
               {copied ? (
@@ -1970,14 +858,14 @@ export function AnswerCard({
       {isCollapsible && !isLocked && (
         <button
           onClick={() => setIsExpanded((o) => !o)}
-          className="md:hidden w-full flex items-center justify-between px-5 py-2.5 border-b border-gray-100 bg-gray-50/50 hover:bg-gray-100/70 transition-colors text-left"
+          className="md:hidden w-full flex items-center justify-between px-5 py-2.5 border-b border-stone-100 dark:border-white/5 bg-[var(--bg-card-elevated)] dark:bg-white/[0.02] hover:bg-stone-100/70 dark:hover:bg-white/5 transition-colors text-left"
         >
-          <span className="text-xs text-ink-muted font-medium">
+          <span className="text-xs text-[var(--text-tertiary)] font-medium">
             {isExpanded ? "Collapse" : "Tap to expand"}
           </span>
           {isExpanded
-            ? <ChevronUp className="w-3.5 h-3.5 text-ink-muted" />
-            : <ChevronDown className="w-3.5 h-3.5 text-ink-muted" />
+            ? <ChevronUp className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
+            : <ChevronDown className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
           }
         </button>
       )}
@@ -1987,11 +875,11 @@ export function AnswerCard({
         const sayThis = extractSayThis(displayContent);
         return sayThis ? (
           <div className="md:hidden px-5 py-3">
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-              <p className="text-[10px] font-semibold text-green-700 uppercase tracking-wide mb-2 flex items-center gap-1">
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/40 rounded-xl p-4">
+              <p className="text-[10px] font-semibold text-green-700 dark:text-green-400 uppercase tracking-wide mb-2 flex items-center gap-1">
                 <span>🗣️</span> Say This
               </p>
-              <p className="text-sm text-green-900 leading-relaxed">{sayThis}</p>
+              <p className="text-sm text-green-900 dark:text-green-200 leading-relaxed">{sayThis}</p>
             </div>
           </div>
         ) : null;
@@ -2011,7 +899,7 @@ export function AnswerCard({
           onKeyDown={(e) => e.key === "Enter" && canUnlock && handleUnlockClick()}
           className={`relative mx-4 my-4 rounded-xl overflow-hidden ${
             canUnlock
-              ? "cursor-pointer group hover:ring-2 hover:ring-primary-200 transition-all duration-150"
+              ? "cursor-pointer group hover:ring-2 hover:ring-coral/30 transition-all duration-150"
               : "cursor-default"
           }`}
           style={{ minHeight: 160 }}
@@ -2026,29 +914,29 @@ export function AnswerCard({
             }}
             aria-hidden="true"
           >
-            <ContentRenderer content={displayContent} slot={slot} session={session} />
+            <ContentRouter content={displayContent} answerType={slot.type} stage={session.stage} />
           </div>
 
           {/* Layer 2: semi-transparent overlay — lightens on hover */}
-          <div className="absolute inset-0 bg-white/60 group-hover:bg-white/50 transition-colors duration-150 rounded-xl pointer-events-none" />
+          <div className="absolute inset-0 bg-[var(--bg-card)]/60 group-hover:bg-[var(--bg-card)]/50 transition-colors duration-150 rounded-xl pointer-events-none" />
 
           {/* Layer 3: centered unlock CTA */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             {isUnlocking ? (
-              <div className="flex items-center gap-2 px-6 py-3 bg-white/95 backdrop-blur-sm rounded-xl shadow-sm">
-                <Loader2 className="w-4 h-4 animate-spin text-primary-500" />
-                <span className="text-sm font-medium text-ink">Unlocking…</span>
+              <div className="flex items-center gap-2 px-6 py-3 bg-[var(--bg-card)]/95 backdrop-blur-sm rounded-xl shadow-sm">
+                <Loader2 className="w-4 h-4 animate-spin text-coral" />
+                <span className="text-sm font-medium text-[var(--text-primary)]">Unlocking…</span>
               </div>
             ) : creditBalance <= 0 ? (
               <div className="flex flex-col items-center gap-2">
-                <div className="flex items-center gap-2 px-6 py-3 bg-white/95 backdrop-blur-sm rounded-xl shadow-sm">
-                  <Lock className="w-4 h-4 text-ink-muted" />
-                  <span className="text-sm font-medium text-ink-muted">1 credit to unlock</span>
+                <div className="flex items-center gap-2 px-6 py-3 bg-[var(--bg-card)]/95 backdrop-blur-sm rounded-xl shadow-sm">
+                  <Lock className="w-4 h-4 text-[var(--text-tertiary)]" />
+                  <span className="text-sm font-medium text-[var(--text-tertiary)]">1 credit to unlock</span>
                 </div>
                 {/* This is the only non-unlock-click interactive element in locked state */}
                 <Link
                   href="/dashboard/billing"
-                  className="text-xs font-semibold text-primary-500 hover:text-primary-600 hover:underline pointer-events-auto"
+                  className="text-xs font-semibold text-coral hover:text-coral-dark dark:text-[var(--coral-text)] hover:underline pointer-events-auto"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Get more credits →
@@ -2056,11 +944,11 @@ export function AnswerCard({
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2">
-                <div className="flex items-center gap-2 px-6 py-3 bg-white/95 backdrop-blur-sm rounded-xl shadow-sm group-hover:shadow-md group-hover:scale-[1.03] transition-all duration-150">
-                  <Lock className="w-4 h-4 text-ink-muted group-hover:text-primary-500 transition-colors duration-150" />
-                  <span className="text-sm font-semibold text-ink">Unlock · 1 credit</span>
+                <div className="flex items-center gap-2 px-6 py-3 bg-[var(--bg-card)]/95 backdrop-blur-sm rounded-xl shadow-sm group-hover:shadow-md group-hover:scale-[1.03] transition-all duration-150">
+                  <Lock className="w-4 h-4 text-[var(--text-tertiary)] group-hover:text-coral transition-colors duration-150" />
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">Unlock · 1 credit</span>
                 </div>
-                <p className="text-[11px] text-ink-muted/70">
+                <p className="text-[11px] text-[var(--text-tertiary)]/70">
                   {creditBalance} credit{creditBalance !== 1 ? "s" : ""} remaining
                 </p>
               </div>
@@ -2077,16 +965,16 @@ export function AnswerCard({
         <div className={isCollapsible && !isExpanded ? "hidden md:block" : undefined}>
           {/* ── Credit warning banner (regen) ─────────────────────────── */}
           {pendingAction !== null && (
-            <div className="px-5 py-3 bg-amber-50 border-b border-amber-100 flex items-center justify-between gap-3">
-              <p className="text-sm text-amber-800">
+            <div className="px-5 py-3 bg-[var(--coral-bg)] border-b border-[var(--coral-border)] flex items-center justify-between gap-3">
+              <p className="text-sm text-[var(--text-secondary)]">
                 You&apos;ve used your 3 free refinements. This will use{" "}
                 <strong>1 credit</strong> ({creditBalance} remaining).
               </p>
               <div className="flex items-center gap-3 flex-shrink-0">
-                <button onClick={() => setPendingAction(null)} className="text-xs text-ink-muted hover:text-ink">
+                <button onClick={() => setPendingAction(null)} className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
                   Cancel
                 </button>
-                <button onClick={confirmCreditRegen} className="text-xs font-semibold text-amber-700 underline">
+                <button onClick={confirmCreditRegen} className="text-xs font-semibold text-[var(--coral-text)] underline">
                   Use 1 credit
                 </button>
               </div>
@@ -2096,9 +984,9 @@ export function AnswerCard({
           {/* ── Content — blur-reveal animation plays once on unlock ─── */}
           <div className={`px-5 py-5 relative ${justUnlocked ? "animate-blur-reveal" : ""}`}>
             {isRegenerating && (
-              <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-b-xl">
-                <div className="flex items-center gap-2 text-sm text-ink-muted bg-white border border-[#DBEAFE] px-4 py-2 rounded-full shadow-sm">
-                  <Loader2 className="w-4 h-4 animate-spin text-primary-500" />
+              <div className="absolute inset-0 bg-[var(--bg-card)]/75 flex items-center justify-center z-10 rounded-b-xl">
+                <div className="flex items-center gap-2 text-sm text-[var(--text-tertiary)] bg-[var(--bg-card)] border border-stone-200/50 dark:border-white/10 px-4 py-2 rounded-full shadow-sm">
+                  <Loader2 className="w-4 h-4 animate-spin text-coral" />
                   Regenerating…
                 </div>
               </div>
@@ -2109,22 +997,22 @@ export function AnswerCard({
                   ref={textareaRef}
                   value={editDraft}
                   onChange={(e) => setEditDraft(e.target.value)}
-                  className="w-full text-sm text-ink-light leading-relaxed min-h-[140px] resize-y border border-[#DBEAFE] rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-[#FAFCFF]"
+                  className="w-full text-sm text-[var(--text-secondary)] leading-relaxed min-h-[140px] resize-y border border-stone-200/50 dark:border-white/10 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-coral focus:border-transparent bg-[var(--bg-card-elevated)] dark:bg-white/[0.02]"
                   placeholder="Edit your answer…"
                 />
                 <div className="flex items-center gap-3 mt-2.5">
-                  <button onClick={handleSaveEdit} className="text-sm font-medium text-primary-500 hover:text-primary-600 transition-colors">
+                  <button onClick={handleSaveEdit} className="text-sm font-medium text-coral hover:text-coral-dark dark:text-[var(--coral-text)] dark:hover:text-coral transition-colors">
                     Save changes
                   </button>
-                  <button onClick={handleCancelEdit} className="text-sm text-ink-muted hover:text-ink transition-colors">
+                  <button onClick={handleCancelEdit} className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">
                     Cancel
                   </button>
                   {SPOKEN_TYPES.has(slot.type) && (() => {
                     const st = getSpeakingTime(editDraft);
-                    if (!st) return <span className="text-xs text-ink-muted ml-auto">Edits are free &amp; saved locally</span>;
+                    if (!st) return <span className="text-xs text-[var(--text-tertiary)] ml-auto">Edits are free &amp; saved locally</span>;
                     const target = getWordTarget(slot.type, session.stage);
                     const status = target ? getWordCountStatus(st.words, target) : null;
-                    const colorClass = status ? WORD_STATUS_CLASSES[status.color] : "text-ink-muted";
+                    const colorClass = status ? WORD_STATUS_CLASSES[status.color] : "text-[var(--text-tertiary)]";
                     return (
                       <span className={`text-xs tabular-nums ml-auto ${colorClass}`}>
                         {st.words} words · {st.display} spoken · aim for 140–160 wpm
@@ -2133,7 +1021,7 @@ export function AnswerCard({
                     );
                   })()}
                   {!SPOKEN_TYPES.has(slot.type) && (
-                    <span className="text-xs text-ink-muted ml-auto">Edits are free &amp; saved locally</span>
+                    <span className="text-xs text-[var(--text-tertiary)] ml-auto">Edits are free &amp; saved locally</span>
                   )}
                 </div>
               </div>
@@ -2146,13 +1034,13 @@ export function AnswerCard({
                     // Fallback: no Answer Card structure, render normally
                     return (
                       <>
-                        <ContentRenderer content={displayContent} slot={slot} session={session} />
+                        <ContentRouter content={displayContent} answerType={slot.type} stage={session.stage} />
                         {(() => {
                           const st = getSpeakingTime(displayContent);
                           if (!st) return null;
                           const target = getWordTarget(slot.type, session.stage);
                           const status = target ? getWordCountStatus(st.words, target) : null;
-                          const colorClass = status ? WORD_STATUS_CLASSES[status.color] : "text-ink-muted";
+                          const colorClass = status ? WORD_STATUS_CLASSES[status.color] : "text-[var(--text-tertiary)]";
                           return (
                             <p className={`text-xs mt-3 tabular-nums ${colorClass}`}>
                               {st.words} words · {st.display} spoken · aim for 140–160 wpm
@@ -2171,13 +1059,13 @@ export function AnswerCard({
                       {/* LEVEL 1 — Always visible: Quick take + speaking time */}
                       <div className="flex items-center gap-2 mb-3">
                         {SPOKEN_TYPES.has(slot.type) && (
-                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[var(--blue-bg)] text-[var(--blue-text)] dark:bg-brand-blue/10 dark:text-brand-blue-light">
                             {slot.type === "behavioral_star" ? "Behavioral" : slot.type === "comp_expectations" ? "Tactical" : "Narrative"}
                           </span>
                         )}
                         <SpeakingTimeBar words={wordCount} />
                       </div>
-                      <p className="text-sm sm:text-base text-stone-700 leading-relaxed max-w-prose">
+                      <p className="text-[17px] sm:text-[18px] text-[var(--text-secondary)] leading-[1.6] max-w-prose">
                         {renderInlineFormatting(sections.quickTake ?? "")}
                       </p>
 
@@ -2192,20 +1080,20 @@ export function AnswerCard({
                             }
                           }}
                         >
-                          <summary className="cursor-pointer text-sm font-medium text-primary-500 hover:text-primary-600 flex items-center gap-1 select-none min-h-[44px] py-2">
+                          <summary className="cursor-pointer text-sm font-medium text-coral hover:text-coral-dark dark:text-[var(--coral-text)] dark:hover:text-coral flex items-center gap-1 select-none min-h-[44px] py-2">
                             See 30s answer
                             <span className="group-open:rotate-180 transition-transform text-xs">↓</span>
                           </summary>
-                          <div className="mt-3 pt-3 border-t border-stone-100">
+                          <div className="mt-3 pt-3 border-t border-stone-100 dark:border-white/5">
                             {sections.thirtySecond && (
-                              <div className="prose prose-sm prose-stone max-w-none">
+                              <div className="max-w-none">
                                 <FormattedTextContent content={sections.thirtySecond} isSpoken />
                               </div>
                             )}
                             {sections.proofPoints.length > 0 && (
                               <div className="mt-3 space-y-1">
                                 {sections.proofPoints.map((point, pi) => (
-                                  <div key={pi} className="flex gap-2 text-sm sm:text-base text-stone-700 leading-relaxed">
+                                  <div key={pi} className="flex gap-2 text-[15px] sm:text-base text-[var(--text-secondary)] leading-relaxed">
                                     <span className="text-amber-500 flex-shrink-0">→</span>
                                     <span>{renderInlineFormatting(point)}</span>
                                   </div>
@@ -2223,27 +1111,27 @@ export function AnswerCard({
                                   }
                                 }}
                               >
-                                <summary className="cursor-pointer text-sm font-medium text-stone-500 hover:text-stone-700 flex items-center gap-1 select-none min-h-[44px] py-2">
+                                <summary className="cursor-pointer text-sm font-medium text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] flex items-center gap-1 select-none min-h-[44px] py-2">
                                   See full answer + follow-ups
                                   <span className="group-open/deep:rotate-180 transition-transform text-xs">↓</span>
                                 </summary>
-                                <div className="mt-3 pt-3 border-t border-stone-100 space-y-4">
+                                <div className="mt-3 pt-3 border-t border-stone-100 dark:border-white/5 space-y-4">
                                   {sections.fullAnswer && (
-                                    <div className="prose prose-sm prose-stone max-w-none">
+                                    <div className="max-w-none">
                                       <FormattedTextContent content={sections.fullAnswer} isSpoken />
                                     </div>
                                   )}
                                   {sections.digDeeper && (
                                     <div>
-                                      <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">If they dig deeper</p>
+                                      <p className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-2">If they dig deeper</p>
                                       <FormattedTextContent content={sections.digDeeper} isSpoken />
                                     </div>
                                   )}
                                   {sections.makeItYours && (
-                                    <div className="bg-amber-50 border-l-4 border-amber-400 p-3 rounded-r-lg">
-                                      <p className="text-sm text-amber-800 flex gap-2">
+                                    <div className="bg-[var(--coral-bg)] border-l-[3px] border-coral dark:border-[var(--coral)] p-3 rounded-r-lg">
+                                      <p className="text-sm text-[var(--text-secondary)] flex gap-2">
                                         <span className="flex-shrink-0">💡</span>
-                                        <span><strong className="font-semibold">Make it yours:</strong> {sections.makeItYours}</span>
+                                        <span><strong className="font-semibold text-[var(--text-primary)]">Make it yours:</strong> {sections.makeItYours}</span>
                                       </p>
                                     </div>
                                   )}
@@ -2260,7 +1148,7 @@ export function AnswerCard({
                         if (!st) return null;
                         const target = getWordTarget(slot.type, session.stage);
                         const status = target ? getWordCountStatus(st.words, target) : null;
-                        const colorClass = status ? WORD_STATUS_CLASSES[status.color] : "text-ink-muted";
+                        const colorClass = status ? WORD_STATUS_CLASSES[status.color] : "text-[var(--text-tertiary)]";
                         return (
                           <p className={`text-xs mt-3 tabular-nums ${colorClass}`}>
                             {st.words} words · {st.display} spoken
@@ -2274,12 +1162,12 @@ export function AnswerCard({
 
                 {/* Non-spoken / reference types — scannable layout with prose typography */}
                 {!SPOKEN_TYPES.has(slot.type) && (
-                  <div className="prose prose-sm prose-stone max-w-none">
-                    <ContentRenderer content={displayContent} slot={slot} session={session} />
+                  <div className="max-w-none">
+                    <ContentRouter content={displayContent} answerType={slot.type} stage={session.stage} />
                     {slot.type === "questions_to_ask" && displayContent && (() => {
                       const n = countQuestions(displayContent);
                       return n > 0 ? (
-                        <p className="text-xs text-ink-muted mt-3">
+                        <p className="text-xs text-[var(--text-tertiary)] mt-3">
                           {n} question{n !== 1 ? "s" : ""} prepared
                         </p>
                       ) : null;
@@ -2305,7 +1193,7 @@ export function AnswerCard({
             <div className="px-5 pb-3 -mt-1">
               {!voiceSampleStep ? (
                 <>
-                  <p className="text-xs text-ink-muted mb-2">What was wrong with this answer?</p>
+                  <p className="text-xs text-[var(--text-tertiary)] mb-2">What was wrong with this answer?</p>
                   <div className="flex flex-wrap gap-1.5">
                     {FEEDBACK_ISSUES.map((issue) => {
                       const categoryKey = issue.toLowerCase().replace(/ /g, "_");
@@ -2316,26 +1204,26 @@ export function AnswerCard({
                             logFeedback("thumbs_down", categoryKey);
                             setVoiceSampleStep(true);
                           }}
-                          className="text-xs px-2.5 py-1 rounded-full border border-gray-200 text-ink-muted hover:border-red-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                          className="text-xs px-2.5 py-1 rounded-full border border-stone-200/50 dark:border-white/10 text-[var(--text-tertiary)] hover:border-red-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                         >
                           {issue}
                         </button>
                       );
                     })}
-                    <button onClick={() => setShowFeedbackFollowup(false)} className="p-1 rounded-full text-ink-muted hover:text-ink transition-colors">
-                      <X className="w-3 h-3" />
+                    <button onClick={() => setShowFeedbackFollowup(false)} className="p-2 -m-1 rounded-full text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 </>
               ) : (
                 <div className="space-y-2">
-                  <p className="text-xs text-ink-muted">How would you actually say this? <span className="opacity-60">(optional)</span></p>
+                  <p className="text-xs text-[var(--text-tertiary)]">How would you actually say this? <span className="opacity-60">(optional)</span></p>
                   <textarea
                     value={voiceSampleText}
                     onChange={(e) => setVoiceSampleText(e.target.value)}
                     placeholder="Write your version, out loud phrasing…"
                     rows={3}
-                    className="w-full text-sm border border-[#DBEAFE] rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-[#FAFCFF] placeholder:text-ink-muted resize-none"
+                    className="w-full text-sm border border-stone-200/50 dark:border-white/10 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-coral focus:border-transparent bg-[var(--bg-card-elevated)] dark:bg-white/[0.02] placeholder:text-[var(--text-tertiary)] resize-none"
                   />
                   <div className="flex gap-2">
                     <button
@@ -2359,7 +1247,7 @@ export function AnswerCard({
                         setVoiceSampleStep(false);
                         setVoiceSampleText("");
                       }}
-                      className="text-xs font-medium px-3 py-1.5 rounded-full bg-primary-50 text-primary-600 border border-primary-200 hover:bg-primary-100 transition-colors"
+                      className="text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--coral-bg)] text-[var(--coral-text)] border border-[var(--coral-border)] hover:bg-coral/10 transition-colors"
                     >
                       Save my version
                     </button>
@@ -2369,7 +1257,7 @@ export function AnswerCard({
                         setVoiceSampleStep(false);
                         setVoiceSampleText("");
                       }}
-                      className="text-xs px-3 py-1.5 rounded-full border border-gray-200 text-ink-muted hover:text-ink transition-colors"
+                      className="text-xs px-3 py-1.5 rounded-full border border-stone-200/50 dark:border-white/10 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                     >
                       Skip
                     </button>
@@ -2382,7 +1270,7 @@ export function AnswerCard({
           {/* ── Quick action pills — slide in 400ms after unlock ────────── */}
           {!isEditing && (
             <div
-              className={`px-5 pb-4 border-t pt-3 ${isReference ? "border-amber-100" : "border-[#EFF6FF]"}`}
+              className="px-5 pb-4 border-t border-stone-100 dark:border-white/5 pt-3"
               style={
                 justUnlocked
                   ? { opacity: 0, animation: "action-reveal 300ms ease-out 400ms forwards" }
@@ -2397,8 +1285,8 @@ export function AnswerCard({
                     disabled={isRegenerating}
                     className={`text-xs px-3 py-1.5 rounded-full border transition-colors disabled:opacity-40 ${
                       activeQuickAction === action.key
-                        ? "border-primary-400 bg-primary-50 text-primary-600"
-                        : "border-gray-200 text-ink-muted hover:border-primary-300 hover:text-primary-500 hover:bg-primary-50"
+                        ? "border-[var(--coral-border)] bg-[var(--coral-bg)] text-[var(--coral-text)]"
+                        : "border-stone-200/50 dark:border-white/10 text-[var(--text-tertiary)] hover:border-[var(--coral-border)] hover:text-coral hover:bg-[var(--coral-bg)]"
                     }`}
                   >
                     {action.label}
@@ -2408,9 +1296,9 @@ export function AnswerCard({
               </div>
 
               {/* Free regens counter */}
-              <p className="text-xs text-ink-muted mt-2 flex items-center gap-1">
+              <p className="text-xs text-[var(--text-tertiary)] mt-2 flex items-center gap-1">
                 {freeRegenLeft > 0 ? (
-                  <><Sparkles className="w-3 h-3 text-primary-400" />{freeRegenLeft} free refinements left</>
+                  <><Sparkles className="w-3 h-3 text-coral/60" />{freeRegenLeft} free refinements left</>
                 ) : (
                   <><Zap className="w-3 h-3 text-amber-500" />Refinements use 1 credit each</>
                 )}
@@ -2425,20 +1313,20 @@ export function AnswerCard({
                     onChange={(e) => setCustomInstruction(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleCustomSubmit()}
                     placeholder="e.g. Focus on enterprise SaaS deals, keep under 90 seconds…"
-                    className="flex-1 text-sm border border-[#DBEAFE] rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-[#FAFCFF] placeholder:text-ink-muted"
+                    className="flex-1 text-sm border border-stone-200/50 dark:border-white/10 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-coral focus:border-transparent bg-[var(--bg-card-elevated)] dark:bg-white/[0.02] placeholder:text-[var(--text-tertiary)] text-[var(--text-primary)]"
                     autoFocus
                   />
                   <button
                     onClick={handleCustomSubmit}
                     disabled={!customInstruction.trim() || isRegenerating}
-                    className="px-3 py-2 rounded-xl bg-primary-500 text-white disabled:opacity-40 hover:bg-primary-600 transition-colors flex-shrink-0"
+                    className="px-3 py-2 rounded-xl bg-coral text-white disabled:opacity-40 hover:bg-coral-dark transition-colors flex-shrink-0"
                     title="Apply"
                   >
                     <Send className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => { setActiveQuickAction(null); setCustomInstruction(""); }}
-                    className="px-3 py-2 rounded-xl border border-gray-200 text-ink-muted hover:bg-gray-50 transition-colors flex-shrink-0"
+                    className="px-3 py-2 rounded-xl border border-stone-200/50 dark:border-white/10 text-[var(--text-tertiary)] hover:bg-stone-50 dark:hover:bg-white/5 transition-colors flex-shrink-0"
                     title="Cancel"
                   >
                     <X className="w-3.5 h-3.5" />

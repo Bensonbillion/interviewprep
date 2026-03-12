@@ -78,19 +78,19 @@ function getStageLabel(stage: string, roleType?: string): string {
 
 function GenerationStatusBanner({ slots }: { slots: AnswerSlot[] }) {
   return (
-    <div className="bg-primary-50 border border-primary-100 rounded-xl p-4">
-      <p className="text-xs font-medium text-primary-700 mb-3">Generating your prep kit…</p>
+    <div className="bg-[var(--bg-card)] border border-stone-200/50 dark:border-white/5 rounded-[var(--card-radius)] shadow-card p-4">
+      <p className="text-xs font-medium text-[var(--text-primary)] mb-3">Generating your prep kit…</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-2 gap-x-4">
         {slots.map((slot) => (
           <div key={slot.type} className="flex items-center gap-1.5">
             {slot.status !== "loading" ? (
-              <Check className="w-3 h-3 text-green-500 flex-shrink-0" />
+              <Check className="w-3 h-3 text-[var(--success)] flex-shrink-0" />
             ) : (
-              <Loader2 className="w-3 h-3 animate-spin text-ink-muted flex-shrink-0" />
+              <Loader2 className="w-3 h-3 animate-spin text-[var(--text-tertiary)] flex-shrink-0" />
             )}
             <span
               className={`text-xs truncate ${
-                slot.status !== "loading" ? "text-green-600" : "text-ink-muted"
+                slot.status !== "loading" ? "text-[var(--success)]" : "text-[var(--text-tertiary)]"
               }`}
             >
               {slot.label}
@@ -116,7 +116,7 @@ function PrepProgressBar({
 
   if (allReviewed) {
     return (
-      <div className="flex items-center gap-1.5 text-xs text-green-600 font-medium">
+      <div className="flex items-center gap-1.5 text-xs text-[var(--success)] font-medium">
         <Check className="w-3.5 h-3.5 flex-shrink-0" />
         <span>All {totalCount} answers reviewed · Add personal notes before your interview</span>
       </div>
@@ -125,13 +125,13 @@ function PrepProgressBar({
 
   return (
     <div className="flex items-center gap-2 flex-1 min-w-0">
-      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 bg-stone-100 dark:bg-white/10 rounded-full overflow-hidden">
         <div
-          className="h-full bg-primary-500 rounded-full transition-all duration-500"
+          className="h-full bg-coral rounded-full transition-all duration-500"
           style={{ width: `${percent}%` }}
         />
       </div>
-      <span className="text-xs text-ink-muted tabular-nums whitespace-nowrap">
+      <span className="text-xs text-[var(--text-tertiary)] tabular-nums whitespace-nowrap">
         {reviewedCount}/{totalCount} reviewed
       </span>
     </div>
@@ -152,7 +152,7 @@ function RoundTabs({
   const router = useRouter();
 
   return (
-    <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+    <div className="mb-5 flex gap-2 overflow-x-auto scrollbar-none pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
       {ROUNDS.map((round) => {
         const Icon = round.icon;
         const isCurrent = session.stage === round.key;
@@ -161,13 +161,13 @@ function RoundTabs({
 
         if (isCurrent) {
           return (
-            <div
+            <button
               key={round.key}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-500 text-white text-sm font-medium flex-shrink-0 cursor-default select-none"
+              className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold border transition-all duration-150 min-h-[44px] bg-[var(--bg-card)] shadow-card border-[var(--coral-border)] text-coral-dark dark:text-[var(--coral-text)] cursor-default select-none"
             >
-              <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="text-[15px]">{round.emoji}</span>
               <span>{round.label}</span>
-            </div>
+            </button>
           );
         }
 
@@ -176,9 +176,9 @@ function RoundTabs({
             <button
               key={round.key}
               onClick={() => router.push(`/prep/${completedId}`)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-green-50 text-green-700 border border-green-200 text-sm font-medium flex-shrink-0 hover:bg-green-100 transition-colors"
+              className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-medium border transition-all duration-150 min-h-[44px] bg-[var(--success-bg)] text-[var(--success)] border-[var(--success)]/15 hover:bg-[var(--success-bg)]"
             >
-              <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="text-[15px]">{round.emoji}</span>
               <span>{round.label}</span>
             </button>
           );
@@ -189,9 +189,9 @@ function RoundTabs({
           <button
             key={round.key}
             onClick={() => onPrepRound(round.key)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-dashed border-gray-300 text-ink-muted text-sm flex-shrink-0 hover:border-primary-400 hover:text-primary-500 transition-colors"
+            className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-medium border transition-all duration-150 min-h-[44px] bg-transparent border-stone-200/40 dark:border-white/8 text-[var(--text-secondary)] hover:bg-[var(--bg-card)]/50 dark:hover:bg-white/5"
           >
-            <Icon className="w-3.5 h-3.5 flex-shrink-0 opacity-60" />
+            <span className="text-[15px] opacity-60">{round.emoji}</span>
             <span className="opacity-70">{round.label}</span>
             <span className="text-xs opacity-50 ml-0.5">· 1 cr</span>
           </button>
@@ -257,41 +257,41 @@ function AddInterviewerSection({
   if (done) return null;
 
   return (
-    <div className="border border-dashed border-gray-200 rounded-xl overflow-hidden">
+    <div className="border border-dashed border-stone-200/50 dark:border-white/10 rounded-[var(--card-radius)] overflow-hidden">
       <button
         type="button"
         onClick={() => setExpanded((o) => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+        className="w-full flex items-center justify-between px-4 py-3 min-h-[44px] hover:bg-stone-50 dark:hover:bg-white/5 transition-colors text-left"
       >
         <div className="flex items-center gap-2">
-          <UserSearch className="w-4 h-4 text-ink-muted" />
-          <span className="text-sm font-medium text-ink">Who&apos;s interviewing you?</span>
-          <span className="text-xs text-ink-muted hidden sm:inline">Get personalized intel</span>
+          <UserSearch className="w-4 h-4 text-[var(--text-tertiary)]" />
+          <span className="text-sm font-medium text-[var(--text-primary)]">Who&apos;s interviewing you?</span>
+          <span className="text-xs text-[var(--text-tertiary)] hidden sm:inline">Get personalized intel</span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-xs text-primary-500 font-medium">Optional</span>
+          <span className="text-xs text-coral font-medium">Optional</span>
           {expanded ? (
-            <X className="w-4 h-4 text-ink-muted" />
+            <X className="w-4 h-4 text-[var(--text-tertiary)]" />
           ) : (
-            <Plus className="w-4 h-4 text-ink-muted" />
+            <Plus className="w-4 h-4 text-[var(--text-tertiary)]" />
           )}
         </div>
       </button>
 
       {expanded && (
-        <div className="px-4 pb-4 space-y-3 border-t border-dashed border-gray-100">
-          <p className="text-xs text-ink-muted pt-3">
+        <div className="px-4 pb-4 space-y-3 border-t border-dashed border-stone-200/30 dark:border-white/5">
+          <p className="text-xs text-[var(--text-tertiary)] pt-3">
             We&apos;ll research their background and tailor your prep to what they care about.
           </p>
           {interviewers.map((iv, idx) => (
-            <div key={idx} className="space-y-2 bg-gray-50 rounded-xl p-3">
+            <div key={idx} className="space-y-2 bg-[var(--bg-card-elevated)] dark:bg-white/[0.02] rounded-xl p-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-ink-muted">Interviewer {idx + 1}</span>
+                <span className="text-xs font-medium text-[var(--text-tertiary)]">Interviewer {idx + 1}</span>
                 {interviewers.length > 1 && (
                   <button
                     type="button"
                     onClick={() => setInterviewers((prev) => prev.filter((_, i) => i !== idx))}
-                    className="text-ink-muted hover:text-red-400 transition-colors"
+                    className="text-[var(--text-tertiary)] hover:text-red-400 transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -302,7 +302,7 @@ function AddInterviewerSection({
                 placeholder="Full name *"
                 value={iv.name}
                 onChange={(e) => handleChange(idx, "name", e.target.value)}
-                className="w-full text-sm border border-[#DBEAFE] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white placeholder:text-gray-400"
+                className="w-full text-sm border border-stone-200/50 dark:border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-coral bg-[var(--bg-card)] placeholder:text-[var(--text-tertiary)] text-[var(--text-primary)]"
               />
               <div className="grid grid-cols-2 gap-2">
                 <input
@@ -310,14 +310,14 @@ function AddInterviewerSection({
                   placeholder="Role / Title"
                   value={iv.roleTitle ?? ""}
                   onChange={(e) => handleChange(idx, "roleTitle", e.target.value)}
-                  className="w-full text-sm border border-[#DBEAFE] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white placeholder:text-gray-400"
+                  className="w-full text-sm border border-stone-200/50 dark:border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-coral bg-[var(--bg-card)] placeholder:text-[var(--text-tertiary)] text-[var(--text-primary)]"
                 />
                 <input
                   type="url"
                   placeholder="LinkedIn URL"
                   value={iv.linkedinUrl ?? ""}
                   onChange={(e) => handleChange(idx, "linkedinUrl", e.target.value)}
-                  className="w-full text-sm border border-[#DBEAFE] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white placeholder:text-gray-400"
+                  className="w-full text-sm border border-stone-200/50 dark:border-white/10 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-coral bg-[var(--bg-card)] placeholder:text-[var(--text-tertiary)] text-[var(--text-primary)]"
                 />
               </div>
             </div>
@@ -326,7 +326,7 @@ function AddInterviewerSection({
             <button
               type="button"
               onClick={() => setInterviewers((prev) => [...prev, { name: "", linkedinUrl: "", roleTitle: "" }])}
-              className="flex items-center gap-1.5 text-xs text-primary-500 hover:text-primary-600 font-medium transition-colors"
+              className="flex items-center gap-1.5 text-xs text-coral hover:text-coral-dark dark:text-[var(--coral-text)] font-medium transition-colors min-h-[36px]"
             >
               <Plus className="w-3.5 h-3.5" />
               Add another interviewer
@@ -336,7 +336,7 @@ function AddInterviewerSection({
             type="button"
             disabled={loading || !interviewers.some((iv) => iv.name.trim())}
             onClick={handleResearch}
-            className="w-full py-2.5 bg-primary-500 hover:bg-primary-600 text-white font-semibold text-sm rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full py-2.5 min-h-[44px] bg-coral hover:bg-coral-dark text-white font-semibold text-sm rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
@@ -660,8 +660,8 @@ export default function PrepSessionPage() {
   if (notFound) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] text-center gap-4">
-        <p className="text-ink-muted">Session not found.</p>
-        <Link href="/dashboard" className="text-sm font-medium text-primary-500 hover:text-primary-600">
+        <p className="text-[var(--text-tertiary)]">Session not found.</p>
+        <Link href="/dashboard" className="text-sm font-medium text-coral hover:text-coral-dark dark:text-[var(--coral-text)]">
           Back to dashboard
         </Link>
       </div>
@@ -671,7 +671,7 @@ export default function PrepSessionPage() {
   if (!session) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
-        <Loader2 className="w-7 h-7 animate-spin text-primary-500" />
+        <Loader2 className="w-7 h-7 animate-spin text-coral" />
       </div>
     );
   }
@@ -690,68 +690,67 @@ export default function PrepSessionPage() {
   const referenceSlots = slots.filter((s) => PAGE_REFERENCE_TYPES.has(s.type));
 
   return (
-    <div className="space-y-5 pb-20 md:pb-8">
+    <div className="space-y-5 pb-24 md:pb-8">
 
       {/* ── Breadcrumb ──────────────────────────────────────────────────── */}
-      <nav className="flex items-center gap-1.5 text-sm text-ink-muted">
-        <Link href="/dashboard" className="hover:text-ink transition-colors">
+      <nav className="flex items-center gap-1.5 text-sm text-[var(--text-tertiary)]">
+        <Link href="/dashboard" className="hover:text-[var(--text-primary)] transition-colors">
           Dashboard
         </Link>
         <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
-        <span className="text-ink font-medium truncate">{session.companyName}</span>
+        <span className="text-[var(--text-primary)] font-medium truncate">{session.companyName}</span>
       </nav>
 
-      {/* ── Page header ─────────────────────────────────────────────────── */}
-      <div>
-        <div className="flex items-start justify-between gap-3">
-          <h1 className="text-xl font-bold text-ink leading-tight">
-            {session.companyName} — {session.targetRole}
-          </h1>
-          {session.interviewDate && (() => {
-            const d = new Date(session.interviewDate + "T12:00:00");
-            const diff = Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-            if (diff < 0) return null;
-            const label = diff === 0 ? "Today!" : diff === 1 ? "Tomorrow" : `In ${diff} days`;
-            const urgent = diff <= 3;
-            return (
-              <span
-                className={`flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                  urgent
-                    ? "bg-orange-50 text-orange-600 border border-orange-200"
-                    : "bg-blue-50 text-blue-600 border border-blue-100"
-                }`}
-              >
-                <Calendar className="w-3 h-3" />
-                {label}
-              </span>
-            );
-          })()}
-        </div>
-        <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
-          <span className="text-sm text-ink-muted font-medium">{stageLabel}</span>
-          {allGenerated && (
-            <>
-              <span className="text-ink-muted">·</span>
-              {unlockedCount === totalCount ? (
-                <span className="text-sm text-green-600 font-medium">
-                  ✓ {totalCount} answers ready
-                </span>
-              ) : (
-                <span className="text-sm text-ink-muted font-medium">
-                  {unlockedCount}/{totalCount} unlocked
+      {/* ── Company header ─────────────────────────────────────────────── */}
+      <div className="mb-4">
+        <div className="bg-[var(--bg-card)] rounded-[var(--card-radius)] shadow-card border border-stone-200/50 dark:border-white/5 p-5">
+          <div className="flex justify-between items-start gap-3">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight truncate">
+                {session.companyName}
+              </h1>
+              <p className="text-[14px] text-[var(--text-secondary)] mt-0.5">
+                {session.targetRole} · {stageLabel}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {session.interviewDate && (() => {
+                const d = new Date(session.interviewDate + "T12:00:00");
+                const diff = Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                if (diff < 0) return null;
+                const label = diff === 0 ? "Today!" : diff === 1 ? "Tomorrow" : `In ${diff} days`;
+                const urgent = diff <= 3;
+                return (
+                  <span
+                    className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-semibold border ${
+                      urgent
+                        ? "bg-[var(--coral-bg)] text-[var(--coral-text)] border-coral/15"
+                        : "bg-[var(--blue-bg)] text-[var(--blue-text)] border-[var(--blue-text)]/15"
+                    }`}
+                  >
+                    <Calendar className="w-3 h-3" />
+                    {label}
+                  </span>
+                );
+              })()}
+              {allGenerated && (
+                <span className="text-[12px] font-semibold px-3 py-1.5 rounded-lg bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success)]/15">
+                  {unlockedCount === totalCount ? "Ready to prep" : `${unlockedCount}/${totalCount} unlocked`}
                 </span>
               )}
-            </>
-          )}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── Round tabs ──────────────────────────────────────────────────── */}
-      <RoundTabs
-        session={session}
-        completedStages={completedStages}
-        onPrepRound={(roundKey) => openRoundModal(roundKey)}
-      />
+      {/* ── Round tabs — mobile/tablet only, desktop uses sidebar ────── */}
+      <div className="lg:hidden">
+        <RoundTabs
+          session={session}
+          completedStages={completedStages}
+          onPrepRound={(roundKey) => openRoundModal(roundKey)}
+        />
+      </div>
 
       {/* ── Progress bar + Copy all ──────────────────────────────────────── */}
       <div className="flex items-center gap-3">
@@ -759,7 +758,7 @@ export default function PrepSessionPage() {
         {unlockedCount > 0 && (
           <button
             onClick={handleCopyAll}
-            className="flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink transition-colors flex-shrink-0"
+            className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors flex-shrink-0 min-h-[36px]"
             title="Copy all unlocked answers to clipboard"
           >
             {copiedAll ? (
@@ -774,14 +773,14 @@ export default function PrepSessionPage() {
 
       {/* ── Batch unlock banner — 2+ locked, enough credits ─────────────── */}
       {allGenerated && lockedCount >= 2 && !creditsLoading && creditBalance >= lockedCount && (
-        <div className="flex items-center justify-between gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl">
-          <p className="text-sm text-ink">
+        <div className="flex items-center justify-between gap-3 px-4 py-3 bg-[var(--bg-card)] border border-stone-200/50 dark:border-white/5 rounded-[var(--card-radius)] shadow-card">
+          <p className="text-sm text-[var(--text-primary)]">
             <span className="font-medium">{lockedCount} answers</span>{" "}
-            <span className="text-ink-muted">waiting to be unlocked</span>
+            <span className="text-[var(--text-tertiary)]">waiting to be unlocked</span>
           </p>
           <button
             onClick={handleUnlockAll}
-            className="flex-shrink-0 text-sm font-semibold text-primary-500 hover:text-primary-600 transition-colors flex items-center gap-1.5"
+            className="flex-shrink-0 text-sm font-semibold text-coral hover:text-coral-dark dark:text-[var(--coral-text)] transition-colors flex items-center gap-1.5 min-h-[36px]"
           >
             <Zap className="w-3.5 h-3.5" />
             Unlock all · {lockedCount} credits
@@ -794,12 +793,12 @@ export default function PrepSessionPage() {
 
       {/* ── Career switcher notice ───────────────────────────────────────── */}
       {session.resume.backgroundType === "career_switcher" && (
-        <div className="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3.5">
+        <div className="bg-[var(--coral-bg)] border border-[var(--coral-border)] rounded-[var(--card-radius)] px-4 py-3.5">
           <div className="flex items-center gap-2 mb-1">
-            <Zap className="w-4 h-4 text-amber-600 flex-shrink-0" />
-            <p className="text-sm font-semibold text-amber-800">Career switcher mode active</p>
+            <Zap className="w-4 h-4 text-coral flex-shrink-0" />
+            <p className="text-sm font-semibold text-[var(--text-primary)]">Career switcher mode active</p>
           </div>
-          <p className="text-xs text-amber-700 leading-relaxed">
+          <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
             Your prep kit includes career switcher bridges — framings that confidently connect your
             background to sales skills.
           </p>
@@ -808,14 +807,14 @@ export default function PrepSessionPage() {
 
       {/* ── Lead stories ────────────────────────────────────────────────── */}
       {session.relevanceMap.leadStories.length > 0 && (
-        <div className="bg-cream-dark rounded-2xl border border-gray-100 px-5 py-4">
-          <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider mb-3">
+        <div className="bg-[var(--bg-card)] rounded-[var(--card-radius)] border border-stone-200/50 dark:border-white/5 shadow-card px-5 py-4">
+          <p className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest mb-3">
             Your lead stories for this role
           </p>
           <ul className="space-y-2">
             {session.relevanceMap.leadStories.slice(0, 3).map((story, i) => (
-              <li key={i} className="text-sm text-ink-light flex items-start gap-2.5">
-                <span className="text-primary-500 flex-shrink-0 mt-0.5 font-bold text-xs">
+              <li key={i} className="text-sm text-[var(--text-secondary)] flex items-start gap-2.5">
+                <span className="text-coral flex-shrink-0 mt-0.5 font-bold text-xs">
                   {i + 1}.
                 </span>
                 <span className="leading-relaxed">{story}</span>
@@ -849,9 +848,9 @@ export default function PrepSessionPage() {
 
       {/* YOUR ANSWERS — spoken cards */}
       {speakingSlots.length > 0 && (
-        <div className="space-y-4">
-          <div className="sticky top-[56px] z-10 bg-white/95 backdrop-blur-sm py-2 -mx-4 px-4 border-b border-stone-100">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-400">
+        <div className="space-y-3">
+          <div className="py-2 mt-3 mb-1">
+            <h2 className="text-[11px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
               Your Answers
             </h2>
           </div>
@@ -874,9 +873,9 @@ export default function PrepSessionPage() {
 
       {/* REFERENCE MATERIAL — collapsed on mobile by default */}
       {referenceSlots.length > 0 && (
-        <div className="space-y-4">
-          <div className="sticky top-[56px] z-10 bg-white/95 backdrop-blur-sm py-2 -mx-4 px-4 border-b border-stone-100">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-400">
+        <div className="space-y-3">
+          <div className="py-2 mt-3 mb-1">
+            <h2 className="text-[11px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
               Reference Material
             </h2>
           </div>
@@ -919,7 +918,7 @@ export default function PrepSessionPage() {
         <div className="flex justify-center pt-2">
           <button
             onClick={triggerConfidenceCheck}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-primary-200 bg-primary-50 text-sm font-semibold text-primary-600 hover:bg-primary-100 transition-colors"
+            className="flex items-center gap-2 px-5 py-2.5 min-h-[44px] rounded-xl border border-[var(--coral-border)] bg-[var(--coral-bg)] text-sm font-semibold text-[var(--coral-text)] hover:bg-coral/10 transition-colors"
           >
             <Check className="w-4 h-4" />
             Done Prepping
@@ -928,16 +927,18 @@ export default function PrepSessionPage() {
       )}
 
       {/* ── Follow-up email generator ────────────────────────────────────── */}
-      <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider mt-2">
-        After the Interview
-      </p>
+      <div className="py-2 mt-3 mb-1">
+        <p className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">
+          After the Interview
+        </p>
+      </div>
       <FollowUpSection session={session} sessionId={sessionId} />
 
       {/* ── Prep next round CTA ─────────────────────────────────────────── */}
       {unpreppedRounds.length > 0 && (
-        <div className="bg-primary-50 border border-primary-100 rounded-2xl p-6 mt-2">
-          <p className="text-sm font-bold text-ink">Ready for the next round?</p>
-          <p className="text-xs text-ink-muted mt-1 mb-4">
+        <div className="bg-[var(--bg-card)] border border-stone-200/50 dark:border-white/5 rounded-[var(--card-radius)] shadow-card p-6 mt-2">
+          <p className="text-sm font-bold text-[var(--text-primary)]">Ready for the next round?</p>
+          <p className="text-xs text-[var(--text-tertiary)] mt-1 mb-4">
             Same resume, same research — just pick the round.
           </p>
           <div className="flex flex-wrap gap-2">
@@ -945,36 +946,36 @@ export default function PrepSessionPage() {
               <button
                 key={round.key}
                 onClick={() => openRoundModal(round.key)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-primary-200 bg-white text-sm font-medium text-ink hover:border-primary-400 hover:bg-primary-50 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[44px] rounded-xl border border-stone-200/50 dark:border-white/10 bg-[var(--bg-card)] text-sm font-medium text-[var(--text-primary)] hover:border-[var(--coral-border)] hover:bg-[var(--coral-bg)] transition-colors"
               >
                 <span>{round.emoji}</span>
                 <span>{round.shortLabel}</span>
-                <span className="text-xs text-ink-muted">· 1 credit</span>
+                <span className="text-xs text-[var(--text-tertiary)]">· 1 credit</span>
               </button>
             ))}
           </div>
-          <p className="text-xs text-ink-muted mt-3">
+          <p className="text-xs text-[var(--text-tertiary)] mt-3">
             {creditsLoading ? "" : `${creditBalance} credits remaining`}
           </p>
         </div>
       )}
 
       {/* ── Report back CTA ─────────────────────────────────────────────── */}
-      <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center">
-        <p className="text-sm font-semibold text-ink mb-1">Just finished your interview?</p>
-        <p className="text-xs text-ink-muted mb-3">
+      <div className="bg-[var(--success-bg)] border border-[var(--success)]/15 rounded-[var(--card-radius)] p-5 text-center">
+        <p className="text-sm font-semibold text-[var(--text-primary)] mb-1">Just finished your interview?</p>
+        <p className="text-xs text-[var(--text-tertiary)] mb-3">
           Tell us how it went — your report helps future candidates at {session.companyName}.
         </p>
         <Link
           href={`/report/${sessionId}`}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold text-sm rounded-xl transition-colors"
+          className="inline-flex items-center gap-2 px-5 py-2.5 min-h-[44px] bg-[var(--success)] hover:brightness-110 text-white font-semibold text-sm rounded-xl transition-all"
         >
           Report Interview →
         </Link>
       </div>
 
       {/* Footer hint */}
-      <p className="text-xs text-center text-ink-muted pb-2">
+      <p className="text-xs text-center text-[var(--text-tertiary)] pb-2">
         Answers personalized from your resume · Edits are free · First 3 refinements per answer are free
       </p>
 

@@ -117,18 +117,18 @@ export function QuickRoundModal({
       style={{ background: "rgba(0,0,0,0.45)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div className="bg-[var(--bg-card)] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         {/* Header */}
-        <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b border-gray-100">
+        <div className="flex items-start justify-between px-6 pt-5 pb-4 border-b border-stone-100 dark:border-white/5">
           <div>
-            <h2 className="text-base font-bold text-ink">Prep Another Round</h2>
-            <p className="text-sm text-ink-muted mt-0.5">
+            <h2 className="text-base font-bold text-[var(--text-primary)]">Prep Another Round</h2>
+            <p className="text-sm text-[var(--text-tertiary)] mt-0.5">
               {session.companyName} · {session.targetRole}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-ink-muted hover:bg-gray-50 transition-colors"
+            className="p-1.5 rounded-lg text-[var(--text-tertiary)] hover:bg-[var(--bg-card-elevated)] dark:hover:bg-white/[0.02] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -149,17 +149,17 @@ export function QuickRoundModal({
                 disabled={isCurrent}
                 className={`w-full flex items-center gap-3.5 px-4 py-3.5 rounded-xl border text-left transition-all ${
                   isCurrent
-                    ? "border-primary-200 bg-primary-50 cursor-default"
+                    ? "border-[var(--coral-border)] bg-[var(--coral-bg)] cursor-default"
                     : isCompleted
                     ? "border-green-200 bg-green-50 hover:bg-green-100 cursor-pointer"
-                    : "border-gray-100 hover:border-primary-300 hover:bg-primary-50 cursor-pointer"
+                    : "border-stone-100 dark:border-white/5 hover:border-[var(--coral-border)] hover:bg-[var(--coral-bg)] cursor-pointer"
                 }`}
               >
                 {/* Icon */}
                 <div
                   className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
                     isCurrent
-                      ? "bg-primary-500"
+                      ? "bg-coral"
                       : isCompleted
                       ? "bg-green-500"
                       : "bg-gray-100"
@@ -167,7 +167,7 @@ export function QuickRoundModal({
                 >
                   <Icon
                     className={`w-4 h-4 ${
-                      isCurrent || isCompleted ? "text-white" : "text-ink-muted"
+                      isCurrent || isCompleted ? "text-white" : "text-[var(--text-tertiary)]"
                     }`}
                   />
                 </div>
@@ -177,23 +177,23 @@ export function QuickRoundModal({
                   <p
                     className={`text-sm font-semibold ${
                       isCurrent
-                        ? "text-primary-600"
+                        ? "text-coral-dark"
                         : isCompleted
                         ? "text-green-700"
-                        : "text-ink"
+                        : "text-[var(--text-primary)]"
                     }`}
                   >
                     {round.label}
                     {isUnprepped && (
-                      <span className="text-xs font-normal text-ink-muted"> · 1 credit</span>
+                      <span className="text-xs font-normal text-[var(--text-tertiary)]"> · 1 credit</span>
                     )}
                   </p>
-                  <p className="text-xs text-ink-muted mt-0.5">{round.description}</p>
+                  <p className="text-xs text-[var(--text-tertiary)] mt-0.5">{round.description}</p>
                 </div>
 
                 {/* Status indicator */}
                 {isCurrent && (
-                  <span className="text-xs font-medium text-primary-500 flex-shrink-0 bg-primary-100 px-2 py-0.5 rounded-full">
+                  <span className="text-xs font-medium text-coral flex-shrink-0 bg-[var(--coral-bg)] px-2 py-0.5 rounded-full">
                     Current
                   </span>
                 )}
@@ -201,7 +201,7 @@ export function QuickRoundModal({
                   <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
                 )}
                 {isUnprepped && (
-                  <ArrowRight className="w-4 h-4 text-ink-muted flex-shrink-0" />
+                  <ArrowRight className="w-4 h-4 text-[var(--text-tertiary)] flex-shrink-0" />
                 )}
               </button>
             );
@@ -217,13 +217,13 @@ export function QuickRoundModal({
             <div className="flex gap-2">
               <button
                 onClick={() => setConfirmRound(null)}
-                className="px-4 py-2 rounded-xl border border-gray-200 text-sm text-ink-muted hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 rounded-xl border border-stone-200/50 dark:border-white/10 text-sm text-[var(--text-tertiary)] hover:bg-[var(--bg-card-elevated)] dark:hover:bg-white/[0.02] transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleRound(confirmRound)}
-                className="px-4 py-2 rounded-xl bg-primary-500 text-white text-sm font-semibold hover:bg-primary-600 transition-colors"
+                className="px-4 py-2 rounded-xl bg-coral text-white text-sm font-semibold hover:bg-coral-dark transition-colors"
               >
                 Generate prep kit →
               </button>
@@ -234,7 +234,7 @@ export function QuickRoundModal({
         {/* Footer */}
         {!confirmRound && (
           <div className="px-6 pb-5 pt-1">
-            <p className="text-xs text-ink-muted text-center">
+            <p className="text-xs text-[var(--text-tertiary)] text-center">
               1 credit per round · Resume &amp; company pre-filled automatically
             </p>
           </div>

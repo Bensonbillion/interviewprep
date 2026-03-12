@@ -101,8 +101,8 @@ export function FollowUpSection({
             <Mail className="w-4 h-4 text-white" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-bold text-ink">After the Interview</p>
-            <p className="text-xs text-ink-muted mt-0.5">
+            <p className="text-sm font-bold text-[var(--text-primary)]">After the Interview</p>
+            <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
               Send a follow-up email that actually stands out. Takes 30 seconds.
             </p>
             <button
@@ -122,19 +122,19 @@ export function FollowUpSection({
       <div className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-2xl p-5 space-y-4">
         <div className="flex items-center gap-2">
           <Mail className="w-4 h-4 text-slate-600" />
-          <p className="text-sm font-bold text-ink">After the Interview</p>
+          <p className="text-sm font-bold text-[var(--text-primary)]">After the Interview</p>
         </div>
         <div>
-          <label className="text-xs font-medium text-ink-muted block mb-1.5">
+          <label className="text-xs font-medium text-[var(--text-tertiary)] block mb-1.5">
             How did it go? Any highlights to reference?{" "}
-            <span className="font-normal text-ink-muted/70">(optional)</span>
+            <span className="font-normal text-[var(--text-tertiary)]/70">(optional)</span>
           </label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="e.g. We talked a lot about their outbound motion, they asked about my cold call experience, the interviewer mentioned they're expanding the SDR team..."
             rows={3}
-            className="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white placeholder:text-gray-400"
+            className="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-slate-400 bg-[var(--bg-card)] placeholder:text-[var(--text-tertiary)]"
           />
         </div>
         {error && <p className="text-xs text-red-500">{error}</p>}
@@ -147,7 +147,7 @@ export function FollowUpSection({
           </button>
           <button
             onClick={() => setState("idle")}
-            className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-ink-muted hover:bg-white transition-colors"
+            className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-[var(--text-tertiary)] hover:bg-[var(--bg-card)] transition-colors"
           >
             Cancel
           </button>
@@ -160,7 +160,7 @@ export function FollowUpSection({
     return (
       <div className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-2xl p-5 flex items-center gap-3">
         <Loader2 className="w-5 h-5 animate-spin text-slate-600 flex-shrink-0" />
-        <p className="text-sm text-ink-muted">Writing your follow-up email…</p>
+        <p className="text-sm text-[var(--text-tertiary)]">Writing your follow-up email…</p>
       </div>
     );
   }
@@ -172,11 +172,11 @@ export function FollowUpSection({
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200">
         <div className="flex items-center gap-2">
           <Mail className="w-4 h-4 text-slate-600" />
-          <p className="text-sm font-bold text-ink">Follow-Up Email</p>
+          <p className="text-sm font-bold text-[var(--text-primary)]">Follow-Up Email</p>
         </div>
         <button
           onClick={handleReset}
-          className="text-xs text-ink-muted hover:text-ink transition-colors"
+          className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
         >
           Regenerate
         </button>
@@ -192,7 +192,7 @@ export function FollowUpSection({
               className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
                 activeTab === i
                   ? "bg-slate-700 text-white"
-                  : "bg-white border border-slate-200 text-ink-muted hover:border-slate-400"
+                  : "bg-[var(--bg-card)] border border-slate-200 text-[var(--text-tertiary)] hover:border-slate-400"
               }`}
             >
               {e.interviewerName ?? `Email ${i + 1}`}
@@ -205,14 +205,14 @@ export function FollowUpSection({
       {activeEmail && (
         <div className="px-5 py-4 space-y-3">
           {/* Subject line */}
-          <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5">
-            <p className="text-xs font-semibold text-ink-muted mb-0.5">Subject</p>
-            <p className="text-sm font-medium text-ink">{activeEmail.subject}</p>
+          <div className="bg-[var(--bg-card)] border border-slate-200 rounded-xl px-4 py-2.5">
+            <p className="text-xs font-semibold text-[var(--text-tertiary)] mb-0.5">Subject</p>
+            <p className="text-sm font-medium text-[var(--text-primary)]">{activeEmail.subject}</p>
           </div>
 
           {/* Body */}
-          <div className="bg-white border border-slate-200 rounded-xl px-4 py-3">
-            <p className="text-sm text-ink-light leading-relaxed whitespace-pre-wrap">
+          <div className="bg-[var(--bg-card)] border border-slate-200 rounded-xl px-4 py-3">
+            <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">
               {activeEmail.body}
             </p>
           </div>
@@ -228,7 +228,7 @@ export function FollowUpSection({
             </button>
             <button
               onClick={handleOpenInMail}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-ink-muted hover:border-slate-400 hover:text-ink transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-[var(--bg-card)] text-xs font-medium text-[var(--text-tertiary)] hover:border-slate-400 hover:text-[var(--text-primary)] transition-colors"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               Open in Mail

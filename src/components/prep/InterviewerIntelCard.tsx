@@ -12,32 +12,32 @@ function SingleDossier({ dossier }: { dossier: InterviewerDossier }) {
   const [expanded, setExpanded] = useState(true);
 
   return (
-    <div className="border border-[#DBEAFE] rounded-2xl bg-white shadow-sm overflow-hidden">
+    <div className="border border-[#DBEAFE] rounded-2xl bg-[var(--bg-card)] shadow-sm overflow-hidden">
       {/* Header */}
       <button
         type="button"
         onClick={() => setExpanded((o) => !o)}
-        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-[var(--bg-card-elevated)] hover:dark:bg-white/[0.02] transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-primary-50 flex items-center justify-center flex-shrink-0">
-            <User className="w-4 h-4 text-primary-500" />
+          <div className="w-9 h-9 rounded-full bg-[var(--coral-bg)] flex items-center justify-center flex-shrink-0">
+            <User className="w-4 h-4 text-coral" />
           </div>
           <div>
-            <p className="font-semibold text-ink text-sm leading-snug">{dossier.name}</p>
+            <p className="font-semibold text-[var(--text-primary)] text-sm leading-snug">{dossier.name}</p>
             {dossier.roleTitle && (
-              <p className="text-xs text-ink-muted mt-0.5">{dossier.roleTitle}</p>
+              <p className="text-xs text-[var(--text-tertiary)] mt-0.5">{dossier.roleTitle}</p>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-xs font-medium text-primary-500 bg-primary-50 px-2 py-0.5 rounded-full">
+          <span className="text-xs font-medium text-coral bg-[var(--coral-bg)] px-2 py-0.5 rounded-full">
             Interviewer Intel
           </span>
           {expanded ? (
-            <ChevronUp className="w-4 h-4 text-ink-muted" />
+            <ChevronUp className="w-4 h-4 text-[var(--text-tertiary)]" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-ink-muted" />
+            <ChevronDown className="w-4 h-4 text-[var(--text-tertiary)]" />
           )}
         </div>
       </button>
@@ -46,7 +46,7 @@ function SingleDossier({ dossier }: { dossier: InterviewerDossier }) {
         <div className="px-5 pb-5 border-t border-[#EFF6FF] pt-4 space-y-4">
           {/* Background */}
           {dossier.background && (
-            <p className="text-sm text-ink-light leading-relaxed">{dossier.background}</p>
+            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{dossier.background}</p>
           )}
 
           {/* Conversational style */}
@@ -62,15 +62,15 @@ function SingleDossier({ dossier }: { dossier: InterviewerDossier }) {
             {dossier.likelyFocusAreas?.length > 0 && (
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
-                  <Target className="w-3.5 h-3.5 text-primary-500 flex-shrink-0" />
-                  <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide">
+                  <Target className="w-3.5 h-3.5 text-coral flex-shrink-0" />
+                  <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">
                     What they assess
                   </p>
                 </div>
                 <ul className="space-y-1.5">
                   {dossier.likelyFocusAreas.map((area, i) => (
-                    <li key={i} className="text-sm text-ink-light flex items-start gap-2">
-                      <span className="text-primary-400 flex-shrink-0 mt-0.5 font-bold text-xs">{i + 1}.</span>
+                    <li key={i} className="text-sm text-[var(--text-secondary)] flex items-start gap-2">
+                      <span className="text-coral flex-shrink-0 mt-0.5 font-bold text-xs">{i + 1}.</span>
                       <span className="leading-snug">{area}</span>
                     </li>
                   ))}
@@ -83,13 +83,13 @@ function SingleDossier({ dossier }: { dossier: InterviewerDossier }) {
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Lightbulb className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                  <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide">
+                  <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">
                     Things that resonate
                   </p>
                 </div>
                 <ul className="space-y-1.5">
                   {dossier.suggestedTopicsToReference.map((topic, i) => (
-                    <li key={i} className="text-sm text-ink-light flex items-start gap-2">
+                    <li key={i} className="text-sm text-[var(--text-secondary)] flex items-start gap-2">
                       <span className="text-amber-400 flex-shrink-0 mt-0.5">•</span>
                       <span className="leading-snug">{topic}</span>
                     </li>
@@ -103,16 +103,16 @@ function SingleDossier({ dossier }: { dossier: InterviewerDossier }) {
           {dossier.likelyQuestions?.length > 0 && (
             <div>
               <div className="flex items-center gap-1.5 mb-2">
-                <HelpCircle className="w-3.5 h-3.5 text-ink-muted flex-shrink-0" />
-                <p className="text-xs font-semibold text-ink-muted uppercase tracking-wide">
+                <HelpCircle className="w-3.5 h-3.5 text-[var(--text-tertiary)] flex-shrink-0" />
+                <p className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">
                   Questions they&apos;re likely to ask
                 </p>
               </div>
               <div className="space-y-1.5">
                 {dossier.likelyQuestions.map((q, i) => (
-                  <div key={i} className="flex items-start gap-2 bg-gray-50 rounded-lg px-3 py-2">
-                    <MessageSquare className="w-3 h-3 text-ink-muted flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-ink-light leading-snug">{q}</p>
+                  <div key={i} className="flex items-start gap-2 bg-[var(--bg-card-elevated)] dark:bg-white/[0.02] rounded-lg px-3 py-2">
+                    <MessageSquare className="w-3 h-3 text-[var(--text-tertiary)] flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-[var(--text-secondary)] leading-snug">{q}</p>
                   </div>
                 ))}
               </div>
