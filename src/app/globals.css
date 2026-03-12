@@ -404,3 +404,30 @@
   opacity: 0;
   animation: action-reveal 300ms ease-out forwards;
 }
+
+/* ── Utility classes ───────────────────────────────────────────────────── */
+
+/* Scrollbar hiding */
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { scrollbar-width: none; }
+
+/* Selection color */
+::selection {
+  background: rgba(232, 115, 90, 0.15);
+  color: inherit;
+}
+
+/* Smooth scrolling */
+html { scroll-behavior: smooth; }
+
+/* Dark mode font rendering */
+.dark body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: 0.01em;
+}
+
+/* Safe area for mobile notch/home indicator */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+}

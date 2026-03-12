@@ -21,7 +21,7 @@ function TabItem({ icon: Icon, label, href, isAction }: TabItemProps) {
         href={href}
         className="flex flex-col items-center justify-center gap-0.5 min-w-[48px] min-h-[48px]"
       >
-        <div className="w-10 h-10 rounded-full bg-[#FF6B4A] flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full bg-coral flex items-center justify-center">
           <Icon className="w-5 h-5 text-white" />
         </div>
       </Link>
@@ -32,7 +32,7 @@ function TabItem({ icon: Icon, label, href, isAction }: TabItemProps) {
     <Link
       href={href}
       className={`flex flex-col items-center justify-center gap-0.5 min-w-[48px] min-h-[48px] transition-colors ${
-        isActive ? "text-primary-500" : "text-ink-muted"
+        isActive ? "text-coral-dark dark:text-[var(--coral-text)]" : "text-[var(--text-tertiary)]"
       }`}
     >
       <Icon className="w-5 h-5" />
@@ -44,7 +44,7 @@ function TabItem({ icon: Icon, label, href, isAction }: TabItemProps) {
 export function MobileTabBar({ className = "" }: { className?: string }) {
   return (
     <nav
-      className={`fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-100 z-50 pb-[env(safe-area-inset-bottom)] ${className}`}
+      className={`fixed bottom-0 left-0 right-0 bg-[var(--bg-card)]/95 backdrop-blur-sm border-t border-stone-200/40 dark:border-white/5 z-50 pb-[env(safe-area-inset-bottom)] ${className}`}
     >
       <div className="flex items-center justify-around h-14 px-2">
         <TabItem icon={Home} label="Home" href="/dashboard" />

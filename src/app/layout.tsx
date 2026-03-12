@@ -102,18 +102,24 @@ export default async function RootLayout({
   const nonce = headersList.get("x-nonce") ?? "";
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=localStorage.getItem('salesprep-theme');var d=s==='dark'||(!s&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark')}catch(e){}})();`,
+          }}
+        />
         <JsonLd data={softwareApplicationSchema()} />
         <AnalyticsScripts nonce={nonce} />
       </head>
-      <body className={`${dmSerif.variable} ${inter.variable} ${jetbrainsMono.variable} antialiased`}>
+      <body className={`${dmSerif.variable} ${inter.variable} ${jetbrainsMono.variable} bg-[var(--bg-page)] text-[var(--text-primary)] transition-colors duration-300 antialiased`}>
         <GTMNoScript />
         <Suspense fallback={null}>
           <GTMPageViewTracker />
         </Suspense>
         <Navbar />
-        {children}
+        <div className="pt-14">{children}</div>
         <ConsentBanner />
       </body>
     </html>
