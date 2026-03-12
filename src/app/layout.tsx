@@ -9,6 +9,7 @@ import { softwareApplicationSchema } from "@/lib/seo/structured-data";
 import { AnalyticsScripts, GTMNoScript } from "@/components/tracking/AnalyticsScripts";
 import { GTMPageViewTracker } from "@/components/tracking/GTMProvider";
 import { ConsentBanner } from "@/components/tracking/ConsentBanner";
+import { MicrosoftClarity } from "@/components/MicrosoftClarity";
 
 const dmSerif = DM_Serif_Display({
   weight: "400",
@@ -121,6 +122,7 @@ export default async function RootLayout({
         <Navbar />
         <div className="pt-14">{children}</div>
         <ConsentBanner />
+        <MicrosoftClarity />
       </body>
     </html>
   );
