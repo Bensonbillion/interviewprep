@@ -16,11 +16,11 @@ const ADMIN_EMAILS = [
 function buildCsp(nonce: string): string {
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://www.googletagmanager.com https://connect.facebook.net https://snap.licdn.com`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://www.googletagmanager.com https://www.clarity.ms https://connect.facebook.net https://snap.licdn.com`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' blob: data: https://*.supabase.co https://lh3.googleusercontent.com https://www.facebook.com https://px.ads.linkedin.com https://www.googletagmanager.com https://www.google-analytics.com",
+    "img-src 'self' blob: data: https://*.supabase.co https://lh3.googleusercontent.com https://www.facebook.com https://px.ads.linkedin.com https://www.googletagmanager.com https://www.google-analytics.com https://www.clarity.ms https://*.clarity.ms",
     "font-src 'self'",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com https://www.facebook.com https://px.ads.linkedin.com https://vitals.vercel-insights.com",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com https://www.clarity.ms https://*.clarity.ms https://www.facebook.com https://px.ads.linkedin.com https://vitals.vercel-insights.com",
     "frame-src 'self' https://accounts.google.com https://challenges.cloudflare.com https://www.googletagmanager.com",
     "frame-ancestors 'none'",
     "form-action 'self'",
