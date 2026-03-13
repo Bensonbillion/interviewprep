@@ -30,7 +30,7 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://salesprep.ai";
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://interviewprep.roadmapengine.ai";
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
@@ -90,7 +90,7 @@ export const metadata: Metadata = {
     canonical: BASE_URL,
   },
   verification: {
-    google: "GOOGLE_SITE_VERIFICATION_CODE",
+    google: "googlecd26534578caf6f8",
   },
 };
 
