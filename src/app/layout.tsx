@@ -90,7 +90,7 @@ export const metadata: Metadata = {
     canonical: BASE_URL,
   },
   verification: {
-    google: "googlecd26534578caf6f8",
+    google: "osr7_mH_QMa6tOY1cZz0x6zCIvXzahsEYJtFJS-YM8A",
   },
 };
 
