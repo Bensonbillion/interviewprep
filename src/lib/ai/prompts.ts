@@ -801,6 +801,8 @@ BENCHMARK RANGES (calibrate to seniority):
 - Senior BDR/SDR: $70K–$100K OTE
 - AE: $80K–$150K+ OTE — anchor to OTE + upside, not just base
 
+IMPORTANT: If COMPENSATION INTELLIGENCE is provided in the system context (from RepVue data), use those REAL numbers for this specific company instead of the generic benchmarks above. Reference the actual base/OTE/split for the role being interviewed for. If quota attainment data is available, factor it in — if only 40% of reps hit quota, the "OTE" is aspirational, not typical. The deflection script should reference real comp ranges so the candidate sounds informed, not generic.
+
 IMPORTANT: This is a DEFLECTION answer, not a depth answer. NO nested details, NO storytelling, NO proof points. The goal is to give a range without killing the deal, then redirect forward. Keep it SHORT.
 60–80 words max. This is a screening question, not a negotiation.
 
@@ -1038,6 +1040,8 @@ Example structure: "So basically, [Company] is building [X] for [Y customers] �
 
 SECTION 2 — "DEEP RESEARCH" (the remaining fields):
 The full company research brief: product details, competitors, recent news, ICP, sales motion, funding. This is REFERENCE material for studying — formatted for reading, not speaking.
+
+If ORG HEALTH data is provided in the system context (RepVue ratings for culture, product-market fit, future outlook, industry rank), weave these into the brief naturally. Include company size, type (public/private), and industry category. These details help the candidate sound informed — e.g., referencing the company's strong PMF score or industry ranking shows they've done real research beyond the website.
 
 IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
 {
@@ -1283,6 +1287,11 @@ Generate EXACTLY this structure — concise, fits on ONE mobile screen:
    b. GRANDMOTHER-TEST COMPANY DESCRIPTION: One sentence explaining what ${ctx.company.name} does that a non-technical person would understand. Not marketing copy. "They basically [simple verb] for [who] so they can [outcome]."
    c. ONE PREPARED METRIC: The single most impressive number from your resume to drop naturally. Not "I exceeded expectations" — a real number: "127% to quota", "$1.2M pipeline in Q3", "highest connect rate on a team of 12." Pick the one that's most relevant to ${ctx.company.name}.
    d. CLOSING LINE: The exact words above, practiced until they feel natural — not rehearsed.
+
+COMP INTELLIGENCE: If COMPENSATION INTELLIGENCE and QUOTA REALITY data are provided in the system context, incorporate them into the cheat sheet. Specifically:
+- In section 1 (testing), note if quota attainment is low — that's a signal the interviewer may probe on resilience and pipeline generation.
+- In section 4 (mistakes), if comp data shows a high variable split (e.g., 33/67), warn about not asking "what's the base?" as a first question.
+- In the quick talk track, the candidate should know the actual OTE range for their role level so they don't lowball or overreach when comp comes up.
 
 'The questions they ask are more important than their responses to my questions.' — Chili Piper hiring manager. Your questions reveal whether you're a serious candidate or just going through motions.
 

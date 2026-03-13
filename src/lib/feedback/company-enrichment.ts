@@ -86,6 +86,13 @@ export function formatCompanyEnrichmentSection(ctx: CompanyEnrichmentContext): s
 
 // ── Interview Intel (curated Glassdoor / community data) ──────────────────────
 
+export interface CompRoleData {
+  base: number;
+  ote: number;
+  top_performer: number;
+  split: string;
+}
+
 export interface CompanyInterviewIntel {
   companyName: string;
   interviewRounds: number | null;
@@ -97,7 +104,50 @@ export interface CompanyInterviewIntel {
   redFlags: string[];
   tips: string[];
   sdrSatisfactionScore: number | null;
+  // RepVue enrichment
+  repvueOverallRating: number | null;
+  repvueCultureRating: number | null;
+  repvueProductMarketFit: number | null;
+  repvueBaseCompRating: number | null;
+  repvueIncentiveCompRating: number | null;
+  repvueFutureOutlook: number | null;
+  repvueIndustryRank: string | null;
+  repvueIndustryCategory: string | null;
+  compByRole: Record<string, CompRoleData> | null;
+  quotaAttainmentByRole: Record<string, number> | null;
+  industryAvgQuotaAttainment: number | null;
+  companySize: string | null;
+  employeeCountApprox: number | null;
+  companyType: string | null;
+  repvueDataUpdatedAt: string | null;
 }
+
+export const INDUSTRY_BENCHMARKS: Record<string, { base_median: number; ote_median: number; top_performer: number; quota_attainment: number }> = {
+  sdr: {
+    base_median: 60000,
+    ote_median: 85000,
+    top_performer: 129000,
+    quota_attainment: 57,
+  },
+  ae: {
+    base_median: 100000,
+    ote_median: 192800,
+    top_performer: 478000,
+    quota_attainment: 43,
+  },
+  enterprise_ae: {
+    base_median: 135000,
+    ote_median: 270000,
+    top_performer: 600000,
+    quota_attainment: 38,
+  },
+  sales_dev_manager: {
+    base_median: 105000,
+    ote_median: 155000,
+    top_performer: 213000,
+    quota_attainment: 63,
+  },
+};
 
 /**
  * Fetch curated interview intel for a company.
@@ -109,7 +159,7 @@ export async function fetchCompanyInterviewIntel(companyName: string): Promise<C
 
   const { data } = await db
     .from("company_interview_intel")
-    .select("company_name, interview_rounds, avg_days_to_hire, key_test, unique_element, mock_call_format, common_questions, red_flags, tips, sdr_satisfaction_score")
+    .select("company_name, interview_rounds, avg_days_to_hire, key_test, unique_element, mock_call_format, common_questions, red_flags, tips, sdr_satisfaction_score, repvue_overall_rating, repvue_culture_rating, repvue_product_market_fit, repvue_base_comp_rating, repvue_incentive_comp_rating, repvue_future_outlook, repvue_industry_rank, repvue_industry_category, comp_by_role, quota_attainment_by_role, industry_avg_quota_attainment, company_size, employee_count_approx, company_type, repvue_data_updated_at")
     .eq("company_name_normalized", normalized)
     .maybeSingle();
 
@@ -126,6 +176,21 @@ export async function fetchCompanyInterviewIntel(companyName: string): Promise<C
     redFlags: data.red_flags ?? [],
     tips: data.tips ?? [],
     sdrSatisfactionScore: data.sdr_satisfaction_score ? Number(data.sdr_satisfaction_score) : null,
+    repvueOverallRating: data.repvue_overall_rating ? Number(data.repvue_overall_rating) : null,
+    repvueCultureRating: data.repvue_culture_rating ? Number(data.repvue_culture_rating) : null,
+    repvueProductMarketFit: data.repvue_product_market_fit ? Number(data.repvue_product_market_fit) : null,
+    repvueBaseCompRating: data.repvue_base_comp_rating ? Number(data.repvue_base_comp_rating) : null,
+    repvueIncentiveCompRating: data.repvue_incentive_comp_rating ? Number(data.repvue_incentive_comp_rating) : null,
+    repvueFutureOutlook: data.repvue_future_outlook ? Number(data.repvue_future_outlook) : null,
+    repvueIndustryRank: data.repvue_industry_rank ?? null,
+    repvueIndustryCategory: data.repvue_industry_category ?? null,
+    compByRole: (data.comp_by_role && Object.keys(data.comp_by_role).length > 0) ? data.comp_by_role as Record<string, CompRoleData> : null,
+    quotaAttainmentByRole: (data.quota_attainment_by_role && Object.keys(data.quota_attainment_by_role).length > 0) ? data.quota_attainment_by_role as Record<string, number> : null,
+    industryAvgQuotaAttainment: data.industry_avg_quota_attainment ?? null,
+    companySize: data.company_size ?? null,
+    employeeCountApprox: data.employee_count_approx ?? null,
+    companyType: data.company_type ?? null,
+    repvueDataUpdatedAt: data.repvue_data_updated_at ?? null,
   };
 }
 
@@ -165,6 +230,12 @@ Universal patterns across 40 companies:
 - Universal red flags: No product research, passive interview style, inability to simplify the product
 - Emerging trend: AI usage questions are becoming standard`);
 
+  // Industry-wide compensation benchmarks
+  const benchmarkLines = Object.entries(INDUSTRY_BENCHMARKS).map(([role, data]) =>
+    `- ${role.replace(/_/g, " ").toUpperCase()}: Base median $${data.base_median.toLocaleString()}, OTE median $${data.ote_median.toLocaleString()}, Top performers $${data.top_performer.toLocaleString()}, Quota attainment: ${data.quota_attainment}%`
+  );
+  parts.push(`\nINDUSTRY-WIDE COMPENSATION BENCHMARKS (based on RepVue data, March 2026 — company-specific data not available):\n${benchmarkLines.join("\n")}`);
+
   return parts.join("\n");
 }
 
@@ -190,6 +261,15 @@ export function formatInterviewIntelSection(intel: CompanyInterviewIntel): strin
 
   parts.push(`COMPANY-SPECIFIC INTERVIEW INTELLIGENCE — ${intel.companyName}:`);
 
+  // Company profile
+  const profileDetails = [
+    intel.companySize && `Size: ${intel.companySize}`,
+    intel.employeeCountApprox && `~${intel.employeeCountApprox.toLocaleString()} employees`,
+    intel.companyType && `Type: ${intel.companyType}`,
+    intel.repvueIndustryCategory && `Industry: ${intel.repvueIndustryCategory}`,
+  ].filter(Boolean);
+  if (profileDetails.length > 0) parts.push(profileDetails.join(" · "));
+
   if (intel.interviewRounds || intel.avgDaysToHire) {
     const processDetails = [
       intel.interviewRounds && `${intel.interviewRounds} rounds`,
@@ -208,6 +288,33 @@ export function formatInterviewIntelSection(intel: CompanyInterviewIntel): strin
 
   if (intel.mockCallFormat) {
     parts.push(`Mock call format: ${intel.mockCallFormat}`);
+  }
+
+  // RepVue compensation intelligence
+  if (intel.compByRole) {
+    const compLines = Object.entries(intel.compByRole).map(([role, data]) =>
+      `- ${role.replace(/_/g, " ").toUpperCase()}: Base $${data.base.toLocaleString()}, OTE $${data.ote.toLocaleString()}, Top performers $${data.top_performer.toLocaleString()}, Split: ${data.split}`
+    );
+    parts.push(`\nCOMPENSATION INTELLIGENCE:\n${compLines.join("\n")}`);
+  }
+
+  // Quota attainment reality
+  if (intel.quotaAttainmentByRole) {
+    const quotaLines = Object.entries(intel.quotaAttainmentByRole).map(([role, pct]) =>
+      `- ${role.replace(/_/g, " ").toUpperCase()}: ${pct}% of reps hit quota${intel.industryAvgQuotaAttainment ? ` (industry average: ${intel.industryAvgQuotaAttainment}%)` : ""}`
+    );
+    parts.push(`\nQUOTA REALITY:\n${quotaLines.join("\n")}`);
+  }
+
+  // Org health ratings
+  const healthLines = [
+    intel.repvueCultureRating != null && `Culture: ${intel.repvueCultureRating}/5`,
+    intel.repvueProductMarketFit != null && `Product-Market Fit: ${intel.repvueProductMarketFit}/5`,
+    intel.repvueFutureOutlook != null && `Future Outlook: ${intel.repvueFutureOutlook}/5`,
+    intel.repvueIndustryRank && `Industry Rank: ${intel.repvueIndustryRank}`,
+  ].filter(Boolean);
+  if (healthLines.length > 0) {
+    parts.push(`\nORG HEALTH:\n${healthLines.map((l) => `- ${l}`).join("\n")}`);
   }
 
   if (intel.commonQuestions.length > 0) {
