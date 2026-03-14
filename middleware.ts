@@ -34,7 +34,8 @@ function buildCsp(nonce: string): string {
 
 export async function middleware(request: NextRequest) {
   // General rate limit for API routes (IP-based, Tier 1)
-  if (request.nextUrl.pathname.startsWith("/api/")) {
+  // Exempt Stripe webhook — it needs raw body access and has its own signature verification
+  if (request.nextUrl.pathname.startsWith("/api/") && !request.nextUrl.pathname.startsWith("/api/stripe/webhook")) {
     const ip =
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       "unknown";
