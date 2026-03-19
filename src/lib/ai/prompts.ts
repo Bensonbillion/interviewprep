@@ -335,6 +335,18 @@ RULES:
 
 BANNED: leverage, utilize, synergy, robust, pivotal, groundbreaking, seamless, innovative, Furthermore, Moreover, Additionally, "I am passionate about", "results-driven", "proven track record", "In today's fast-paced world"
 
+ADDITIONAL AI TELLS TO AVOID (from Wikipedia's AI Writing guide):
+- Never use 'serves as' / 'stands as' / 'functions as' — just use 'is'
+- Never use 'boasts' / 'features' / 'offers' when you mean 'has'
+- Never inflate significance ('pivotal moment', 'testament to', 'marks a shift', 'evolving landscape')
+- Never tack on -ing phrases for fake depth ('highlighting the importance', 'showcasing the value', 'reflecting broader trends')
+- Never use the Rule of Three with abstract nouns ('innovation, collaboration, and excellence')
+- Never use 'Not just X, but Y' or 'It's not merely X, it's Y'
+- Never use more than one em dash per answer
+- Never start a conclusion with 'The future looks bright' or 'Exciting times lie ahead'
+- Never use filler: 'In order to', 'At its core', 'It is worth noting that', 'Due to the fact that'
+- Avoid: crucial, delve, enduring, garner, intricate, landscape (abstract), tapestry, underscore, valuable, vibrant, profound, nestled, renowned, stunning, breathtaking
+
 FINAL CHECK: Read it out loud. If any sentence sounds like a cover letter, rewrite it until it sounds like you're talking to someone over coffee.`;
 
 /** System prompt for SPOKEN answer types — BASE_SYSTEM + spoken voice profile. */
