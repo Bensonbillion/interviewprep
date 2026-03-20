@@ -23,7 +23,11 @@ import {
 import type { AnswerSlot, AnswerType, PrepSession } from "@/types";
 import { tracker } from "@/lib/feedback/implicit-tracker";
 import { AnswerFeedback } from "@/components/prep/AnswerFeedback";
-import { ContentRouter, FormattedTextContent, renderInlineFormatting } from "@/components/prep/content-renderers";
+import { ContentRouter, renderInlineFormatting } from "@/components/prep/content-renderers";
+import { parseAnswer } from "@/lib/answer-parser";
+import { MarkdownContent } from "@/components/prep/MarkdownContent";
+import { VersionTabs } from "@/components/prep/VersionTabs";
+import { CollapsibleSection } from "@/components/prep/CollapsibleSection";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -106,64 +110,7 @@ function extractSayThis(content: string | undefined): string | undefined {
   } catch { return undefined; }
 }
 
-// ─── Answer Card section parser ────────────────────────────────────────────
-// Splits Answer Card format (## Quick take, ## 30-second version, etc.) into
-// progressive disclosure levels for spoken answer types.
-
-interface AnswerSections {
-  quickTake: string | null;
-  thirtySecond: string | null;
-  fullAnswer: string | null;
-  proofPoints: string[];
-  digDeeper: string | null;
-  makeItYours: string | null;
-}
-
-function parseAnswerSections(content: string): AnswerSections | null {
-  const sections: AnswerSections = {
-    quickTake: null,
-    thirtySecond: null,
-    fullAnswer: null,
-    proofPoints: [],
-    digDeeper: null,
-    makeItYours: null,
-  };
-
-  // Match ## headings and split content
-  const headingPattern = /^##\s+(.+)$/gm;
-  const matches: Array<{ heading: string; start: number }> = [];
-  let m;
-  while ((m = headingPattern.exec(content)) !== null) {
-    matches.push({ heading: m[1].trim().toLowerCase(), start: m.index });
-  }
-
-  if (matches.length < 2) return null; // not Answer Card format
-
-  const getSection = (idx: number): string => {
-    const start = content.indexOf("\n", matches[idx].start) + 1;
-    const end = idx + 1 < matches.length ? matches[idx + 1].start : content.length;
-    return content.slice(start, end).trim();
-  };
-
-  for (let i = 0; i < matches.length; i++) {
-    const h = matches[i].heading;
-    const body = getSection(i);
-    if (h.includes("quick take")) sections.quickTake = body;
-    else if (h.includes("30-second") || h.includes("30 second")) sections.thirtySecond = body;
-    else if (h.includes("full answer")) sections.fullAnswer = body;
-    else if (h.includes("proof point") || h.includes("key proof")) {
-      sections.proofPoints = body
-        .split(/\n/)
-        .map((l) => l.replace(/^[-•→*]\s*/, "").trim())
-        .filter(Boolean);
-    } else if (h.includes("dig deeper") || h.includes("they dig deeper")) sections.digDeeper = body;
-    else if (h.includes("make it yours")) sections.makeItYours = body;
-  }
-
-  // Must have at least quickTake + one more to use progressive disclosure
-  if (!sections.quickTake) return null;
-  return sections;
-}
+// Section parsing moved to src/lib/answer-parser.ts
 
 // ─── Speaking time bar ────────────────────────────────────────────────────
 function SpeakingTimeBar({ words }: { words: number }) {
@@ -1029,8 +976,8 @@ export function AnswerCard({
               <>
                 {/* Progressive disclosure for spoken answer types with Answer Card format */}
                 {SPOKEN_TYPES.has(slot.type) && displayContent && (() => {
-                  const sections = parseAnswerSections(displayContent);
-                  if (!sections) {
+                  const parsed = parseAnswer(displayContent, slot.type);
+                  if (!parsed.isStructured) {
                     // Fallback: no Answer Card structure, render normally
                     return (
                       <>
@@ -1054,95 +1001,93 @@ export function AnswerCard({
 
                   const wordCount = displayContent.trim().split(/\s+/).filter(Boolean).length;
 
+                  // Build tabs for 30-second and full answer versions
+                  const answerTabs = [];
+                  if (parsed.thirtySecond) {
+                    answerTabs.push({
+                      id: "thirty_second",
+                      label: "30-second",
+                      content: <MarkdownContent content={parsed.thirtySecond} isSpoken />,
+                    });
+                  }
+                  if (parsed.fullAnswer) {
+                    answerTabs.push({
+                      id: "full_answer",
+                      label: "Full answer",
+                      content: <MarkdownContent content={parsed.fullAnswer} isSpoken />,
+                    });
+                  }
+
                   return (
                     <div>
-                      {/* LEVEL 1 — Always visible: Quick take + speaking time */}
+                      {/* Category badge + speaking time */}
                       <div className="flex items-center gap-2 mb-3">
-                        {SPOKEN_TYPES.has(slot.type) && (
-                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[var(--blue-bg)] text-[var(--blue-text)] dark:bg-brand-blue/10 dark:text-brand-blue-light">
-                            {slot.type === "behavioral_star" ? "Behavioral" : slot.type === "comp_expectations" ? "Tactical" : "Narrative"}
-                          </span>
-                        )}
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[var(--blue-bg)] text-[var(--blue-text)] dark:bg-brand-blue/10 dark:text-brand-blue-light">
+                          {slot.type === "behavioral_star" ? "Behavioral" : slot.type === "comp_expectations" ? "Tactical" : "Narrative"}
+                        </span>
                         <SpeakingTimeBar words={wordCount} />
                       </div>
-                      <p className="text-[17px] sm:text-[18px] text-[var(--text-secondary)] leading-[1.6] max-w-prose">
-                        {renderInlineFormatting(sections.quickTake ?? "")}
-                      </p>
 
-                      {/* LEVEL 2 — 30-second answer + proof points */}
-                      {(sections.thirtySecond || sections.proofPoints.length > 0) && (
-                        <details
-                          className="group mt-4"
-                          open={isPrimaryForRound}
-                          onToggle={(e) => {
-                            if ((e.target as HTMLDetailsElement).open) {
-                              logEvent("disclosure_expand_30s");
-                            }
-                          }}
-                        >
-                          <summary className="cursor-pointer text-sm font-medium text-coral hover:text-coral-dark dark:text-[var(--coral-text)] dark:hover:text-coral flex items-center gap-1 select-none min-h-[44px] py-2">
-                            See 30s answer
-                            <span className="group-open:rotate-180 transition-transform text-xs">↓</span>
-                          </summary>
-                          <div className="mt-3 pt-3 border-t border-stone-100 dark:border-white/5">
-                            {sections.thirtySecond && (
-                              <div className="max-w-none">
-                                <FormattedTextContent content={sections.thirtySecond} isSpoken />
-                              </div>
-                            )}
-                            {sections.proofPoints.length > 0 && (
-                              <div className="mt-3 space-y-1">
-                                {sections.proofPoints.map((point, pi) => (
-                                  <div key={pi} className="flex gap-2 text-[15px] sm:text-base text-[var(--text-secondary)] leading-relaxed">
-                                    <span className="text-amber-500 flex-shrink-0">→</span>
-                                    <span>{renderInlineFormatting(point)}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* LEVEL 3 — Full answer + follow-ups + make it yours */}
-                            {(sections.fullAnswer || sections.digDeeper || sections.makeItYours) && (
-                              <details
-                                className="group/deep mt-4"
-                                onToggle={(e) => {
-                                  if ((e.target as HTMLDetailsElement).open) {
-                                    logEvent("disclosure_expand_full");
-                                  }
-                                }}
-                              >
-                                <summary className="cursor-pointer text-sm font-medium text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] flex items-center gap-1 select-none min-h-[44px] py-2">
-                                  See full answer + follow-ups
-                                  <span className="group-open/deep:rotate-180 transition-transform text-xs">↓</span>
-                                </summary>
-                                <div className="mt-3 pt-3 border-t border-stone-100 dark:border-white/5 space-y-4">
-                                  {sections.fullAnswer && (
-                                    <div className="max-w-none">
-                                      <FormattedTextContent content={sections.fullAnswer} isSpoken />
-                                    </div>
-                                  )}
-                                  {sections.digDeeper && (
-                                    <div>
-                                      <p className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-2">If they dig deeper</p>
-                                      <FormattedTextContent content={sections.digDeeper} isSpoken />
-                                    </div>
-                                  )}
-                                  {sections.makeItYours && (
-                                    <div className="bg-[var(--coral-bg)] border-l-[3px] border-coral dark:border-[var(--coral)] p-3 rounded-r-lg">
-                                      <p className="text-sm text-[var(--text-secondary)] flex gap-2">
-                                        <span className="flex-shrink-0">💡</span>
-                                        <span><strong className="font-semibold text-[var(--text-primary)]">Make it yours:</strong> {sections.makeItYours}</span>
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-                              </details>
-                            )}
-                          </div>
-                        </details>
+                      {/* Quick Take — always visible callout card */}
+                      {parsed.quickTake && (
+                        <div className="bg-[var(--blue-bg)] dark:bg-brand-blue/5 border border-[var(--blue-border,theme(colors.blue.200))] dark:border-brand-blue/20 rounded-xl p-4 mb-4">
+                          <p className="text-[10px] font-bold text-[var(--blue-text)] dark:text-brand-blue-light uppercase tracking-wider mb-1.5">
+                            Quick Take
+                          </p>
+                          <p className="text-[17px] sm:text-[18px] text-[var(--text-primary)] leading-[1.6]">
+                            {renderInlineFormatting(parsed.quickTake)}
+                          </p>
+                        </div>
                       )}
 
-                      {/* Speaking time stats */}
+                      {/* Tabbed answer versions (30-second / Full answer) */}
+                      {answerTabs.length > 0 && (
+                        <VersionTabs
+                          tabs={answerTabs}
+                          defaultTab={isPrimaryForRound ? "full_answer" : "thirty_second"}
+                          onTabChange={(tabId) => logEvent(`tab_switch_${tabId}`)}
+                        />
+                      )}
+
+                      {/* Supporting material — collapsible accordion */}
+                      {parsed.proofPoints.length > 0 && (
+                        <CollapsibleSection
+                          title="Key proof points"
+                          icon="→"
+                          defaultOpen={isPrimaryForRound}
+                          onToggle={(open) => { if (open) logEvent("expand_proof_points"); }}
+                        >
+                          <div className="space-y-1">
+                            {parsed.proofPoints.map((point, pi) => (
+                              <div key={pi} className="flex gap-2 text-[15px] sm:text-base text-[var(--text-secondary)] leading-relaxed">
+                                <span className="text-amber-500 flex-shrink-0">→</span>
+                                <span>{renderInlineFormatting(point)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </CollapsibleSection>
+                      )}
+
+                      {parsed.digDeeper && (
+                        <CollapsibleSection
+                          title="If they dig deeper"
+                          onToggle={(open) => { if (open) logEvent("expand_dig_deeper"); }}
+                        >
+                          <MarkdownContent content={parsed.digDeeper} isSpoken />
+                        </CollapsibleSection>
+                      )}
+
+                      {/* Coaching callout — visually distinct */}
+                      {parsed.makeItYours && (
+                        <div className="bg-[var(--coral-bg)] border-l-[3px] border-coral dark:border-[var(--coral)] p-3 rounded-r-lg mt-3">
+                          <p className="text-sm text-[var(--text-secondary)] flex gap-2">
+                            <span className="flex-shrink-0">💡</span>
+                            <span><strong className="font-semibold text-[var(--text-primary)]">Make it yours:</strong> {parsed.makeItYours}</span>
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Word count + speaking time with color-coded status */}
                       {(() => {
                         const st = getSpeakingTime(displayContent);
                         if (!st) return null;
