@@ -111,17 +111,33 @@ export default function ReportPage() {
   const [outcome, setOutcome] = useState("pending");
   const [notes, setNotes] = useState("");
 
-  // Load session from sessionStorage
+  // Load session from sessionStorage, fall back to API
   useEffect(() => {
     const raw = sessionStorage.getItem(`session-${sessionId}`);
-    if (!raw) return;
-    try {
-      const s = JSON.parse(raw) as PrepSession;
-      setSession(s);
-      setStage(s.stage);
-    } catch {
-      // no session — user can still fill manually
+    if (raw) {
+      try {
+        const s = JSON.parse(raw) as PrepSession;
+        setSession(s);
+        setStage(s.stage);
+        return;
+      } catch {
+        // fall through to API
+      }
     }
+    // Fallback: load from Supabase
+    fetch(`/api/session/${sessionId}`)
+      .then((res) => {
+        if (!res.ok) return;
+        return res.json();
+      })
+      .then((data) => {
+        if (!data?.session) return;
+        const s = data.session as PrepSession;
+        setSession(s);
+        setStage(s.stage);
+        sessionStorage.setItem(`session-${sessionId}`, JSON.stringify(s));
+      })
+      .catch(() => {/* user can still fill manually */});
   }, [sessionId]);
 
   // Pre-populate suggested questions from prep kit answer types

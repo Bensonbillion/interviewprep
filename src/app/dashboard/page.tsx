@@ -198,8 +198,30 @@ export default function DashboardPage() {
         return;
       }
       setUser(user);
-      setSessionGroups(groupByCompany(getSessionList()));
+
+      // Show localStorage data immediately, then merge API results
+      const localSessions = getSessionList();
+      setSessionGroups(groupByCompany(localSessions));
       setLoading(false);
+
+      // Fetch sessions from Supabase and merge with localStorage
+      fetch("/api/sessions")
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.sessions?.length) {
+            const apiSessions = json.sessions as SessionSummary[];
+            // Merge: API sessions take precedence, keep any local-only sessions
+            const apiIds = new Set(apiSessions.map((s: SessionSummary) => s.id));
+            const localOnly = localSessions.filter((s) => !apiIds.has(s.id));
+            const merged = [...apiSessions, ...localOnly]
+              .sort((a, b) => b.createdAt - a.createdAt)
+              .slice(0, 50);
+            // Sync merged list back to localStorage for sidebar
+            localStorage.setItem("sp_session_list", JSON.stringify(merged));
+            setSessionGroups(groupByCompany(merged));
+          }
+        })
+        .catch(() => {/* localStorage data already shown */});
 
       // Fetch pending outcome reports
       fetch("/api/report/outcome")

@@ -131,6 +131,9 @@ export type Database = {
           role_type: Database["public"]["Enums"]["role_type"];
           stage: Database["public"]["Enums"]["interview_stage"];
           relevance_map: Json;
+          session_data: Json | null;
+          company_name: string | null;
+          interview_date: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -144,6 +147,9 @@ export type Database = {
           role_type?: Database["public"]["Enums"]["role_type"];
           stage: Database["public"]["Enums"]["interview_stage"];
           relevance_map?: Json;
+          session_data?: Json | null;
+          company_name?: string | null;
+          interview_date?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -156,6 +162,9 @@ export type Database = {
           role_type?: Database["public"]["Enums"]["role_type"];
           stage?: Database["public"]["Enums"]["interview_stage"];
           relevance_map?: Json;
+          session_data?: Json | null;
+          company_name?: string | null;
+          interview_date?: string | null;
           updated_at?: string;
         };
       };
@@ -319,7 +328,7 @@ export type Database = {
     };
     Enums: {
       role_type: "sdr_bdr" | "account_executive" | "account_manager_csm" | "other_sales";
-      interview_stage: "recruiter" | "hiring_manager" | "role_play" | "panel";
+      interview_stage: "recruiter" | "hiring_manager" | "role_play" | "panel" | "take_home";
       background_type: "career_switcher" | "experienced_sales" | "new_grad" | "other";
       answer_type:
         | "tell_me_about_yourself"

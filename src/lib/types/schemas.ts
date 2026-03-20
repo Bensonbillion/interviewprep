@@ -7,6 +7,7 @@ export const InterviewStageSchema = z.enum([
   "hiring_manager",
   "role_play",
   "panel",
+  "take_home",
 ]);
 
 export const RoleTypeSchema = z.enum([

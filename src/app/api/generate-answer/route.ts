@@ -12,6 +12,7 @@ import { shouldHumanize } from "@/lib/ai/humanize-answer";
 import { styleLint } from "@/lib/ai/style-lint";
 import type { AnswerType, PrepSession } from "@/types";
 import { auditLog } from "@/lib/security/audit";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Answer types that use Haiku (lighter/cheaper tasks)
 const HAIKU_ANSWER_TYPES: AnswerType[] = [
@@ -212,6 +213,31 @@ export async function POST(req: NextRequest) {
         wasRegenerated,
       },
     });
+
+    // Persist generated answer to Supabase (fire-and-forget)
+    if (sessionId !== "anon") {
+      const db = createAdminClient();
+      db.from("generated_answers")
+        .upsert(
+          {
+            id: answerId,
+            session_id: sessionId,
+            user_id: auth.userId,
+            answer_type: answerType,
+            content: finalContent,
+            metadata: {
+              model,
+              wasRegenerated,
+              qualityIssues: qc.criticalCount + qc.warningCount,
+            },
+            status: "completed",
+          },
+          { onConflict: "id" }
+        )
+        .then(({ error: dbErr }) => {
+          if (dbErr) console.error("[generate-answer] DB upsert error:", dbErr);
+        });
+    }
 
     return NextResponse.json({
       answerId,

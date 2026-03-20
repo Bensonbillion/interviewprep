@@ -211,6 +211,17 @@ export function GenerationScreen({
         createdAt: session.createdAt,
         interviewDate: interviewDate ?? undefined,
       });
+      // Persist full session to Supabase (must complete before navigation)
+      await fetch("/api/session/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          sessionData: session,
+          companyName,
+          interviewDate: interviewDate ?? undefined,
+        }),
+      }).catch(() => {/* best-effort — sessionStorage is the fallback */});
       // Deduct 1 credit in Supabase (best-effort — don't block if it fails)
       await fetch("/api/user/spend-credit", {
         method: "POST",

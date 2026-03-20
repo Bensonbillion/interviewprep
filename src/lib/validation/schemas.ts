@@ -181,6 +181,15 @@ export const outcomeUpdateSchema = z.object({
   nextStage: z.string().max(100).optional(),
 });
 
+// ─── Session persistence schemas ─────────────────────────────────────────────
+
+export const sessionSaveSchema = z.object({
+  sessionId: z.string().uuid(),
+  sessionData: z.object({}).passthrough(), // Full PrepSession blob
+  companyName: safeString(200).optional(),
+  interviewDate: z.string().max(30).optional(), // ISO date string
+});
+
 // ─── Generation schemas ──────────────────────────────────────────────────────
 
 export const regenerateAnswerSchema = z.object({
