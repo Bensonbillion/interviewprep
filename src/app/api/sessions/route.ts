@@ -26,7 +26,7 @@ export async function GET() {
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("prep_sessions")
-      .select("id, company_name, target_role, role_type, stage, created_at, interview_date")
+      .select("id, session_data, target_role, role_type, stage, created_at")
       .eq("user_id", auth.userId)
       .order("created_at", { ascending: false })
       .limit(50);
@@ -36,16 +36,20 @@ export async function GET() {
       return NextResponse.json({ error: "Failed to load sessions" }, { status: 500 });
     }
 
-    // Map DB columns to SessionSummary shape expected by the client
-    const sessions = (data ?? []).map((row) => ({
-      id: row.id,
-      companyName: row.company_name ?? "",
-      targetRole: row.target_role,
-      roleType: row.role_type,
-      stage: row.stage,
-      createdAt: new Date(row.created_at).getTime(),
-      interviewDate: row.interview_date ?? undefined,
-    }));
+    // Extract fields from session_data JSONB (company_name and interview_date
+    // are not standalone columns — they live inside the session_data blob)
+    const sessions = (data ?? []).map((row) => {
+      const sd = row.session_data as Record<string, unknown> | null;
+      return {
+        id: row.id,
+        companyName: (sd?.companyName as string) ?? "",
+        targetRole: (sd?.targetRole as string) ?? row.target_role,
+        roleType: (sd?.roleType as string) ?? row.role_type,
+        stage: (sd?.stage as string) ?? row.stage,
+        createdAt: new Date(row.created_at).getTime(),
+        interviewDate: (sd?.interviewDate as string) ?? undefined,
+      };
+    });
 
     return NextResponse.json({ sessions });
   } catch (err) {

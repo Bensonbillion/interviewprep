@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
     const { sessionId, sessionData, companyName, interviewDate } = validation.data;
 
     const supabase = createAdminClient();
+    const sd = sessionData as Record<string, unknown>;
     const { error } = await supabase
       .from("prep_sessions")
       .upsert(
@@ -43,13 +44,11 @@ export async function POST(req: NextRequest) {
           id: sessionId,
           user_id: auth.userId,
           session_data: sessionData,
-          company_name: companyName ?? (sessionData as Record<string, unknown>).companyName ?? null,
-          interview_date: interviewDate ?? null,
-          job_description: (sessionData as Record<string, unknown>).jobDescription ?? "",
-          target_role: (sessionData as Record<string, unknown>).targetRole ?? "",
-          role_type: (sessionData as Record<string, unknown>).roleType ?? "sdr_bdr",
-          stage: (sessionData as Record<string, unknown>).stage ?? "recruiter",
-          relevance_map: (sessionData as Record<string, unknown>).relevanceMap ?? {},
+          job_description: (sd.jobDescription as string) ?? "",
+          target_role: (sd.targetRole as string) ?? "",
+          role_type: (sd.roleType as string) ?? "sdr_bdr",
+          stage: (sd.stage as string) ?? "recruiter",
+          relevance_map: sd.relevanceMap ?? {},
           updated_at: new Date().toISOString(),
         },
         { onConflict: "id" }

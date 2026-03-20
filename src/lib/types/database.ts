@@ -132,8 +132,6 @@ export type Database = {
           stage: Database["public"]["Enums"]["interview_stage"];
           relevance_map: Json;
           session_data: Json | null;
-          company_name: string | null;
-          interview_date: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -148,8 +146,6 @@ export type Database = {
           stage: Database["public"]["Enums"]["interview_stage"];
           relevance_map?: Json;
           session_data?: Json | null;
-          company_name?: string | null;
-          interview_date?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -163,8 +159,6 @@ export type Database = {
           stage?: Database["public"]["Enums"]["interview_stage"];
           relevance_map?: Json;
           session_data?: Json | null;
-          company_name?: string | null;
-          interview_date?: string | null;
           updated_at?: string;
         };
       };

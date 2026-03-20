@@ -14,11 +14,10 @@ BEGIN
 END
 $$;
 
--- 2. Add session_data, company_name, interview_date columns to prep_sessions
+-- 2. Add session_data JSONB column to prep_sessions
+-- (company_name and interview_date live inside session_data, not as standalone columns)
 ALTER TABLE prep_sessions
-  ADD COLUMN IF NOT EXISTS session_data jsonb,
-  ADD COLUMN IF NOT EXISTS company_name text,
-  ADD COLUMN IF NOT EXISTS interview_date date;
+  ADD COLUMN IF NOT EXISTS session_data jsonb;
 
 -- 3. Index for dashboard queries: newest sessions per user
 CREATE INDEX IF NOT EXISTS idx_prep_sessions_user_created
