@@ -356,13 +356,14 @@ function AddInterviewerSection({
 // ─── Main client component ───────────────────────────────────────────────────
 
 interface PrepSessionViewProps {
-  initialSession: PrepSession;
+  initialSession: PrepSession | null;
   sessionId: string;
 }
 
 export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewProps) {
-  const [session, setSession] = useState<PrepSession>(initialSession);
-  const [slots, setSlots] = useState<AnswerSlot[]>(initialSession.answerSlots);
+  const [session, setSession] = useState<PrepSession | null>(initialSession);
+  const [slots, setSlots] = useState<AnswerSlot[]>(initialSession?.answerSlots ?? []);
+  const [notFound, setNotFound] = useState(false);
   const [showRoundModal, setShowRoundModal] = useState(false);
   const [modalInitialRound, setModalInitialRound] = useState<string | undefined>(undefined);
   const [completedStages, setCompletedStages] = useState<Record<string, string>>({});
@@ -375,21 +376,39 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
   const entryTimestampsRef = useRef<Record<string, number>>({});
   const { balance: creditBalance, loading: creditsLoading, refresh: refreshCredits } = useCredits();
 
-  // ─── Hydrate sessionStorage as write-through cache ──────────────────────────
+  // ─── Fallback: load from sessionStorage if server had no data ───────────────
   useEffect(() => {
-    sessionStorage.setItem(`session-${sessionId}`, JSON.stringify(initialSession));
+    if (initialSession) {
+      // Server provided data — hydrate sessionStorage as cache
+      sessionStorage.setItem(`session-${sessionId}`, JSON.stringify(initialSession));
+      return;
+    }
+    // No server data — try sessionStorage (pre-migration sessions)
+    const raw = sessionStorage.getItem(`session-${sessionId}`);
+    if (raw) {
+      try {
+        const s = JSON.parse(raw) as PrepSession;
+        setSession(s);
+        setSlots(s.answerSlots);
+        return;
+      } catch {
+        // invalid data
+      }
+    }
+    setNotFound(true);
   }, [sessionId, initialSession]);
 
   // ─── Init implicit tracker ──────────────────────────────────────────────────
   useEffect(() => {
+    if (!session) return;
     tracker.init(sessionId);
     return () => tracker.dispose();
-  }, [sessionId]);
+  }, [session, sessionId]);
 
   // ─── Sync slots → sessionStorage + debounced Supabase save ──────────────────
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
-    if (slots.length === 0) return;
+    if (!session || slots.length === 0) return;
     const updated = { ...session, answerSlots: slots };
     sessionStorage.setItem(`session-${sessionId}`, JSON.stringify(updated));
 
@@ -413,6 +432,7 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
 
   // ─── Compute completed stages for this company ────────────────────────────────
   useEffect(() => {
+    if (!session) return;
     const list = getSessionList();
     const sameCompany = list.filter((s) => s.companyName === session.companyName);
     const stages: Record<string, string> = {};
@@ -490,12 +510,13 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
   );
 
   useEffect(() => {
-    const loading = initialSession.answerSlots.filter((s) => s.status === "loading");
+    if (!session) return;
+    const loadingSlots = session.answerSlots.filter((s) => s.status === "loading");
     // Stagger 400ms apart to avoid simultaneous cold-starts on serverless
-    loading.forEach((s, i) => {
-      setTimeout(() => generateSlot(s.type, initialSession), i * 400);
+    loadingSlots.forEach((s, i) => {
+      setTimeout(() => generateSlot(s.type, session), i * 400);
     });
-  }, [initialSession, generateSlot]);
+  }, [session, generateSlot]);
 
   // ─── Mark an answer as reviewed ──────────────────────────────────────────────
   const handleMarkReviewed = useCallback((type: AnswerType) => {
@@ -595,6 +616,7 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
   const handleDossiersAdded = useCallback(
     (dossiers: InterviewerDossier[]) => {
       setExtraDossiers(dossiers);
+      if (!session) return;
       // Persist dossiers into the session in sessionStorage so they survive reloads
       const updated = {
         ...session,
@@ -614,6 +636,7 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
 
   // ─── Copy all unlocked answers ────────────────────────────────────────────────
   const handleCopyAll = useCallback(async () => {
+    if (!session) return;
     const stLabel = getStageLabel(session.stage, session.roleType);
     const unlockedSlots = slots.filter((s) => s.status === "unlocked" && s.content);
     const text =
@@ -659,6 +682,26 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, [allReady, triggerConfidenceCheck]);
+
+  // ─── Not found / loading states ───────────────────────────────────────────────
+  if (notFound) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center gap-4">
+        <p className="text-[var(--text-tertiary)]">Session not found.</p>
+        <Link href="/dashboard" className="text-sm font-medium text-coral hover:text-coral-dark dark:text-[var(--coral-text)]">
+          Back to dashboard
+        </Link>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="w-7 h-7 animate-spin text-coral" />
+      </div>
+    );
+  }
 
   // ─── Derived values ─────────────────────────────────────────────────────────
   const stageLabel = getStageLabel(session.stage, session.roleType);
