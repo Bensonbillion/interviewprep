@@ -26,8 +26,8 @@ import { AnswerFeedback } from "@/components/prep/AnswerFeedback";
 import { ContentRouter, renderInlineFormatting } from "@/components/prep/content-renderers";
 import { parseAnswer } from "@/lib/answer-parser";
 import { MarkdownContent } from "@/components/prep/MarkdownContent";
-import { VersionTabs } from "@/components/prep/VersionTabs";
 import { CollapsibleSection } from "@/components/prep/CollapsibleSection";
+import { SupportingMaterial } from "@/components/prep/SupportingMaterial";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -974,11 +974,14 @@ export function AnswerCard({
               </div>
             ) : (
               <>
-                {/* Progressive disclosure for spoken answer types with Answer Card format */}
+                {/* ═══ Two-tier progressive card for spoken answer types ═══
+                     Tier 1: Summary (always visible) + Answer zone (pre-expanded short, expandable full)
+                     Tier 2: Supporting material (segmented pills in recessed zone)
+                     Max 2 disclosure levels per NNGroup research. ═══ */}
                 {SPOKEN_TYPES.has(slot.type) && displayContent && (() => {
                   const parsed = parseAnswer(displayContent, slot.type);
                   if (!parsed.isStructured) {
-                    // Fallback: no Answer Card structure, render normally
+                    // Fallback: no Answer Card structure, render with prose
                     return (
                       <>
                         <ContentRouter content={displayContent} answerType={slot.type} stage={session.stage} />
@@ -990,7 +993,7 @@ export function AnswerCard({
                           const colorClass = status ? WORD_STATUS_CLASSES[status.color] : "text-[var(--text-tertiary)]";
                           return (
                             <p className={`text-xs mt-3 tabular-nums ${colorClass}`}>
-                              {st.words} words · {st.display} spoken · aim for 140–160 wpm
+                              {st.words} words · {st.display} spoken
                               {status?.flag && <span> · {status.flag}</span>}
                             </p>
                           );
@@ -1001,20 +1004,46 @@ export function AnswerCard({
 
                   const wordCount = displayContent.trim().split(/\s+/).filter(Boolean).length;
 
-                  // Build tabs for 30-second and full answer versions
-                  const answerTabs = [];
-                  if (parsed.thirtySecond) {
-                    answerTabs.push({
-                      id: "thirty_second",
-                      label: "30-second",
-                      content: <MarkdownContent content={parsed.thirtySecond} isSpoken />,
+                  // Build supporting material pills for Tier 2
+                  const supportingTabs = [];
+                  if (parsed.proofPoints.length > 0) {
+                    supportingTabs.push({
+                      id: "proof_points",
+                      label: "Proof Points",
+                      icon: "📊",
+                      accentClass: "bg-green-50 dark:bg-green-900/10 border border-green-200/60 dark:border-green-800/30",
+                      content: (
+                        <div className="space-y-1.5">
+                          {parsed.proofPoints.map((point, pi) => (
+                            <div key={pi} className="flex gap-2 text-[14px] text-[var(--text-secondary)] leading-relaxed">
+                              <span className="text-green-500 flex-shrink-0 mt-0.5">→</span>
+                              <span>{renderInlineFormatting(point)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ),
                     });
                   }
-                  if (parsed.fullAnswer) {
-                    answerTabs.push({
-                      id: "full_answer",
-                      label: "Full answer",
-                      content: <MarkdownContent content={parsed.fullAnswer} isSpoken />,
+                  if (parsed.digDeeper) {
+                    supportingTabs.push({
+                      id: "dig_deeper",
+                      label: "Follow-up Q&A",
+                      icon: "💬",
+                      accentClass: "bg-stone-50 dark:bg-white/[0.03] border border-stone-200/60 dark:border-white/10",
+                      content: <MarkdownContent content={parsed.digDeeper} className="prose-p:text-[14px] prose-li:text-[14px]" />,
+                    });
+                  }
+                  if (parsed.makeItYours) {
+                    supportingTabs.push({
+                      id: "coaching",
+                      label: "Coaching",
+                      icon: "💡",
+                      accentClass: "bg-amber-50 dark:bg-amber-900/10 border border-amber-200/60 dark:border-amber-800/30",
+                      content: (
+                        <p className="text-[14px] text-[var(--text-secondary)] leading-relaxed">
+                          {renderInlineFormatting(parsed.makeItYours)}
+                        </p>
+                      ),
                     });
                   }
 
@@ -1028,66 +1057,35 @@ export function AnswerCard({
                         <SpeakingTimeBar words={wordCount} />
                       </div>
 
-                      {/* Quick Take — always visible callout card */}
+                      {/* ── TIER 1: Primary content ──────────────────────────── */}
+
+                      {/* Summary block — always visible, blue-tinted, ≤50 words */}
                       {parsed.quickTake && (
-                        <div className="bg-[var(--blue-bg)] dark:bg-brand-blue/5 border border-[var(--blue-border,theme(colors.blue.200))] dark:border-brand-blue/20 rounded-xl p-4 mb-4">
-                          <p className="text-[10px] font-bold text-[var(--blue-text)] dark:text-brand-blue-light uppercase tracking-wider mb-1.5">
-                            Quick Take
-                          </p>
-                          <p className="text-[17px] sm:text-[18px] text-[var(--text-primary)] leading-[1.6]">
+                        <div className="bg-blue-50/80 dark:bg-brand-blue/5 border-l-[3px] border-blue-400 dark:border-brand-blue/40 rounded-r-lg px-4 py-3 mb-4">
+                          <p className="text-[17px] sm:text-[18px] text-[var(--text-primary)] leading-[1.55] font-medium">
                             {renderInlineFormatting(parsed.quickTake)}
                           </p>
                         </div>
                       )}
 
-                      {/* Tabbed answer versions (30-second / Full answer) */}
-                      {answerTabs.length > 0 && (
-                        <VersionTabs
-                          tabs={answerTabs}
-                          defaultTab={isPrimaryForRound ? "full_answer" : "thirty_second"}
-                          onTabChange={(tabId) => logEvent(`tab_switch_${tabId}`)}
-                        />
-                      )}
-
-                      {/* Supporting material — collapsible accordion */}
-                      {parsed.proofPoints.length > 0 && (
-                        <CollapsibleSection
-                          title="Key proof points"
-                          icon="→"
-                          defaultOpen={isPrimaryForRound}
-                          onToggle={(open) => { if (open) logEvent("expand_proof_points"); }}
-                        >
-                          <div className="space-y-1">
-                            {parsed.proofPoints.map((point, pi) => (
-                              <div key={pi} className="flex gap-2 text-[15px] sm:text-base text-[var(--text-secondary)] leading-relaxed">
-                                <span className="text-amber-500 flex-shrink-0">→</span>
-                                <span>{renderInlineFormatting(point)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </CollapsibleSection>
-                      )}
-
-                      {parsed.digDeeper && (
-                        <CollapsibleSection
-                          title="If they dig deeper"
-                          onToggle={(open) => { if (open) logEvent("expand_dig_deeper"); }}
-                        >
-                          <MarkdownContent content={parsed.digDeeper} isSpoken />
-                        </CollapsibleSection>
-                      )}
-
-                      {/* Coaching callout — visually distinct */}
-                      {parsed.makeItYours && (
-                        <div className="bg-[var(--coral-bg)] border-l-[3px] border-coral dark:border-[var(--coral)] p-3 rounded-r-lg mt-3">
-                          <p className="text-sm text-[var(--text-secondary)] flex gap-2">
-                            <span className="flex-shrink-0">💡</span>
-                            <span><strong className="font-semibold text-[var(--text-primary)]">Make it yours:</strong> {parsed.makeItYours}</span>
-                          </p>
+                      {/* Answer zone — short answer pre-expanded, full answer inline toggle */}
+                      {parsed.thirtySecond && (
+                        <div className="mb-1">
+                          <MarkdownContent content={parsed.thirtySecond} />
                         </div>
                       )}
 
-                      {/* Word count + speaking time with color-coded status */}
+                      {parsed.fullAnswer && (
+                        <CollapsibleSection
+                          title={parsed.thirtySecond ? "Show full version" : "Show answer"}
+                          defaultOpen={isPrimaryForRound && !!parsed.thirtySecond}
+                          onToggle={(open) => { if (open) logEvent("expand_full_answer"); }}
+                        >
+                          <MarkdownContent content={parsed.fullAnswer} />
+                        </CollapsibleSection>
+                      )}
+
+                      {/* Word count + speaking time */}
                       {(() => {
                         const st = getSpeakingTime(displayContent);
                         if (!st) return null;
@@ -1101,6 +1099,14 @@ export function AnswerCard({
                           </p>
                         );
                       })()}
+
+                      {/* ── TIER 2: Supporting material (recessed zone) ──────── */}
+                      {supportingTabs.length > 0 && (
+                        <SupportingMaterial
+                          tabs={supportingTabs}
+                          onTabChange={(tabId) => logEvent(`supporting_${tabId}`)}
+                        />
+                      )}
                     </div>
                   );
                 })()}

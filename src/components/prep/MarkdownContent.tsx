@@ -1,127 +1,36 @@
 "use client";
 
-import { renderInlineFormatting } from "@/components/prep/content-renderers";
+import ReactMarkdown from "react-markdown";
 
 interface MarkdownContentProps {
   content: string;
-  isSpoken?: boolean;
   className?: string;
 }
 
 /**
- * Renders markdown-formatted text with proper typography.
+ * Renders markdown-formatted AI content with Tailwind Typography.
  *
- * Handles: ## and ### headings, **bold**, *italic*, bullet lists,
- * numbered lists, blockquotes (>), horizontal rules (---), paragraphs.
- *
- * Used by the progressive disclosure rendering in AnswerCard for
- * spoken answer sections (30-second, full answer, dig deeper).
+ * Uses react-markdown + @tailwindcss/typography's `prose` class
+ * to convert raw markdown (##, **, -, etc.) into properly styled HTML.
+ * Eliminates visible markdown syntax instantly.
  */
-export function MarkdownContent({ content, isSpoken, className }: MarkdownContentProps) {
-  const blocks = content.split(/\n\n+/).filter((b) => b.trim());
-
+export function MarkdownContent({ content, className }: MarkdownContentProps) {
   return (
-    <div className={`space-y-3 max-w-prose ${className ?? ""}`}>
-      {blocks.map((block, i) => {
-        const trimmed = block.trim();
-
-        // Headings
-        if (trimmed.startsWith("### ")) {
-          return (
-            <h4 key={i} className="text-sm font-semibold text-[var(--text-primary)] mt-2 first:mt-0">
-              {renderInlineFormatting(trimmed.slice(4))}
-            </h4>
-          );
-        }
-        if (trimmed.startsWith("## ")) {
-          return (
-            <h3 key={i} className="text-base font-semibold text-[var(--text-primary)] mt-3 first:mt-0">
-              {renderInlineFormatting(trimmed.slice(3))}
-            </h3>
-          );
-        }
-
-        // Horizontal rule
-        if (trimmed === "---" || trimmed === "***") {
-          return <hr key={i} className="border-stone-200 dark:border-white/10 my-2" />;
-        }
-
-        // Blockquote
-        const lines = trimmed.split("\n");
-        if (lines.every((l) => l.startsWith("> ") || l === ">")) {
-          const quoteLines = lines.map((l) => l.replace(/^>\s?/, ""));
-          return (
-            <blockquote
-              key={i}
-              className="border-l-[3px] border-stone-300 dark:border-white/20 pl-3 text-[var(--text-secondary)] italic text-[15px] sm:text-base leading-relaxed"
-            >
-              {quoteLines.map((line, j) => (
-                <span key={j}>
-                  {j > 0 && <br />}
-                  {renderInlineFormatting(line)}
-                </span>
-              ))}
-            </blockquote>
-          );
-        }
-
-        // Bullet list
-        const isBulletList = lines.every((l) => /^\s*[-•*]\s/.test(l));
-        if (isBulletList) {
-          return (
-            <ul key={i} className="space-y-1.5">
-              {lines.map((line, j) => {
-                const text = line.trim().replace(/^[-•*]\s+/, "");
-                return (
-                  <li key={j} className="flex gap-2 text-[15px] sm:text-base text-[var(--text-secondary)] leading-relaxed">
-                    <span className="text-[var(--text-tertiary)] mt-0.5 flex-shrink-0">•</span>
-                    <span>{renderInlineFormatting(text)}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          );
-        }
-
-        // Numbered list
-        const isNumberedList = lines.every((l) => /^\s*\d+[\.\)]\s/.test(l));
-        if (isNumberedList) {
-          return (
-            <ol key={i} className="space-y-1.5">
-              {lines.map((line, j) => {
-                const text = line.trim().replace(/^\d+[\.\)]\s+/, "");
-                return (
-                  <li key={j} className="flex gap-2 text-[15px] sm:text-base text-[var(--text-secondary)] leading-relaxed">
-                    <span className="text-[var(--text-tertiary)] mt-0.5 flex-shrink-0 tabular-nums text-xs font-medium w-4 text-right">
-                      {j + 1}.
-                    </span>
-                    <span>{renderInlineFormatting(text)}</span>
-                  </li>
-                );
-              })}
-            </ol>
-          );
-        }
-
-        // Paragraph
-        return (
-          <p
-            key={i}
-            className={`text-[15px] sm:text-base leading-relaxed ${
-              i === 0 && isSpoken
-                ? "text-[var(--text-primary)] font-medium"
-                : "text-[var(--text-secondary)]"
-            }`}
-          >
-            {lines.map((line, j) => (
-              <span key={j}>
-                {j > 0 && <br />}
-                {renderInlineFormatting(line)}
-              </span>
-            ))}
-          </p>
-        );
-      })}
+    <div
+      className={`prose prose-sm prose-stone dark:prose-invert max-w-none
+        prose-headings:text-[var(--text-primary)] prose-headings:font-semibold
+        prose-h2:text-base prose-h2:mt-4 prose-h2:mb-2
+        prose-h3:text-sm prose-h3:mt-3 prose-h3:mb-1.5
+        prose-p:text-[15px] prose-p:leading-relaxed prose-p:text-[var(--text-secondary)] prose-p:my-2
+        prose-li:text-[15px] prose-li:text-[var(--text-secondary)] prose-li:my-0.5
+        prose-strong:text-[var(--text-primary)] prose-strong:font-semibold
+        prose-em:text-[var(--text-secondary)]
+        prose-hr:border-stone-200 dark:prose-hr:border-white/10 prose-hr:my-3
+        prose-blockquote:border-stone-300 dark:prose-blockquote:border-white/20
+        prose-blockquote:text-[var(--text-secondary)] prose-blockquote:not-italic
+        ${className ?? ""}`}
+    >
+      <ReactMarkdown>{content}</ReactMarkdown>
     </div>
   );
 }
