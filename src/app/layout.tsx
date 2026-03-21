@@ -12,6 +12,7 @@ import { ConsentBanner } from "@/components/tracking/ConsentBanner";
 import { MicrosoftClarity } from "@/components/MicrosoftClarity";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const dmSerif = DM_Serif_Display({
   weight: "400",
@@ -127,6 +128,7 @@ export default async function RootLayout({
         <GoogleAnalytics />
         <MicrosoftClarity />
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
