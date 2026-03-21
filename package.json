@@ -46,7 +46,7 @@
     "next-mdx-remote": "^6.0.0",
     "openai": "^6.25.0",
     "radix-ui": "^1.4.3",
-    "react": "19.2.3",
+    "react": "19.2.4",
     "react-dom": "19.2.3",
     "react-markdown": "^10.1.0",
     "rehype-autolink-headings": "^7.1.0",
