@@ -24,11 +24,11 @@ import {
 import type { AnswerSlot, AnswerType, PrepSession } from "@/types";
 import { tracker } from "@/lib/feedback/implicit-tracker";
 import { AnswerFeedback } from "@/components/prep/AnswerFeedback";
-import { ContentRouter, renderInlineFormatting } from "@/components/prep/content-renderers";
-import { parseAnswer } from "@/lib/answer-parser";
-import { MarkdownContent } from "@/components/prep/MarkdownContent";
-import { CollapsibleSection } from "@/components/prep/CollapsibleSection";
-import { SupportingMaterial } from "@/components/prep/SupportingMaterial";
+import { ContentRouter } from "@/components/prep/content-renderers";
+import { parseAnswer, countBullets } from "@/lib/answer-parser";
+import { Markdown } from "@/components/prep/Markdown";
+import { PrepMaterial } from "@/components/prep/PrepMaterial";
+import { SpeakingTime } from "@/components/prep/SpeakingTime";
 import { PracticeMode } from "@/components/prep/PracticeMode";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -72,7 +72,6 @@ const FEEDBACK_ISSUES = [
 
 const FREE_REGENS = 3;
 
-// Reference cards — study material, NOT spoken answers. Visually distinct from spoken cards.
 const REFERENCE_TYPES = new Set<AnswerType>([
   "company_brief",
   "cheat_sheet",
@@ -83,7 +82,6 @@ const REFERENCE_TYPES = new Set<AnswerType>([
   "assignment_guide",
 ]);
 
-// Reference cards that collapse on mobile by default (subset of REFERENCE_TYPES)
 const COLLAPSIBLE_REFERENCE_TYPES = new Set<AnswerType>([
   "company_brief",
   "cheat_sheet",
@@ -91,9 +89,6 @@ const COLLAPSIBLE_REFERENCE_TYPES = new Set<AnswerType>([
   "assignment_guide",
 ]);
 
-// Answer types that are SPOKEN prose — show speaking time + progressive disclosure.
-// Types that return JSON (behavioral_star, objection_response, career_switcher_bridge,
-// coachability_game_plan, role_play_script) render through ContentRouter's JSON handlers.
 const SPOKEN_TYPES = new Set<AnswerType>([
   "tell_me_about_yourself",
   "why_sales",
@@ -104,6 +99,44 @@ const SPOKEN_TYPES = new Set<AnswerType>([
   "constructive_feedback",
 ]);
 
+// JSON answer types — render through ContentRouter
+const JSON_TYPES = new Set<AnswerType>([
+  "behavioral_star",
+  "role_play_script",
+  "objection_response",
+  "questions_to_ask",
+  "cheat_sheet",
+  "company_brief",
+  "career_switcher_bridge",
+  "coachability_game_plan",
+  "competitor_battle_card",
+  "cold_email",
+  "pain_point_analysis",
+  "assignment_guide",
+]);
+
+const CONTENT_TYPE_STRIPE: Partial<Record<AnswerType, string>> = {
+  tell_me_about_yourself: "border-l-[3px] border-[var(--type-spoken)]",
+  why_sales: "border-l-[3px] border-[var(--type-spoken)]",
+  why_this_company: "border-l-[3px] border-[var(--type-spoken)]",
+  behavioral_star: "border-l-[3px] border-[var(--type-spoken)]",
+  resume_walkthrough: "border-l-[3px] border-[var(--type-spoken)]",
+  constructive_feedback: "border-l-[3px] border-[var(--type-spoken)]",
+  career_switcher_bridge: "border-l-[3px] border-[var(--type-spoken)]",
+  coachability_coaching: "border-l-[3px] border-[var(--type-coaching)]",
+  coachability_game_plan: "border-l-[3px] border-[var(--type-coaching)]",
+  comp_expectations: "border-l-[3px] border-[var(--type-coaching)]",
+  role_play_script: "border-l-[3px] border-[var(--type-coaching)]",
+  objection_response: "border-l-[3px] border-[var(--type-coaching)]",
+  company_brief: "border-l-[3px] border-[var(--type-reference)]",
+  cheat_sheet: "border-l-[3px] border-[var(--type-reference)]",
+  competitor_battle_card: "border-l-[3px] border-[var(--type-reference)]",
+  questions_to_ask: "border-l-[3px] border-[var(--type-reference)]",
+  cold_email: "border-l-[3px] border-[var(--type-reference)]",
+  pain_point_analysis: "border-l-[3px] border-[var(--type-reference)]",
+  assignment_guide: "border-l-[3px] border-[var(--type-reference)]",
+};
+
 function extractSayThis(content: string | undefined): string | undefined {
   if (!content) return undefined;
   try {
@@ -112,106 +145,20 @@ function extractSayThis(content: string | undefined): string | undefined {
   } catch { return undefined; }
 }
 
-// Section parsing moved to src/lib/answer-parser.ts
-
-// ─── Speaking time bar ────────────────────────────────────────────────────
-function SpeakingTimeBar({ words }: { words: number }) {
-  const seconds = Math.round((words / 150) * 60 * 1.18); // 150 wpm + 18% pauses
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  const label = minutes > 0 ? `~${minutes}m ${secs}s` : `~${secs}s`;
-  const pct = Math.min(100, (seconds / 120) * 100);
-  const color =
-    seconds <= 60 ? "bg-green-400" : seconds <= 90 ? "bg-amber-400" : "bg-red-400";
-
-  return (
-    <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
-      <span className="flex-shrink-0">🎙</span>
-      <div className="w-16 h-1 bg-stone-200 dark:bg-white/10 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span>{label}</span>
-    </div>
-  );
-}
-
-function getSpeakingTime(text: string): {
-  words: number;
-  rawSeconds: number;
-  withPauses: number;
-  display: string;
-} | null {
-  const words = text.trim().split(/\s+/).filter(Boolean).length;
-  if (words < 10) return null;
-  // 150 wpm baseline (middle of optimal 140–160 wpm range)
-  const rawSeconds = Math.round((words / 150) * 60);
-  // +18% for natural pauses (middle of 15–20% range)
-  const withPauses = Math.round(rawSeconds * 1.18);
-  const minutes = Math.floor(withPauses / 60);
-  const seconds = withPauses % 60;
-  const display = minutes > 0
-    ? `~${minutes}:${seconds.toString().padStart(2, "0")}`
-    : `~${seconds}s`;
-  return { words, rawSeconds, withPauses, display };
-}
-
-interface WordTarget { min: number; max: number; }
-
-// Per-stage targets for answer types where length varies by round
-const STAGE_WORD_TARGETS: Partial<Record<AnswerType, Partial<Record<string, WordTarget>>>> = {
-  tell_me_about_yourself: {
-    recruiter:      { min: 130, max: 195 },
-    hiring_manager: { min: 210, max: 280 },
-    role_play:      { min: 130, max: 195 },
-    panel:          { min: 130, max: 195 },
-  },
-  why_this_company: {
-    recruiter:      { min: 150, max: 190 },
-    hiring_manager: { min: 200, max: 250 },
-    panel:          { min: 175, max: 225 },
-    role_play:      { min: 150, max: 200 },
-  },
-};
-
-// Universal targets (same across all stages)
-const UNIVERSAL_WORD_TARGETS: Partial<Record<AnswerType, WordTarget>> = {
-  why_sales:             { min: 130, max: 195 },
-  behavioral_star:       { min: 250, max: 370 },
-  comp_expectations:     { min: 60,  max: 80  },
-  resume_walkthrough:    { min: 300, max: 400 },
-  constructive_feedback: { min: 200, max: 300 },
-  coachability_coaching: { min: 150, max: 250 },
-  career_switcher_bridge:{ min: 130, max: 200 },
-};
-
-function getWordTarget(answerType: AnswerType, stage: string): WordTarget | null {
-  return STAGE_WORD_TARGETS[answerType]?.[stage] ?? UNIVERSAL_WORD_TARGETS[answerType] ?? null;
-}
-
-function getWordCountStatus(words: number, target: WordTarget): {
-  color: "green" | "amber" | "red";
-  flag: string | null;
-} {
-  if (words <= target.max) return { color: "green", flag: null };
-  if (words <= Math.round(target.max * 1.2)) return { color: "amber", flag: "Consider trimming" };
-  return { color: "red", flag: "Too long — interviewers will tune out" };
-}
-
-const WORD_STATUS_CLASSES: Record<"green" | "amber" | "red", string> = {
-  green: "text-green-600",
-  amber: "text-amber-600",
-  red:   "text-red-500",
-};
-
 function countQuestions(content: string | undefined): number {
   if (!content) return 0;
   try {
     const parsed = JSON.parse(content);
     if (Array.isArray(parsed?.questions)) return parsed.questions.length;
-  } catch {
-    // not JSON
-  }
+  } catch { /* not JSON */ }
   return 0;
+}
+
+function isValidJson(content: string | undefined): boolean {
+  if (!content) return false;
+  const t = content.trim();
+  if (!t.startsWith("{") && !t.startsWith("[")) return false;
+  try { JSON.parse(t); return true; } catch { return false; }
 }
 
 const QUESTION_COACHING: Partial<Record<AnswerType, Partial<Record<string, string>>>> = {
@@ -306,6 +253,26 @@ const QUESTION_COACHING: Partial<Record<AnswerType, Partial<Record<string, strin
   },
 };
 
+// ─── Speaking time helpers (for edit mode only) ──────────────────────────────
+
+function getSpeakingTime(text: string): {
+  words: number;
+  rawSeconds: number;
+  withPauses: number;
+  display: string;
+} | null {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  if (words < 10) return null;
+  const rawSeconds = Math.round((words / 150) * 60);
+  const withPauses = Math.round(rawSeconds * 1.18);
+  const minutes = Math.floor(withPauses / 60);
+  const seconds = withPauses % 60;
+  const display = minutes > 0
+    ? `~${minutes}:${seconds.toString().padStart(2, "0")}`
+    : `~${seconds}s`;
+  return { words, rawSeconds, withPauses, display };
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface AnswerCardProps {
@@ -319,35 +286,6 @@ export interface AnswerCardProps {
   defaultExpanded?: boolean;
 }
 
-// ─── Content type color-coding (left border stripe) ─────────────────────────
-
-const CONTENT_TYPE_STRIPE: Partial<Record<AnswerType, string>> = {
-  // Spoken (blue)
-  tell_me_about_yourself: "border-l-[3px] border-[var(--type-spoken)]",
-  why_sales: "border-l-[3px] border-[var(--type-spoken)]",
-  why_this_company: "border-l-[3px] border-[var(--type-spoken)]",
-  behavioral_star: "border-l-[3px] border-[var(--type-spoken)]",
-  resume_walkthrough: "border-l-[3px] border-[var(--type-spoken)]",
-  constructive_feedback: "border-l-[3px] border-[var(--type-spoken)]",
-  career_switcher_bridge: "border-l-[3px] border-[var(--type-spoken)]",
-  // Coaching (coral)
-  coachability_coaching: "border-l-[3px] border-[var(--type-coaching)]",
-  coachability_game_plan: "border-l-[3px] border-[var(--type-coaching)]",
-  // Tactical (coral)
-  comp_expectations: "border-l-[3px] border-[var(--type-coaching)]",
-  role_play_script: "border-l-[3px] border-[var(--type-coaching)]",
-  objection_response: "border-l-[3px] border-[var(--type-coaching)]",
-  // Reference (muted)
-  company_brief: "border-l-[3px] border-[var(--type-reference)]",
-  cheat_sheet: "border-l-[3px] border-[var(--type-reference)]",
-  competitor_battle_card: "border-l-[3px] border-[var(--type-reference)]",
-  questions_to_ask: "border-l-[3px] border-[var(--type-reference)]",
-  cold_email: "border-l-[3px] border-[var(--type-reference)]",
-  pain_point_analysis: "border-l-[3px] border-[var(--type-reference)]",
-  assignment_guide: "border-l-[3px] border-[var(--type-reference)]",
-};
-
-// (Content renderers moved to content-renderers.tsx)
 // ─── AnswerCard ────────────────────────────────────────────────────────────────
 
 export function AnswerCard({
@@ -373,23 +311,24 @@ export function AnswerCard({
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [justUnlocked, setJustUnlocked] = useState(false);
   const [explicitFeedbackGiven, setExplicitFeedbackGiven] = useState(false);
-  // Tracks whether action bar has faded in post-reveal
   const [actionBarVisible, setActionBarVisible] = useState(slot.status === "unlocked");
+  const [activeAnswerTab, setActiveAnswerTab] = useState<number>(() =>
+    session.stage === "recruiter" ? 0 : 1
+  );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const prevStatusRef = useRef(slot.status);
   const regenSequenceRef = useRef(0);
 
-  // ─── Detect locked → unlocked for reveal animations ─────────────────────────
-  // useLayoutEffect is synchronous before paint — ensures animation starts from
-  // the right initial state (no flash of unblurred content on first frame)
+  // ─── Detect locked → unlocked for reveal animations ──────────────────────
+  const isCollapsible = COLLAPSIBLE_REFERENCE_TYPES.has(slot.type);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded !== false);
+
   useLayoutEffect(() => {
     if (prevStatusRef.current === "locked" && slot.status === "unlocked") {
       setJustUnlocked(true);
       setActionBarVisible(false);
-      if (isCollapsible) setIsExpanded(true); // always show full content after paying to unlock
-      // Action bar slides in after content clears (~400ms into reveal)
+      if (isCollapsible) setIsExpanded(true);
       const actionTimer = setTimeout(() => setActionBarVisible(true), 400);
-      // Reset justUnlocked after CSS animations finish (800ms unlock-flash)
       const resetTimer = setTimeout(() => setJustUnlocked(false), 900);
       prevStatusRef.current = slot.status;
       return () => {
@@ -398,9 +337,9 @@ export function AnswerCard({
       };
     }
     prevStatusRef.current = slot.status;
-  }, [slot.status]);
+  }, [slot.status, isCollapsible]);
 
-  // ─── Version state ──────────────────────────────────────────────────────────
+  // ─── Version state ────────────────────────────────────────────────────────
   const versions = slot.versions ?? [];
   const [versionIndex, setVersionIndex] = useState(0);
   const totalVersions = versions.length + 1;
@@ -414,14 +353,11 @@ export function AnswerCard({
 
   const coachingTip = QUESTION_COACHING[slot.type]?.[session.stage];
   const isLocked = slot.status === "locked";
-  const isCheatSheet = slot.type === "cheat_sheet";
   const isReference = REFERENCE_TYPES.has(slot.type);
-  const isCollapsible = COLLAPSIBLE_REFERENCE_TYPES.has(slot.type);
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded !== false);
   const [showPractice, setShowPractice] = useState(false);
   const canUnlock = creditBalance > 0 && !isUnlocking && !!onUnlock;
 
-  // ─── Card expansion tracking ─────────────────────────────────────────────────
+  // ─── Card expansion tracking ──────────────────────────────────────────────
   useEffect(() => {
     if (!isCollapsible || slot.status !== "unlocked") return;
     if (isExpanded) {
@@ -438,30 +374,29 @@ export function AnswerCard({
         eventType: isExpanded ? "card_expanded" : "card_collapsed",
       }),
     }).catch(() => {});
-  // Only fire when isExpanded changes, not on mount
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isExpanded]);
 
-  // ─── Loading state ──────────────────────────────────────────────────────────
+  // ─── Loading state ────────────────────────────────────────────────────────
   if (slot.status === "loading") {
     return (
-      <div className={`rounded-[var(--card-radius)] border border-stone-200/50 dark:border-white/5 bg-[var(--bg-card)] shadow-card overflow-hidden ${CONTENT_TYPE_STRIPE[slot.type] ?? ""}`}>
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-stone-100 dark:border-white/5">
+      <div className="rounded-xl border border-cream-300 bg-white shadow-card overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-cream-300">
           <span className="text-xl leading-none flex-shrink-0 select-none">{EMOJIS[slot.type]}</span>
           <div>
-            <h3 className="font-semibold text-[var(--text-primary)] text-sm">{slot.label}</h3>
-            <p className="text-xs text-[var(--text-tertiary)] mt-0.5 line-clamp-1">{slot.description}</p>
+            <h3 className="font-medium text-[18px] text-warm-800">{slot.label}</h3>
+            <p className="text-[13px] text-warm-500 mt-0.5 line-clamp-1">{slot.description}</p>
           </div>
         </div>
         <div className="px-5 py-5">
           <div className="space-y-2.5 animate-pulse">
-            <div className="h-3 bg-stone-100 dark:bg-white/5 rounded-full w-full" />
-            <div className="h-3 bg-stone-100 dark:bg-white/5 rounded-full w-11/12" />
-            <div className="h-3 bg-stone-100 dark:bg-white/5 rounded-full w-4/5" />
-            <div className="h-3 bg-stone-100 dark:bg-white/5 rounded-full w-full" />
-            <div className="h-3 bg-stone-100 dark:bg-white/5 rounded-full w-3/5" />
+            <div className="h-3 bg-cream-200 rounded-full w-full" />
+            <div className="h-3 bg-cream-200 rounded-full w-11/12" />
+            <div className="h-3 bg-cream-200 rounded-full w-4/5" />
+            <div className="h-3 bg-cream-200 rounded-full w-full" />
+            <div className="h-3 bg-cream-200 rounded-full w-3/5" />
           </div>
-          <p className="text-xs text-[var(--text-tertiary)] mt-4 flex items-center gap-1.5">
+          <p className="text-xs text-warm-500 mt-4 flex items-center gap-1.5">
             <Loader2 className="w-3 h-3 animate-spin" />
             Generating…
           </p>
@@ -470,7 +405,7 @@ export function AnswerCard({
     );
   }
 
-  // ─── Helpers ───────────────────────────────────────────────────────────────
+  // ─── Helpers ──────────────────────────────────────────────────────────────
 
   function wordEditDistance(original: string, edited: string) {
     const origWords = new Set(original.trim().split(/\s+/));
@@ -493,7 +428,7 @@ export function AnswerCard({
     }).catch(() => {});
   }
 
-  // ─── Handlers ──────────────────────────────────────────────────────────────
+  // ─── Handlers ─────────────────────────────────────────────────────────────
 
   const handleUnlockClick = async () => {
     if (!canUnlock) return;
@@ -664,85 +599,85 @@ export function AnswerCard({
     triggerRegen(quickAction, custom);
   };
 
-  // ─── Render ────────────────────────────────────────────────────────────────
+  // ─── Determine rendering path ─────────────────────────────────────────────
+  const isJson = displayContent ? isValidJson(displayContent) : false;
+
+  // Parse answer for structured rendering (spoken types with non-JSON content)
+  const parsed = (!isJson && displayContent)
+    ? parseAnswer(displayContent, slot.type)
+    : null;
+
+  // Build answer versions for tabs
+  const answerVersions: Array<{ title: string; content: string }> = [];
+  if (parsed?.shortAnswer) {
+    answerVersions.push({ title: "30-second", content: parsed.shortAnswer });
+  }
+  if (parsed?.fullAnswer) {
+    answerVersions.push({ title: "Full answer", content: parsed.fullAnswer });
+  }
+  // If no explicit short/full but we have sections with answer type
+  if (answerVersions.length === 0 && parsed?.isStructured) {
+    const answerSections = parsed.sections.filter((s) => s.type === "answer");
+    for (const s of answerSections) {
+      answerVersions.push({ title: s.title || "Answer", content: s.content });
+    }
+  }
+
+  // Ensure activeAnswerTab is in range
+  const clampedTab = Math.min(activeAnswerTab, Math.max(0, answerVersions.length - 1));
+  const activeVersion = answerVersions[clampedTab] ?? answerVersions[0];
+
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div
-      className={`rounded-[var(--card-radius)] border overflow-hidden shadow-card hover:shadow-card-hover transition-shadow ${CONTENT_TYPE_STRIPE[slot.type] ?? ""} ${
-        justUnlocked
-          ? "animate-unlock-flash bg-[var(--bg-card)] border-stone-200/50 dark:border-white/5"
-          : isCollapsible && !isExpanded && !isLocked
-          ? "bg-[var(--bg-card-elevated)] dark:bg-[var(--bg-card)] border-stone-200/50 dark:border-white/5 md:bg-[var(--bg-card)] md:border-stone-200/50"
-          : isReference && !isLocked
-          ? "bg-[var(--bg-card)] border-stone-200/50 dark:border-white/5"
-          : "bg-[var(--bg-card)] border-stone-200/50 dark:border-white/5"
+      className={`rounded-xl border border-cream-300 overflow-hidden shadow-card hover:shadow-card-hover transition-shadow bg-white ${CONTENT_TYPE_STRIPE[slot.type] ?? ""} ${
+        justUnlocked ? "animate-unlock-flash" : ""
       }`}
     >
-      {/* ── Header (always visible) ─────────────────────────────────────── */}
-      <div className={`flex items-start justify-between px-5 py-4 border-b border-stone-100 dark:border-white/5`}>
+      {/* ═══ HEADER ═══════════════════════════════════════════════════════ */}
+      <div className="flex items-start justify-between px-4 md:px-6 pt-5 pb-4">
         <div className="flex items-start gap-3 min-w-0 flex-1">
-          <span className="text-xl leading-none mt-0.5 flex-shrink-0 select-none">
+          <span className="text-[16px] leading-none mt-1 flex-shrink-0 select-none">
             {EMOJIS[slot.type]}
           </span>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-[#111827] dark:text-[var(--text-primary)] text-[20px] sm:text-[24px] leading-[1.3]">{slot.label}</h3>
-
-              {/* Reference badge — study material, not a spoken answer */}
-              {isReference && !isLocked && (
-                <span className="inline-flex items-center px-1.5 py-0.5 bg-stone-100 dark:bg-white/10 text-[var(--text-tertiary)] text-[10px] font-medium rounded uppercase tracking-wide">
-                  Reference
-                </span>
-              )}
-
-              {/* Primary badge — only when unlocked */}
-              {isPrimaryForRound && !isLocked && (
-                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-[var(--coral-bg)] text-[var(--coral-text)] text-xs font-medium rounded-full border border-[var(--coral-border)]">
-                  ★ Most important for this round
-                </span>
-              )}
-
-              {/* Version navigator — only when unlocked */}
-              {totalVersions > 1 && !isLocked && (
-                <div className="flex items-center gap-0.5 bg-stone-100 dark:bg-white/10 rounded-full px-1 py-0.5">
-                  <button
-                    onClick={() => setVersionIndex(Math.min(versionIndex + 1, totalVersions - 1))}
-                    disabled={versionIndex >= totalVersions - 1}
-                    className="p-1.5 -m-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition-opacity"
-                    title="Older version"
-                  >
-                    <ChevronLeft className="w-3 h-3" />
-                  </button>
-                  <span className="text-xs text-[var(--text-tertiary)] px-0.5 tabular-nums">
-                    v{totalVersions - versionIndex}/{totalVersions}
-                  </span>
-                  <button
-                    onClick={() => setVersionIndex(Math.max(versionIndex - 1, 0))}
-                    disabled={versionIndex <= 0}
-                    className="p-1.5 -m-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition-opacity"
-                    title="Newer version"
-                  >
-                    <ChevronRight className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
-            </div>
-            <p className="text-xs text-[var(--text-tertiary)] mt-0.5 line-clamp-1 leading-snug">
+            <h3 className="font-medium text-[18px] text-warm-800 leading-snug">
+              {slot.label}
+            </h3>
+            <p className="text-[13px] text-warm-500 mt-0.5 line-clamp-1">
               {slot.description}
             </p>
-            {/* Coaching tip — callout box, only when unlocked */}
+
+            {/* Tags */}
+            {!isLocked && (
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {isReference && (
+                  <span className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-[#0C447C] text-[11px] font-medium rounded">
+                    Reference
+                  </span>
+                )}
+                {isPrimaryForRound && (
+                  <span className="inline-flex items-center px-2 py-0.5 bg-green-50 text-green-900 text-[11px] font-medium rounded">
+                    ★ Priority
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Coaching tip */}
             {coachingTip && !isLocked && (
-              <div className="bg-[var(--coral-bg)] border-l-[3px] border-coral dark:border-[var(--coral)] p-3 rounded-r-lg mt-2">
-                <p className="text-sm text-[var(--text-secondary)] flex gap-2">
+              <div className="bg-[#E6F1FB] p-3 rounded-lg mt-3">
+                <p className="text-[13px] text-[#0C447C] font-medium flex gap-2">
                   <span className="flex-shrink-0">💡</span>
-                  <span><strong className="font-semibold text-[var(--text-primary)]">Pro tip:</strong> {coachingTip}</span>
+                  <span>{coachingTip}</span>
                 </p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Action buttons — only when unlocked, fade in on reveal */}
+        {/* Action buttons (header) */}
         {!isLocked && (
           <div
             className="flex items-center gap-0.5 flex-shrink-0 ml-3"
@@ -755,102 +690,95 @@ export function AnswerCard({
             {versionIndex === 0 && !isEditing && (
               <button
                 onClick={handleStartEdit}
-                className="flex items-center gap-1 px-2 py-1.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-stone-50 dark:hover:bg-white/5 rounded-lg transition-colors"
+                className="flex items-center gap-1 px-2.5 py-1 text-[12px] text-warm-700 border border-cream-300 rounded-md hover:bg-cream-50 transition-colors"
                 title="Edit this answer"
               >
                 <Edit3 className="w-3.5 h-3.5" />
-                <span>Edit</span>
+                Edit
               </button>
             )}
             {SPOKEN_TYPES.has(slot.type) && displayContent && !isEditing && (
               <button
                 onClick={() => { setShowPractice(true); logEvent("practice_mode_open"); }}
-                className="flex items-center gap-1 px-2 py-1.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-stone-50 dark:hover:bg-white/5 rounded-lg transition-colors"
+                className="flex items-center gap-1 px-2.5 py-1 text-[12px] text-warm-700 border border-cream-300 rounded-md hover:bg-cream-50 transition-colors"
                 title="Practice speaking this answer"
               >
                 <Mic className="w-3.5 h-3.5" />
-                <span>Practice</span>
+                Practice
               </button>
             )}
             <button
-              onClick={handleRegenerate}
-              disabled={isRegenerating || isEditing}
-              className="flex items-center gap-1 px-2 py-1.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-stone-50 dark:hover:bg-white/5 rounded-lg transition-colors disabled:opacity-40"
-              title={freeRegenLeft > 0 ? `Refine · ${freeRegenLeft} free left` : "Refine · uses 1 credit"}
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? "animate-spin" : ""}`} />
-              {totalVersions > 1 ? (
-                <span className="tabular-nums">v{totalVersions}</span>
-              ) : freeRegenLeft > 0 ? (
-                <span className="text-coral tabular-nums">{freeRegenLeft}</span>
-              ) : null}
-            </button>
-            <button
-              onClick={() => handleRate("up")}
-              className={`p-2.5 -m-1 rounded-lg transition-colors ${slot.rating === "up" ? "text-green-600 bg-green-50 dark:bg-green-900/30" : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-stone-50 dark:hover:bg-white/5"}`}
-              title="Good answer"
-            >
-              <ThumbsUp className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => handleRate("down")}
-              className={`p-2.5 -m-1 rounded-lg transition-colors ${slot.rating === "down" ? "text-red-500 bg-red-50 dark:bg-red-900/30" : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-stone-50 dark:hover:bg-white/5"}`}
-              title="Needs improvement"
-            >
-              <ThumbsDown className="w-4 h-4" />
-            </button>
-            <button
               onClick={handleCopy}
-              className="flex items-center gap-1 px-2 py-1.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-stone-50 dark:hover:bg-white/5 rounded-lg transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1 text-[12px] text-warm-700 border border-cream-300 rounded-md hover:bg-cream-50 transition-colors"
               title="Copy to clipboard"
             >
               {copied ? (
-                <><Check className="w-3.5 h-3.5 text-green-500" /><span className="text-green-500">Copied!</span></>
+                <><Check className="w-3.5 h-3.5 text-green-600" />Copied</>
               ) : (
-                <><Copy className="w-3.5 h-3.5" /><span>Copy</span></>
+                <><Copy className="w-3.5 h-3.5" />Copy</>
               )}
+            </button>
+          </div>
+        )}
+
+        {/* Version navigator */}
+        {totalVersions > 1 && !isLocked && (
+          <div className="flex items-center gap-0.5 bg-cream-100 rounded-full px-1 py-0.5 ml-2">
+            <button
+              onClick={() => setVersionIndex(Math.min(versionIndex + 1, totalVersions - 1))}
+              disabled={versionIndex >= totalVersions - 1}
+              className="p-1.5 -m-1 text-warm-500 hover:text-warm-800 disabled:opacity-30 transition-opacity"
+              title="Older version"
+            >
+              <ChevronLeft className="w-3 h-3" />
+            </button>
+            <span className="text-xs text-warm-500 px-0.5 tabular-nums">
+              v{totalVersions - versionIndex}/{totalVersions}
+            </span>
+            <button
+              onClick={() => setVersionIndex(Math.max(versionIndex - 1, 0))}
+              disabled={versionIndex <= 0}
+              className="p-1.5 -m-1 text-warm-500 hover:text-warm-800 disabled:opacity-30 transition-opacity"
+              title="Newer version"
+            >
+              <ChevronRight className="w-3 h-3" />
             </button>
           </div>
         )}
       </div>
 
-      {/* ── Mobile toggle strip — collapsible reference cards, unlocked ── */}
+      {/* ═══ MOBILE TOGGLE STRIP ══════════════════════════════════════════ */}
       {isCollapsible && !isLocked && (
         <button
           onClick={() => setIsExpanded((o) => !o)}
-          className="md:hidden w-full flex items-center justify-between px-5 py-2.5 border-b border-stone-100 dark:border-white/5 bg-[var(--bg-card-elevated)] dark:bg-white/[0.02] hover:bg-stone-100/70 dark:hover:bg-white/5 transition-colors text-left"
+          className="md:hidden w-full flex items-center justify-between px-4 py-2.5 border-b border-cream-300 bg-cream-50 hover:bg-cream-100 transition-colors text-left"
         >
-          <span className="text-xs text-[var(--text-tertiary)] font-medium">
+          <span className="text-xs text-warm-500 font-medium">
             {isExpanded ? "Collapse" : "Tap to expand"}
           </span>
           {isExpanded
-            ? <ChevronUp className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-            : <ChevronDown className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
+            ? <ChevronUp className="w-3.5 h-3.5 text-warm-500" />
+            : <ChevronDown className="w-3.5 h-3.5 text-warm-500" />
           }
         </button>
       )}
 
-      {/* ── Say This preview — mobile only, company_brief collapsed ───── */}
+      {/* Say This preview — mobile only, company_brief collapsed */}
       {isCollapsible && !isExpanded && !isLocked && slot.type === "company_brief" && (() => {
         const sayThis = extractSayThis(displayContent);
         return sayThis ? (
-          <div className="md:hidden px-5 py-3">
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/40 rounded-xl p-4">
-              <p className="text-[10px] font-semibold text-green-700 dark:text-green-400 uppercase tracking-wide mb-2 flex items-center gap-1">
+          <div className="md:hidden px-4 py-3">
+            <div className="bg-[#EAF3DE] border border-green-200 rounded-xl p-4">
+              <p className="text-[10px] font-semibold text-[#27500A] uppercase tracking-wide mb-2 flex items-center gap-1">
                 <span>🗣️</span> Say This
               </p>
-              <p className="text-sm text-green-900 dark:text-green-200 leading-relaxed">{sayThis}</p>
+              <p className="text-sm text-[#27500A] leading-relaxed">{sayThis}</p>
             </div>
           </div>
         ) : null;
       })()}
 
-      {/* ══════════════════════════════════════════════════════════════════
-          LOCKED STATE
-          Entire content zone is ONE clickable unlock button.
-          Blurred real answer text is visible behind a semi-transparent
-          overlay. Lock icon + cost centered on top. One click = done.
-          ══════════════════════════════════════════════════════════════ */}
+      {/* ═══ LOCKED STATE ═════════════════════════════════════════════════ */}
       {isLocked && (
         <div
           role="button"
@@ -865,38 +793,38 @@ export function AnswerCard({
           style={{ minHeight: 160 }}
           aria-label={canUnlock ? `Unlock ${slot.label} for 1 credit` : undefined}
         >
-          {/* Layer 1: the real answer, blurred — gives visual depth */}
+          {/* Blurred real answer */}
           <div
             className="px-5 py-4 text-sm leading-relaxed select-none pointer-events-none"
-            style={{
-              filter: "blur(5px)",
-              WebkitFilter: "blur(5px)",
-            }}
+            style={{ filter: "blur(5px)", WebkitFilter: "blur(5px)" }}
             aria-hidden="true"
           >
-            <ContentRouter content={displayContent} answerType={slot.type} stage={session.stage} />
+            {isJson ? (
+              <ContentRouter content={displayContent} answerType={slot.type} stage={session.stage} />
+            ) : (
+              <Markdown content={displayContent ?? ""} />
+            )}
           </div>
 
-          {/* Layer 2: semi-transparent overlay — lightens on hover */}
-          <div className="absolute inset-0 bg-[var(--bg-card)]/60 group-hover:bg-[var(--bg-card)]/50 transition-colors duration-150 rounded-xl pointer-events-none" />
+          {/* Overlay */}
+          <div className="absolute inset-0 bg-white/60 group-hover:bg-white/50 transition-colors duration-150 rounded-xl pointer-events-none" />
 
-          {/* Layer 3: centered unlock CTA */}
+          {/* Unlock CTA */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             {isUnlocking ? (
-              <div className="flex items-center gap-2 px-6 py-3 bg-[var(--bg-card)]/95 backdrop-blur-sm rounded-xl shadow-sm">
+              <div className="flex items-center gap-2 px-6 py-3 bg-white/95 backdrop-blur-sm rounded-xl shadow-sm">
                 <Loader2 className="w-4 h-4 animate-spin text-coral" />
-                <span className="text-sm font-medium text-[var(--text-primary)]">Unlocking…</span>
+                <span className="text-sm font-medium text-warm-800">Unlocking…</span>
               </div>
             ) : creditBalance <= 0 ? (
               <div className="flex flex-col items-center gap-2">
-                <div className="flex items-center gap-2 px-6 py-3 bg-[var(--bg-card)]/95 backdrop-blur-sm rounded-xl shadow-sm">
-                  <Lock className="w-4 h-4 text-[var(--text-tertiary)]" />
-                  <span className="text-sm font-medium text-[var(--text-tertiary)]">1 credit to unlock</span>
+                <div className="flex items-center gap-2 px-6 py-3 bg-white/95 backdrop-blur-sm rounded-xl shadow-sm">
+                  <Lock className="w-4 h-4 text-warm-500" />
+                  <span className="text-sm font-medium text-warm-500">1 credit to unlock</span>
                 </div>
-                {/* This is the only non-unlock-click interactive element in locked state */}
                 <Link
                   href="/dashboard/billing"
-                  className="text-xs font-semibold text-coral hover:text-coral-dark dark:text-[var(--coral-text)] hover:underline pointer-events-auto"
+                  className="text-xs font-semibold text-coral hover:text-coral-dark hover:underline pointer-events-auto"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Get more credits →
@@ -904,11 +832,11 @@ export function AnswerCard({
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2">
-                <div className="flex items-center gap-2 px-6 py-3 bg-[var(--bg-card)]/95 backdrop-blur-sm rounded-xl shadow-sm group-hover:shadow-md group-hover:scale-[1.03] transition-all duration-150">
-                  <Lock className="w-4 h-4 text-[var(--text-tertiary)] group-hover:text-coral transition-colors duration-150" />
-                  <span className="text-sm font-semibold text-[var(--text-primary)]">Unlock · 1 credit</span>
+                <div className="flex items-center gap-2 px-6 py-3 bg-white/95 backdrop-blur-sm rounded-xl shadow-sm group-hover:shadow-md group-hover:scale-[1.03] transition-all duration-150">
+                  <Lock className="w-4 h-4 text-warm-500 group-hover:text-coral transition-colors duration-150" />
+                  <span className="text-sm font-semibold text-warm-800">Unlock · 1 credit</span>
                 </div>
-                <p className="text-[11px] text-[var(--text-tertiary)]/70">
+                <p className="text-[11px] text-warm-500/70">
                   {creditBalance} credit{creditBalance !== 1 ? "s" : ""} remaining
                 </p>
               </div>
@@ -917,233 +845,210 @@ export function AnswerCard({
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════
-          UNLOCKED STATE — full content + action bar + pills
-          Content gets blur-reveal animation on first render after unlock.
-          ══════════════════════════════════════════════════════════════ */}
+      {/* ═══ UNLOCKED STATE ═══════════════════════════════════════════════ */}
       {!isLocked && (
         <div className={isCollapsible && !isExpanded ? "hidden md:block" : undefined}>
-          {/* ── Credit warning banner (regen) ─────────────────────────── */}
+          {/* Credit warning banner */}
           {pendingAction !== null && (
-            <div className="px-5 py-3 bg-[var(--coral-bg)] border-b border-[var(--coral-border)] flex items-center justify-between gap-3">
-              <p className="text-sm text-[var(--text-secondary)]">
+            <div className="px-4 md:px-6 py-3 bg-[var(--coral-bg)] border-b border-[var(--coral-border)] flex items-center justify-between gap-3">
+              <p className="text-sm text-warm-700">
                 You&apos;ve used your 3 free refinements. This will use{" "}
                 <strong>1 credit</strong> ({creditBalance} remaining).
               </p>
               <div className="flex items-center gap-3 flex-shrink-0">
-                <button onClick={() => setPendingAction(null)} className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+                <button onClick={() => setPendingAction(null)} className="text-xs text-warm-500 hover:text-warm-800">
                   Cancel
                 </button>
-                <button onClick={confirmCreditRegen} className="text-xs font-semibold text-[var(--coral-text)] underline">
+                <button onClick={confirmCreditRegen} className="text-xs font-semibold text-coral underline">
                   Use 1 credit
                 </button>
               </div>
             </div>
           )}
 
-          {/* ── Content — blur-reveal animation plays once on unlock ─── */}
-          {/* Max content width 680px (65–75 chars), 4px grid: 20px mobile / 24px desktop padding */}
-          <div className={`px-5 sm:px-6 py-5 relative ${justUnlocked ? "animate-blur-reveal" : ""}`} style={{ maxWidth: 728 }}>
+          {/* ── Content zone ─────────────────────────────────────────────── */}
+          <div className={`px-4 md:px-6 py-5 relative ${justUnlocked ? "animate-blur-reveal" : ""}`}>
             {isRegenerating && (
-              <div className="absolute inset-0 bg-[var(--bg-card)]/75 flex items-center justify-center z-10 rounded-b-xl">
-                <div className="flex items-center gap-2 text-sm text-[var(--text-tertiary)] bg-[var(--bg-card)] border border-stone-200/50 dark:border-white/10 px-4 py-2 rounded-full shadow-sm">
+              <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-b-xl">
+                <div className="flex items-center gap-2 text-sm text-warm-500 bg-white border border-cream-300 px-4 py-2 rounded-full shadow-sm">
                   <Loader2 className="w-4 h-4 animate-spin text-coral" />
                   Regenerating…
                 </div>
               </div>
             )}
+
+            {/* Edit mode */}
             {isEditing ? (
               <div>
                 <textarea
                   ref={textareaRef}
                   value={editDraft}
                   onChange={(e) => setEditDraft(e.target.value)}
-                  className="w-full text-sm text-[var(--text-secondary)] leading-relaxed min-h-[140px] resize-y border border-stone-200/50 dark:border-white/10 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-coral focus:border-transparent bg-[var(--bg-card-elevated)] dark:bg-white/[0.02]"
+                  className="w-full text-sm text-warm-800 leading-relaxed min-h-[140px] resize-y border border-cream-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-coral/20 focus:ring-offset-2 focus:border-transparent bg-cream-50"
                   placeholder="Edit your answer…"
                 />
                 <div className="flex items-center gap-3 mt-2.5">
-                  <button onClick={handleSaveEdit} className="text-sm font-medium text-coral hover:text-coral-dark dark:text-[var(--coral-text)] dark:hover:text-coral transition-colors">
+                  <button onClick={handleSaveEdit} className="text-sm font-medium text-coral hover:text-coral-dark transition-colors">
                     Save changes
                   </button>
-                  <button onClick={handleCancelEdit} className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">
+                  <button onClick={handleCancelEdit} className="text-sm text-warm-500 hover:text-warm-800 transition-colors">
                     Cancel
                   </button>
                   {SPOKEN_TYPES.has(slot.type) && (() => {
                     const st = getSpeakingTime(editDraft);
-                    if (!st) return <span className="text-xs text-[var(--text-tertiary)] ml-auto">Edits are free &amp; saved locally</span>;
-                    const target = getWordTarget(slot.type, session.stage);
-                    const status = target ? getWordCountStatus(st.words, target) : null;
-                    const colorClass = status ? WORD_STATUS_CLASSES[status.color] : "text-[var(--text-tertiary)]";
+                    if (!st) return <span className="text-xs text-warm-500 ml-auto">Edits are free & saved locally</span>;
                     return (
-                      <span className={`text-xs tabular-nums ml-auto ${colorClass}`}>
-                        {st.words} words · {st.display} spoken · aim for 140–160 wpm
-                        {status?.flag && ` · ${status.flag}`}
+                      <span className="text-xs tabular-nums ml-auto text-warm-500">
+                        {st.words} words · {st.display} spoken
                       </span>
                     );
                   })()}
                   {!SPOKEN_TYPES.has(slot.type) && (
-                    <span className="text-xs text-[var(--text-tertiary)] ml-auto">Edits are free &amp; saved locally</span>
+                    <span className="text-xs text-warm-500 ml-auto">Edits are free & saved locally</span>
                   )}
                 </div>
               </div>
             ) : (
               <>
-                {/* ═══ Two-tier progressive card for spoken answer types ═══
-                     Tier 1: Summary (always visible) + Answer zone (pre-expanded short, expandable full)
-                     Tier 2: Supporting material (segmented pills in recessed zone)
-                     Max 2 disclosure levels per NNGroup research. ═══ */}
-                {SPOKEN_TYPES.has(slot.type) && displayContent && (() => {
-                  const parsed = parseAnswer(displayContent, slot.type);
-                  if (!parsed.isStructured) {
-                    // Fallback: no Answer Card structure, render with prose
-                    return (
-                      <>
-                        <ContentRouter content={displayContent} answerType={slot.type} stage={session.stage} />
-                        {(() => {
-                          const st = getSpeakingTime(displayContent);
-                          if (!st) return null;
-                          const target = getWordTarget(slot.type, session.stage);
-                          const status = target ? getWordCountStatus(st.words, target) : null;
-                          const colorClass = status ? WORD_STATUS_CLASSES[status.color] : "text-[var(--text-tertiary)]";
-                          return (
-                            <p className={`text-xs mt-3 tabular-nums ${colorClass}`}>
-                              {st.words} words · {st.display} spoken
-                              {status?.flag && <span> · {status.flag}</span>}
-                            </p>
-                          );
-                        })()}
-                      </>
-                    );
-                  }
-
-                  const wordCount = displayContent.trim().split(/\s+/).filter(Boolean).length;
-
-                  // Build supporting material pills for Tier 2
-                  const supportingTabs = [];
-                  if (parsed.proofPoints.length > 0) {
-                    supportingTabs.push({
-                      id: "proof_points",
-                      label: "Proof Points",
-                      icon: "📊",
-                      accentClass: "bg-green-50 dark:bg-green-900/10 border border-green-200/60 dark:border-green-800/30",
-                      content: (
-                        <div className="space-y-1.5">
-                          {parsed.proofPoints.map((point, pi) => (
-                            <div key={pi} className="flex gap-2 text-[14px] text-[var(--text-secondary)] leading-relaxed">
-                              <span className="text-green-500 flex-shrink-0 mt-0.5">→</span>
-                              <span>{renderInlineFormatting(point)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ),
-                    });
-                  }
-                  if (parsed.digDeeper) {
-                    supportingTabs.push({
-                      id: "dig_deeper",
-                      label: "Follow-up Q&A",
-                      icon: "💬",
-                      accentClass: "bg-stone-50 dark:bg-white/[0.03] border border-stone-200/60 dark:border-white/10",
-                      content: <MarkdownContent content={parsed.digDeeper} className="prose-p:text-[14px] prose-li:text-[14px]" />,
-                    });
-                  }
-                  if (parsed.makeItYours) {
-                    supportingTabs.push({
-                      id: "coaching",
-                      label: "Coaching",
-                      icon: "💡",
-                      accentClass: "bg-amber-50 dark:bg-amber-900/10 border border-amber-200/60 dark:border-amber-800/30",
-                      content: (
-                        <p className="text-[14px] text-[var(--text-secondary)] leading-relaxed">
-                          {renderInlineFormatting(parsed.makeItYours)}
-                        </p>
-                      ),
-                    });
-                  }
-
-                  return (
-                    <div>
-                      {/* Category tag (12px uppercase) + speaking time */}
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-[12px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[var(--blue-bg)] text-[var(--blue-text)] dark:bg-brand-blue/10 dark:text-brand-blue-light">
-                          {slot.type === "behavioral_star" ? "Behavioral" : slot.type === "comp_expectations" ? "Tactical" : "Narrative"}
-                        </span>
-                        <SpeakingTimeBar words={wordCount} />
-                      </div>
-
-                      {/* ── TIER 1: Primary content ──────────────────────────── */}
-
-                      {/* Summary block — always visible, blue-tinted, ≤50 words */}
-                      {parsed.quickTake && (
-                        <div className="bg-blue-50/80 dark:bg-brand-blue/5 border-l-[3px] border-blue-400 dark:border-brand-blue/40 rounded-r-lg px-4 py-3 mb-4">
-                          <p className="text-[17px] sm:text-[18px] text-[var(--text-primary)] leading-[1.55] font-medium">
-                            {renderInlineFormatting(parsed.quickTake)}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Answer zone — short answer pre-expanded, full answer inline toggle */}
-                      {parsed.thirtySecond && (
-                        <div className="mb-1">
-                          <MarkdownContent content={parsed.thirtySecond} />
-                        </div>
-                      )}
-
-                      {parsed.fullAnswer && (
-                        <CollapsibleSection
-                          title={parsed.thirtySecond ? "Show full version" : "Show answer"}
-                          defaultOpen={isPrimaryForRound && !!parsed.thirtySecond}
-                          onToggle={(open) => { if (open) logEvent("expand_full_answer"); }}
-                        >
-                          <MarkdownContent content={parsed.fullAnswer} />
-                        </CollapsibleSection>
-                      )}
-
-                      {/* Word count + speaking time */}
-                      {(() => {
-                        const st = getSpeakingTime(displayContent);
-                        if (!st) return null;
-                        const target = getWordTarget(slot.type, session.stage);
-                        const status = target ? getWordCountStatus(st.words, target) : null;
-                        const colorClass = status ? WORD_STATUS_CLASSES[status.color] : "text-[var(--text-tertiary)]";
-                        return (
-                          <p className={`text-xs mt-3 tabular-nums ${colorClass}`}>
-                            {st.words} words · {st.display} spoken
-                            {status?.flag && <span> · {status.flag}</span>}
-                          </p>
-                        );
-                      })()}
-
-                      {/* ── TIER 2: Supporting material (recessed zone) ──────── */}
-                      {supportingTabs.length > 0 && (
-                        <SupportingMaterial
-                          tabs={supportingTabs}
-                          onTabChange={(tabId) => logEvent(`supporting_${tabId}`)}
-                        />
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Non-spoken / reference types — scannable layout with prose typography */}
-                {!SPOKEN_TYPES.has(slot.type) && (
+                {/* ═══ JSON CONTENT PATH (behavioral_star, cheat_sheet, etc.) ═══ */}
+                {isJson && (
                   <div className="max-w-none">
                     <ContentRouter content={displayContent} answerType={slot.type} stage={session.stage} />
                     {slot.type === "questions_to_ask" && displayContent && (() => {
                       const n = countQuestions(displayContent);
                       return n > 0 ? (
-                        <p className="text-xs text-[var(--text-tertiary)] mt-3">
+                        <p className="text-xs text-warm-500 mt-3">
                           {n} question{n !== 1 ? "s" : ""} prepared
                         </p>
                       ) : null;
                     })()}
                   </div>
                 )}
+
+                {/* ═══ MARKDOWN CONTENT PATH (spoken answers + unstructured text) ═══ */}
+                {!isJson && displayContent && parsed?.isStructured && (
+                  <div>
+                    {/* Quick Take callout */}
+                    {parsed.quickTake && (
+                      <div className="bg-[#E6F1FB] rounded-lg px-4 py-3 mb-4">
+                        <p className="text-[13px] font-medium text-[#0C447C]">
+                          {parsed.quickTake}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Answer tabs (30-second / Full answer) */}
+                    {answerVersions.length > 1 && (
+                      <div className="flex gap-1 mb-4" role="tablist">
+                        {answerVersions.map((v, i) => (
+                          <button
+                            key={i}
+                            role="tab"
+                            aria-selected={clampedTab === i}
+                            onClick={() => setActiveAnswerTab(i)}
+                            className={`px-4 py-2 text-[13px] font-medium rounded-full transition-all duration-200 cursor-pointer ${
+                              clampedTab === i
+                                ? "bg-warm-800 text-white"
+                                : "bg-transparent border border-cream-300 text-warm-700 hover:bg-cream-50"
+                            }`}
+                          >
+                            {v.title}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Answer content rendered through Markdown */}
+                    {activeVersion && (
+                      <div className="max-w-[60ch]" style={{ fontSize: "15px", lineHeight: "1.7" }}>
+                        <Markdown
+                          content={activeVersion.content}
+                          className="prose-p:text-[15px] prose-p:leading-[1.7] prose-li:text-[15px]"
+                        />
+                      </div>
+                    )}
+
+                    {/* Fallback: no answer versions parsed but content exists */}
+                    {answerVersions.length === 0 && (
+                      <div className="max-w-[60ch]" style={{ fontSize: "15px", lineHeight: "1.7" }}>
+                        <Markdown
+                          content={displayContent}
+                          className="prose-p:text-[15px] prose-p:leading-[1.7] prose-li:text-[15px]"
+                        />
+                      </div>
+                    )}
+
+                    {/* Speaking time */}
+                    {SPOKEN_TYPES.has(slot.type) && activeVersion && (
+                      <SpeakingTime text={activeVersion.content} answerType={slot.type} />
+                    )}
+                    {SPOKEN_TYPES.has(slot.type) && !activeVersion && (
+                      <SpeakingTime text={displayContent} answerType={slot.type} />
+                    )}
+
+                    {/* ── PREP MATERIAL DIVIDER ── */}
+                    {(parsed.proofPoints || parsed.followups || parsed.coaching) && (
+                      <div className="flex items-center gap-3 mt-5 mb-3">
+                        <div className="flex-1 h-px bg-cream-300" />
+                        <span className="text-[11px] uppercase tracking-wider font-medium text-warm-500">
+                          Prep material
+                        </span>
+                        <div className="flex-1 h-px bg-cream-300" />
+                      </div>
+                    )}
+
+                    {/* ── PREP MATERIAL ACCORDIONS ── */}
+                    <div>
+                      {parsed.proofPoints && (
+                        <PrepMaterial
+                          icon="📊"
+                          title="Key proof points"
+                          count={`${countBullets(parsed.proofPoints)} metrics`}
+                          type="proof"
+                        >
+                          <Markdown
+                            content={parsed.proofPoints}
+                            className="prose-p:text-[13px] prose-li:text-[13px] prose-p:text-[#27500A] prose-li:text-[#27500A] prose-strong:text-[#27500A]"
+                          />
+                        </PrepMaterial>
+                      )}
+
+                      {parsed.followups && (
+                        <PrepMaterial
+                          icon="💬"
+                          title="If they dig deeper"
+                          count=""
+                          type="followup"
+                        >
+                          <Markdown
+                            content={parsed.followups}
+                            className="prose-p:text-[13px] prose-li:text-[13px]"
+                          />
+                        </PrepMaterial>
+                      )}
+
+                      {parsed.coaching && (
+                        <PrepMaterial
+                          icon="🎯"
+                          title="Make it yours"
+                          count=""
+                          type="coaching"
+                        >
+                          <Markdown
+                            content={parsed.coaching}
+                            className="prose-p:text-[13px] prose-li:text-[13px] prose-p:text-[#633806] prose-li:text-[#633806] prose-strong:text-[#633806]"
+                          />
+                        </PrepMaterial>
+                      )}
+                    </div>
+                  </div>
+                )}
+
               </>
             )}
           </div>
 
-          {/* ── Per-answer explicit feedback ────────────────────────────── */}
+          {/* ── Per-answer explicit feedback ──────────────────────────────── */}
           {!isEditing && !explicitFeedbackGiven && displayContent && (
             <AnswerFeedback
               sessionId={session.id}
@@ -1153,12 +1058,12 @@ export function AnswerCard({
             />
           )}
 
-          {/* ── Feedback follow-up ─────────────────────────────────────── */}
+          {/* ── Feedback follow-up ───────────────────────────────────────── */}
           {showFeedbackFollowup && !isEditing && (
-            <div className="px-5 pb-3 -mt-1">
+            <div className="px-4 md:px-6 pb-3 -mt-1">
               {!voiceSampleStep ? (
                 <>
-                  <p className="text-xs text-[var(--text-tertiary)] mb-2">What was wrong with this answer?</p>
+                  <p className="text-xs text-warm-500 mb-2">What was wrong with this answer?</p>
                   <div className="flex flex-wrap gap-1.5">
                     {FEEDBACK_ISSUES.map((issue) => {
                       const categoryKey = issue.toLowerCase().replace(/ /g, "_");
@@ -1169,26 +1074,26 @@ export function AnswerCard({
                             logFeedback("thumbs_down", categoryKey);
                             setVoiceSampleStep(true);
                           }}
-                          className="text-xs px-2.5 py-1 rounded-full border border-stone-200/50 dark:border-white/10 text-[var(--text-tertiary)] hover:border-red-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          className="text-xs px-2.5 py-1 rounded-full border border-cream-300 text-warm-500 hover:border-red-300 hover:text-red-500 hover:bg-red-50 transition-colors"
                         >
                           {issue}
                         </button>
                       );
                     })}
-                    <button onClick={() => setShowFeedbackFollowup(false)} className="p-2 -m-1 rounded-full text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">
+                    <button onClick={() => setShowFeedbackFollowup(false)} className="p-2 -m-1 rounded-full text-warm-500 hover:text-warm-800 transition-colors">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
                 </>
               ) : (
                 <div className="space-y-2">
-                  <p className="text-xs text-[var(--text-tertiary)]">How would you actually say this? <span className="opacity-60">(optional)</span></p>
+                  <p className="text-xs text-warm-500">How would you actually say this? <span className="opacity-60">(optional)</span></p>
                   <textarea
                     value={voiceSampleText}
                     onChange={(e) => setVoiceSampleText(e.target.value)}
                     placeholder="Write your version, out loud phrasing…"
                     rows={3}
-                    className="w-full text-sm border border-stone-200/50 dark:border-white/10 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-coral focus:border-transparent bg-[var(--bg-card-elevated)] dark:bg-white/[0.02] placeholder:text-[var(--text-tertiary)] resize-none"
+                    className="w-full text-sm border border-cream-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-coral/20 focus:ring-offset-2 focus:border-transparent bg-cream-50 placeholder:text-warm-500 resize-none"
                   />
                   <div className="flex gap-2">
                     <button
@@ -1212,7 +1117,7 @@ export function AnswerCard({
                         setVoiceSampleStep(false);
                         setVoiceSampleText("");
                       }}
-                      className="text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--coral-bg)] text-[var(--coral-text)] border border-[var(--coral-border)] hover:bg-coral/10 transition-colors"
+                      className="text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--coral-bg)] text-coral border border-[var(--coral-border)] hover:bg-coral/10 transition-colors"
                     >
                       Save my version
                     </button>
@@ -1222,7 +1127,7 @@ export function AnswerCard({
                         setVoiceSampleStep(false);
                         setVoiceSampleText("");
                       }}
-                      className="text-xs px-3 py-1.5 rounded-full border border-stone-200/50 dark:border-white/10 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                      className="text-xs px-3 py-1.5 rounded-full border border-cream-300 text-warm-500 hover:text-warm-800 transition-colors"
                     >
                       Skip
                     </button>
@@ -1232,26 +1137,60 @@ export function AnswerCard({
             </div>
           )}
 
-          {/* ── Quick action pills — slide in 400ms after unlock ────────── */}
+          {/* ═══ FOOTER ═══════════════════════════════════════════════════ */}
           {!isEditing && (
             <div
-              className="px-5 pb-4 border-t border-stone-100 dark:border-white/5 pt-3"
+              className="px-4 md:px-6 pb-4 border-t border-cream-300 pt-3"
               style={
                 justUnlocked
                   ? { opacity: 0, animation: "action-reveal 300ms ease-out 400ms forwards" }
                   : undefined
               }
             >
+              {/* Feedback buttons */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                <button
+                  onClick={() => handleRate("up")}
+                  className={`text-[12px] px-3 py-1.5 rounded-md transition-colors ${
+                    slot.rating === "up"
+                      ? "bg-green-50 border border-green-200 text-green-700"
+                      : "bg-cream-50 border border-cream-300 text-warm-700 hover:bg-cream-100"
+                  }`}
+                >
+                  👍 Helpful
+                </button>
+                <button
+                  onClick={() => handleRate("down")}
+                  className={`text-[12px] px-3 py-1.5 rounded-md transition-colors ${
+                    slot.rating === "down"
+                      ? "bg-red-50 border border-red-200 text-red-600"
+                      : "bg-cream-50 border border-cream-300 text-warm-700 hover:bg-cream-100"
+                  }`}
+                >
+                  🤖 Too AI
+                </button>
+                <button
+                  onClick={() => {
+                    handleRate("down");
+                    handleQuickAction("shorter");
+                  }}
+                  className="text-[12px] px-3 py-1.5 rounded-md bg-cream-50 border border-cream-300 text-warm-700 hover:bg-cream-100 transition-colors"
+                >
+                  📏 Too long
+                </button>
+              </div>
+
+              {/* Refinement chips */}
               <div className="flex flex-wrap gap-1.5">
                 {QUICK_ACTIONS.map((action) => (
                   <button
                     key={action.key}
                     onClick={() => handleQuickAction(action.key)}
                     disabled={isRegenerating}
-                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors disabled:opacity-40 ${
+                    className={`text-[12px] px-2.5 py-1 rounded-full border transition-colors disabled:opacity-40 ${
                       activeQuickAction === action.key
-                        ? "border-[var(--coral-border)] bg-[var(--coral-bg)] text-[var(--coral-text)]"
-                        : "border-stone-200/50 dark:border-white/10 text-[var(--text-tertiary)] hover:border-[var(--coral-border)] hover:text-coral hover:bg-[var(--coral-bg)]"
+                        ? "border-coral bg-[var(--coral-bg)] text-coral"
+                        : "border-cream-300 text-warm-700 hover:bg-cream-50"
                     }`}
                   >
                     {action.label}
@@ -1261,7 +1200,7 @@ export function AnswerCard({
               </div>
 
               {/* Free regens counter */}
-              <p className="text-xs text-[var(--text-tertiary)] mt-2 flex items-center gap-1">
+              <p className="text-[11px] text-warm-500 mt-2 flex items-center gap-1">
                 {freeRegenLeft > 0 ? (
                   <><Sparkles className="w-3 h-3 text-coral/60" />{freeRegenLeft} free refinements left</>
                 ) : (
@@ -1278,7 +1217,7 @@ export function AnswerCard({
                     onChange={(e) => setCustomInstruction(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleCustomSubmit()}
                     placeholder="e.g. Focus on enterprise SaaS deals, keep under 90 seconds…"
-                    className="flex-1 text-sm border border-stone-200/50 dark:border-white/10 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-coral focus:border-transparent bg-[var(--bg-card-elevated)] dark:bg-white/[0.02] placeholder:text-[var(--text-tertiary)] text-[var(--text-primary)]"
+                    className="flex-1 text-sm border border-cream-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-coral/20 focus:ring-offset-2 focus:border-transparent bg-cream-50 placeholder:text-warm-500 text-warm-800"
                     autoFocus
                   />
                   <button
@@ -1291,7 +1230,7 @@ export function AnswerCard({
                   </button>
                   <button
                     onClick={() => { setActiveQuickAction(null); setCustomInstruction(""); }}
-                    className="px-3 py-2 rounded-xl border border-stone-200/50 dark:border-white/10 text-[var(--text-tertiary)] hover:bg-stone-50 dark:hover:bg-white/5 transition-colors flex-shrink-0"
+                    className="px-3 py-2 rounded-xl border border-cream-300 text-warm-500 hover:bg-cream-50 transition-colors flex-shrink-0"
                     title="Cancel"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -1303,7 +1242,7 @@ export function AnswerCard({
         </div>
       )}
 
-      {/* Practice mode overlay — teleprompter view for spoken answers */}
+      {/* Practice mode overlay */}
       {showPractice && displayContent && (
         <PracticeMode
           content={displayContent}
