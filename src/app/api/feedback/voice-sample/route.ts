@@ -3,10 +3,56 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyApiAuth } from "@/lib/auth/verify";
 import { feedbackLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 import { voiceSampleSchema } from "@/lib/validation/schemas";
-import { encrypt } from "@/lib/security/encryption";
+import { encrypt, decrypt } from "@/lib/security/encryption";
 
 function adminDb() {
   return createAdminClient();
+}
+
+/**
+ * GET /api/feedback/voice-sample?sessionId=xxx
+ * Load existing voice samples for a session so the UI can show saved versions.
+ */
+export async function GET(req: NextRequest) {
+  const auth = await verifyApiAuth();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const sessionId = req.nextUrl.searchParams.get("sessionId");
+  if (!sessionId) {
+    return NextResponse.json({ error: "Missing sessionId" }, { status: 400 });
+  }
+
+  try {
+    const db = adminDb();
+    const { data, error } = await db
+      .from("answer_voice_samples")
+      .select("answer_type, user_version, created_at")
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.warn("Voice sample query failed:", error);
+      return NextResponse.json({ samples: {} });
+    }
+
+    // Dedupe: keep only the latest per answer_type, decrypt user_version
+    const samples: Record<string, string> = {};
+    for (const row of data ?? []) {
+      if (samples[row.answer_type]) continue; // already have newer
+      try {
+        samples[row.answer_type] = decrypt(row.user_version);
+      } catch {
+        samples[row.answer_type] = row.user_version; // fallback if not encrypted
+      }
+    }
+
+    return NextResponse.json({ samples });
+  } catch (err) {
+    console.warn("Voice sample GET failed:", err);
+    return NextResponse.json({ samples: {} });
+  }
 }
 
 /**

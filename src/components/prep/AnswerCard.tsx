@@ -30,6 +30,7 @@ import { Markdown } from "@/components/prep/Markdown";
 import { PrepMaterial } from "@/components/prep/PrepMaterial";
 import { SpeakingTime } from "@/components/prep/SpeakingTime";
 import { PracticeMode } from "@/components/prep/PracticeMode";
+import { VoiceSample } from "@/components/prep/VoiceSample";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -97,6 +98,19 @@ const SPOKEN_TYPES = new Set<AnswerType>([
   "coachability_coaching",
   "resume_walkthrough",
   "constructive_feedback",
+]);
+
+// Answer types that show the "How would you say this?" voice sample prompt
+const VOICE_SAMPLE_TYPES = new Set<AnswerType>([
+  "tell_me_about_yourself",
+  "why_sales",
+  "why_this_company",
+  "behavioral_star",
+  "comp_expectations",
+  "role_play_script",
+  "objection_response",
+  "coachability_coaching",
+  "career_switcher_bridge",
 ]);
 
 // JSON answer types — render through ContentRouter
@@ -355,7 +369,23 @@ export function AnswerCard({
   const isLocked = slot.status === "locked";
   const isReference = REFERENCE_TYPES.has(slot.type);
   const [showPractice, setShowPractice] = useState(false);
+  const [existingVoiceSample, setExistingVoiceSample] = useState<string | undefined>();
   const canUnlock = creditBalance > 0 && !isUnlocking && !!onUnlock;
+
+  // Fetch existing voice sample for this answer type
+  const fetchedVoiceSampleRef = useRef(false);
+  useEffect(() => {
+    if (fetchedVoiceSampleRef.current) return;
+    if (!VOICE_SAMPLE_TYPES.has(slot.type) || isLocked || !session.id) return;
+    fetchedVoiceSampleRef.current = true;
+    fetch(`/api/feedback/voice-sample?sessionId=${encodeURIComponent(session.id)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const sample = data?.samples?.[slot.type];
+        if (sample) setExistingVoiceSample(sample);
+      })
+      .catch(() => {});
+  }, [slot.type, isLocked, session.id]);
 
   // ─── Card expansion tracking ──────────────────────────────────────────────
   useEffect(() => {
@@ -922,6 +952,16 @@ export function AnswerCard({
                         </p>
                       ) : null;
                     })()}
+                    {VOICE_SAMPLE_TYPES.has(slot.type) && displayContent && (
+                      <VoiceSample
+                        sessionId={session.id}
+                        answerType={slot.type}
+                        aiContentSnapshot={displayContent}
+                        stage={session.stage}
+                        roleType={session.roleType}
+                        existingVersion={existingVoiceSample}
+                      />
+                    )}
                   </div>
                 )}
 
@@ -984,6 +1024,18 @@ export function AnswerCard({
                     )}
                     {SPOKEN_TYPES.has(slot.type) && !activeVersion && (
                       <SpeakingTime text={displayContent} answerType={slot.type} />
+                    )}
+
+                    {/* Voice sample prompt */}
+                    {VOICE_SAMPLE_TYPES.has(slot.type) && displayContent && (
+                      <VoiceSample
+                        sessionId={session.id}
+                        answerType={slot.type}
+                        aiContentSnapshot={activeVersion?.content ?? displayContent}
+                        stage={session.stage}
+                        roleType={session.roleType}
+                        existingVersion={existingVoiceSample}
+                      />
                     )}
 
                     {/* ── PREP MATERIAL DIVIDER ── */}
