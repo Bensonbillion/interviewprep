@@ -100,6 +100,28 @@ function classifySection(
   return { id: lower.replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "") || `section_${index}`, type: "reference" };
 }
 
+// ─── Heading extraction helpers ──────────────────────────────────────────────
+
+/**
+ * Extract the heading title from a content chunk that may start with ## heading.
+ * Returns empty string if no heading found.
+ */
+function extractHeadingTitle(part: string): string {
+  const hMatch = part.match(/^##\s*(.+)$/m);
+  if (!hMatch) return "";
+  return hMatch[1].trim();
+}
+
+/**
+ * Remove the entire ## heading line from a content chunk.
+ * Returns the remaining content with leading whitespace trimmed.
+ */
+function stripHeadingLine(part: string): string {
+  // Remove the ## heading line entirely
+  const stripped = part.replace(/^##\s*.+$/m, "");
+  return stripped.trim();
+}
+
 // ─── Parser ──────────────────────────────────────────────────────────────────
 
 const EMPTY: ParsedAnswer = {
@@ -173,7 +195,10 @@ export function parseAnswer(
     }
 
     for (let i = 0; i < headings.length; i++) {
-      const bodyStart = headings[i].end;
+      // Skip past the heading line AND its trailing newline
+      let bodyStart = headings[i].end;
+      if (bodyStart < raw.length && raw[bodyStart] === "\n") bodyStart++;
+
       const bodyEnd = i + 1 < headings.length ? headings[i + 1].start : raw.length;
       const body = raw.slice(bodyStart, bodyEnd).replace(/^\s*---\s*$/gm, "").trim();
       if (!body) continue;
@@ -199,12 +224,11 @@ export function parseAnswer(
 
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
-      // Check if this part has a ## heading
-      const hMatch = part.match(/^##\s*(.+)$/m);
-      const title = hMatch ? hMatch[1].trim() : "";
-      const body = hMatch ? part.slice(part.indexOf("\n", part.indexOf(hMatch[0])) + 1).trim() || part.replace(/^##\s*.+$/m, "").trim() : part;
+      // Strip the entire ## heading line from the content
+      const body = stripHeadingLine(part);
+      const title = extractHeadingTitle(part);
 
-      const { id, type } = classifySection(title, i, !!hMatch);
+      const { id, type } = classifySection(title, i, !!title);
       sections.push({ id, title, content: body, type });
     }
 
