@@ -19,6 +19,7 @@ import {
   Sparkles,
   Zap,
   Lock,
+  Mic,
 } from "lucide-react";
 import type { AnswerSlot, AnswerType, PrepSession } from "@/types";
 import { tracker } from "@/lib/feedback/implicit-tracker";
@@ -28,6 +29,7 @@ import { parseAnswer } from "@/lib/answer-parser";
 import { MarkdownContent } from "@/components/prep/MarkdownContent";
 import { CollapsibleSection } from "@/components/prep/CollapsibleSection";
 import { SupportingMaterial } from "@/components/prep/SupportingMaterial";
+import { PracticeMode } from "@/components/prep/PracticeMode";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -416,6 +418,7 @@ export function AnswerCard({
   const isReference = REFERENCE_TYPES.has(slot.type);
   const isCollapsible = COLLAPSIBLE_REFERENCE_TYPES.has(slot.type);
   const [isExpanded, setIsExpanded] = useState(defaultExpanded !== false);
+  const [showPractice, setShowPractice] = useState(false);
   const canUnlock = creditBalance > 0 && !isUnlocking && !!onUnlock;
 
   // ─── Card expansion tracking ─────────────────────────────────────────────────
@@ -683,7 +686,7 @@ export function AnswerCard({
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-[var(--text-primary)] text-base leading-snug">{slot.label}</h3>
+              <h3 className="font-semibold text-[#111827] dark:text-[var(--text-primary)] text-[20px] sm:text-[24px] leading-[1.3]">{slot.label}</h3>
 
               {/* Reference badge — study material, not a spoken answer */}
               {isReference && !isLocked && (
@@ -757,6 +760,16 @@ export function AnswerCard({
               >
                 <Edit3 className="w-3.5 h-3.5" />
                 <span>Edit</span>
+              </button>
+            )}
+            {SPOKEN_TYPES.has(slot.type) && displayContent && !isEditing && (
+              <button
+                onClick={() => { setShowPractice(true); logEvent("practice_mode_open"); }}
+                className="flex items-center gap-1 px-2 py-1.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-stone-50 dark:hover:bg-white/5 rounded-lg transition-colors"
+                title="Practice speaking this answer"
+              >
+                <Mic className="w-3.5 h-3.5" />
+                <span>Practice</span>
               </button>
             )}
             <button
@@ -929,7 +942,8 @@ export function AnswerCard({
           )}
 
           {/* ── Content — blur-reveal animation plays once on unlock ─── */}
-          <div className={`px-5 py-5 relative ${justUnlocked ? "animate-blur-reveal" : ""}`}>
+          {/* Max content width 680px (65–75 chars), 4px grid: 20px mobile / 24px desktop padding */}
+          <div className={`px-5 sm:px-6 py-5 relative ${justUnlocked ? "animate-blur-reveal" : ""}`} style={{ maxWidth: 728 }}>
             {isRegenerating && (
               <div className="absolute inset-0 bg-[var(--bg-card)]/75 flex items-center justify-center z-10 rounded-b-xl">
                 <div className="flex items-center gap-2 text-sm text-[var(--text-tertiary)] bg-[var(--bg-card)] border border-stone-200/50 dark:border-white/10 px-4 py-2 rounded-full shadow-sm">
@@ -1049,9 +1063,9 @@ export function AnswerCard({
 
                   return (
                     <div>
-                      {/* Category badge + speaking time */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[var(--blue-bg)] text-[var(--blue-text)] dark:bg-brand-blue/10 dark:text-brand-blue-light">
+                      {/* Category tag (12px uppercase) + speaking time */}
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-[12px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[var(--blue-bg)] text-[var(--blue-text)] dark:bg-brand-blue/10 dark:text-brand-blue-light">
                           {slot.type === "behavioral_star" ? "Behavioral" : slot.type === "comp_expectations" ? "Tactical" : "Narrative"}
                         </span>
                         <SpeakingTimeBar words={wordCount} />
@@ -1287,6 +1301,22 @@ export function AnswerCard({
             </div>
           )}
         </div>
+      )}
+
+      {/* Practice mode overlay — teleprompter view for spoken answers */}
+      {showPractice && displayContent && (
+        <PracticeMode
+          content={displayContent}
+          questionLabel={slot.label}
+          targetSeconds={(() => {
+            const st = getSpeakingTime(displayContent);
+            return st ? st.withPauses : 90;
+          })()}
+          onClose={() => {
+            setShowPractice(false);
+            logEvent("practice_mode_close");
+          }}
+        />
       )}
     </div>
   );
