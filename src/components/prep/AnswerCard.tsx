@@ -271,18 +271,11 @@ const QUESTION_COACHING: Partial<Record<AnswerType, Partial<Record<string, strin
 function renderMarkdown(text: string): React.ReactNode {
   if (!text) return null;
 
-  // Strip section titles that leaked into content
+  // Safety-net cleanup — parser already strips headings, this catches stragglers
   const cleaned = text
-    .replace(/^##?\s*30-second version\s*/im, "")
-    .replace(/^##?\s*Full answer\s*(\(~?\d+\s*seconds?\))?\s*/im, "")
-    .replace(/^##?\s*Quick take\s*/im, "")
-    .replace(/^##?\s*Key proof points\s*/im, "")
-    .replace(/^##?\s*If they dig deeper\s*/im, "")
-    .replace(/^##?\s*Make it yours\s*/im, "")
-    .replace(/^##?\s*[^\n]{0,40}\s*$/gm, (match) => {
-      // Strip any remaining ## headers
-      return match.trim().startsWith("#") ? "" : match;
-    })
+    // Remove full ## heading lines (but not content on the same line after a heading)
+    .replace(/^#{1,3}\s+.+$/gm, "")
+    // Remove --- dividers
     .replace(/^\s*---\s*$/gm, "")
     .trim();
 
@@ -725,13 +718,18 @@ export function AnswerCard({
   if (answerVersions.length === 0 && parsed?.isStructured) {
     const answerSections = parsed.sections.filter((s) => s.type === "answer");
     for (const s of answerSections) {
-      answerVersions.push({ title: s.title || "Answer", content: s.content });
+      if (s.content?.trim()) {
+        answerVersions.push({ title: s.title || "Answer", content: s.content });
+      }
     }
   }
 
+  // Filter out any entries with empty content (defensive)
+  const validVersions = answerVersions.filter((v) => v.content?.trim());
+
   // Ensure activeAnswerTab is in range
-  const clampedTab = Math.min(activeAnswerTab, Math.max(0, answerVersions.length - 1));
-  const activeVersion = answerVersions[clampedTab] ?? answerVersions[0];
+  const clampedTab = Math.min(activeAnswerTab, Math.max(0, validVersions.length - 1));
+  const activeVersion = validVersions[clampedTab] ?? validVersions[0];
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -1030,6 +1028,7 @@ export function AnswerCard({
                     })()}
                     {VOICE_SAMPLE_TYPES.has(slot.type) && displayContent && (
                       <VoiceSample
+                        key={`voice-json-${slot.type}`}
                         sessionId={session.id}
                         answerType={slot.type}
                         aiContentSnapshot={displayContent}
@@ -1054,18 +1053,18 @@ export function AnswerCard({
                     )}
 
                     {/* TABBED ANSWER VERSIONS */}
-                    {answerVersions.length > 1 ? (
+                    {validVersions.length > 1 ? (
                       <div>
                         {/* Tab pills */}
                         <div className="flex gap-1 mb-4">
-                          {answerVersions.map((v, i) => (
+                          {validVersions.map((v, i) => (
                             <button
                               key={i}
                               onClick={() => setActiveAnswerTab(i)}
                               className={`flex-1 md:flex-none px-4 py-2.5 rounded-full text-sm font-medium transition-colors duration-150 ${
                                 clampedTab === i
-                                  ? "bg-neutral-800 text-white"
-                                  : "bg-transparent border border-neutral-300 text-neutral-500 hover:bg-neutral-50"
+                                  ? "bg-warm-800 text-white"
+                                  : "bg-transparent border border-cream-300 text-warm-500 hover:bg-cream-50"
                               }`}
                             >
                               {i === 0 ? "30-second" : "Full answer"}
@@ -1074,13 +1073,13 @@ export function AnswerCard({
                         </div>
 
                         {/* Active content ONLY — not both */}
-                        <div className="text-left text-[15px] leading-relaxed text-neutral-800 max-w-[65ch]">
-                          {renderMarkdown(answerVersions[clampedTab].content)}
+                        <div className="text-left text-[15px] leading-relaxed text-warm-800 max-w-[65ch]">
+                          {renderMarkdown(validVersions[clampedTab].content) || renderMarkdown(displayContent ?? "")}
                         </div>
                       </div>
                     ) : (
-                      <div className="text-left text-[15px] leading-relaxed text-neutral-800 max-w-[65ch]">
-                        {renderMarkdown(answerVersions[0]?.content || displayContent)}
+                      <div className="text-left text-[15px] leading-relaxed text-warm-800 max-w-[65ch]">
+                        {renderMarkdown(validVersions[0]?.content || displayContent)}
                       </div>
                     )}
 
@@ -1095,6 +1094,7 @@ export function AnswerCard({
                     {/* Voice sample prompt */}
                     {VOICE_SAMPLE_TYPES.has(slot.type) && displayContent && (
                       <VoiceSample
+                        key={`voice-${slot.type}`}
                         sessionId={session.id}
                         answerType={slot.type}
                         aiContentSnapshot={activeVersion?.content ?? displayContent}

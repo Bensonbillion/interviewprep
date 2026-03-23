@@ -109,15 +109,58 @@ function classifySection(
 function extractHeadingTitle(part: string): string {
   const hMatch = part.match(/^##\s*(.+)$/m);
   if (!hMatch) return "";
-  return hMatch[1].trim();
+  const fullCapture = hMatch[1].trim();
+
+  // If the heading line has content after a known phrase, return only the phrase
+  const lower = fullCapture.toLowerCase();
+  for (const phrase of KNOWN_HEADING_PHRASES) {
+    if (lower.startsWith(phrase)) {
+      return fullCapture.slice(0, phrase.length);
+    }
+  }
+  return fullCapture;
 }
 
 /**
- * Remove the entire ## heading line from a content chunk.
- * Returns the remaining content with leading whitespace trimmed.
+ * Known heading title phrases — used to separate title from content
+ * when both appear on the same line.
+ */
+const KNOWN_HEADING_PHRASES = [
+  "quick take",
+  "30-second version",
+  "full answer (~60 seconds)",
+  "full answer",
+  "key proof points",
+  "if they dig deeper",
+  "make it yours",
+];
+
+/**
+ * Remove the ## heading line from a content chunk.
+ * If the heading and content are on the same line (e.g., "## 30-second version Yeah, so..."),
+ * only strips the title phrase, preserving the trailing content.
  */
 function stripHeadingLine(part: string): string {
-  // Remove the ## heading line entirely
+  const hMatch = part.match(/^(##\s*)(.+)$/m);
+  if (!hMatch) return part.trim();
+
+  const afterHash = hMatch[2].trim();
+
+  // Check if this line has content AFTER a known title phrase
+  const lower = afterHash.toLowerCase();
+  for (const phrase of KNOWN_HEADING_PHRASES) {
+    if (lower.startsWith(phrase)) {
+      const trailingContent = afterHash.slice(phrase.length).trim();
+      // Remove the heading line and prepend any trailing content
+      const stripped = part.replace(/^##\s*.+$/m, "");
+      if (trailingContent) {
+        return (trailingContent + "\n" + stripped).trim();
+      }
+      return stripped.trim();
+    }
+  }
+
+  // No known phrase — remove the entire heading line
   const stripped = part.replace(/^##\s*.+$/m, "");
   return stripped.trim();
 }
@@ -200,11 +243,27 @@ export function parseAnswer(
       if (bodyStart < raw.length && raw[bodyStart] === "\n") bodyStart++;
 
       const bodyEnd = i + 1 < headings.length ? headings[i + 1].start : raw.length;
-      const body = raw.slice(bodyStart, bodyEnd).replace(/^\s*---\s*$/gm, "").trim();
+      let body = raw.slice(bodyStart, bodyEnd).replace(/^\s*---\s*$/gm, "").trim();
+
+      // If heading captured content on the same line (e.g. "## 30-second version Yeah, so..."),
+      // extract the real title and move trailing content to the body
+      let headingTitle = headings[i].heading;
+      const headingLower = headingTitle.toLowerCase();
+      for (const phrase of KNOWN_HEADING_PHRASES) {
+        if (headingLower.startsWith(phrase)) {
+          const extraContent = headingTitle.slice(phrase.length).trim();
+          headingTitle = headingTitle.slice(0, phrase.length);
+          if (extraContent) {
+            body = body ? extraContent + "\n\n" + body : extraContent;
+          }
+          break;
+        }
+      }
+
       if (!body) continue;
 
-      const { id, type } = classifySection(headings[i].heading, sections.length, true);
-      sections.push({ id, title: headings[i].heading, content: body, type });
+      const { id, type } = classifySection(headingTitle, sections.length, true);
+      sections.push({ id, title: headingTitle, content: body, type });
     }
 
     return buildResult(sections);
@@ -226,6 +285,7 @@ export function parseAnswer(
       const part = parts[i];
       // Strip the entire ## heading line from the content
       const body = stripHeadingLine(part);
+      if (!body) continue; // Skip empty sections (heading consumed all content)
       const title = extractHeadingTitle(part);
 
       const { id, type } = classifySection(title, i, !!title);
