@@ -26,7 +26,6 @@ import { tracker } from "@/lib/feedback/implicit-tracker";
 import { AnswerFeedback } from "@/components/prep/AnswerFeedback";
 import { ContentRouter } from "@/components/prep/content-renderers";
 import { parseAnswer, countBullets } from "@/lib/answer-parser";
-import { Markdown } from "@/components/prep/Markdown";
 import { PrepMaterial } from "@/components/prep/PrepMaterial";
 import { SpeakingTime } from "@/components/prep/SpeakingTime";
 import { PracticeMode } from "@/components/prep/PracticeMode";
@@ -266,6 +265,83 @@ const QUESTION_COACHING: Partial<Record<AnswerType, Partial<Record<string, strin
     panel: "Have one clear, confident positioning statement for each major competitor — not a feature list.",
   },
 };
+
+// ─── Inline markdown renderer ────────────────────────────────────────────────
+
+function renderMarkdown(text: string): React.ReactNode {
+  if (!text) return null;
+
+  // Strip section titles that leaked into content
+  const cleaned = text
+    .replace(/^##?\s*30-second version\s*/im, "")
+    .replace(/^##?\s*Full answer\s*(\(~?\d+\s*seconds?\))?\s*/im, "")
+    .replace(/^##?\s*Quick take\s*/im, "")
+    .replace(/^##?\s*Key proof points\s*/im, "")
+    .replace(/^##?\s*If they dig deeper\s*/im, "")
+    .replace(/^##?\s*Make it yours\s*/im, "")
+    .replace(/^##?\s*[^\n]{0,40}\s*$/gm, (match) => {
+      // Strip any remaining ## headers
+      return match.trim().startsWith("#") ? "" : match;
+    })
+    .replace(/^\s*---\s*$/gm, "")
+    .trim();
+
+  if (!cleaned) return null;
+
+  // Split into paragraphs
+  const paragraphs = cleaned.split(/\n\n+/).filter((p) => p.trim());
+
+  function renderInline(p: string): React.ReactNode[] {
+    // Handle bullet lines within a paragraph
+    const lines = p.split("\n");
+    const isBulletList = lines.every(
+      (l) => /^\s*[-•*]\s/.test(l) || /^\s*\d+[\.\)]\s/.test(l) || !l.trim()
+    );
+
+    if (isBulletList && lines.some((l) => /^\s*[-•*]\s/.test(l) || /^\s*\d+[\.\)]\s/.test(l))) {
+      return [
+        <ul key="list" className="list-disc pl-5 space-y-1 my-2">
+          {lines
+            .filter((l) => l.trim())
+            .map((l, j) => {
+              const stripped = l.trim().replace(/^[-•*]\s+/, "").replace(/^\d+[\.\)]\s+/, "");
+              return <li key={j}>{boldify(stripped)}</li>;
+            })}
+        </ul>,
+      ];
+    }
+
+    return [<>{boldify(p.replace(/\n/g, " "))}</>];
+  }
+
+  return paragraphs.map((p, i) => {
+    const trimmed = p.trim();
+    const inner = renderInline(trimmed);
+    // If it's a list, render without <p> wrapper
+    if (inner.length === 1 && (inner[0] as React.ReactElement)?.type === "ul") {
+      return <div key={i}>{inner}</div>;
+    }
+    return (
+      <p key={i} className="mb-3 last:mb-0">
+        {inner}
+      </p>
+    );
+  });
+}
+
+function boldify(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={i} className="font-semibold">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
 
 // ─── Speaking time helpers (for edit mode only) ──────────────────────────────
 
@@ -832,7 +908,7 @@ export function AnswerCard({
             {isJson ? (
               <ContentRouter content={displayContent} answerType={slot.type} stage={session.stage} />
             ) : (
-              <Markdown content={displayContent ?? ""} />
+              <div className="text-left text-sm">{renderMarkdown(displayContent ?? "")}</div>
             )}
           </div>
 
@@ -977,44 +1053,34 @@ export function AnswerCard({
                       </div>
                     )}
 
-                    {/* Answer tabs (30-second / Full answer) */}
-                    {answerVersions.length > 1 && (
-                      <div className="flex gap-1 mb-4" role="tablist">
-                        {answerVersions.map((v, i) => (
-                          <button
-                            key={i}
-                            role="tab"
-                            aria-selected={clampedTab === i}
-                            onClick={() => setActiveAnswerTab(i)}
-                            className={`px-4 py-2 text-[13px] font-medium rounded-full transition-all duration-200 cursor-pointer ${
-                              clampedTab === i
-                                ? "bg-warm-800 text-white"
-                                : "bg-transparent border border-cream-300 text-warm-700 hover:bg-cream-50"
-                            }`}
-                          >
-                            {v.title}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    {/* TABBED ANSWER VERSIONS */}
+                    {answerVersions.length > 1 ? (
+                      <div>
+                        {/* Tab pills */}
+                        <div className="flex gap-1 mb-4">
+                          {answerVersions.map((v, i) => (
+                            <button
+                              key={i}
+                              onClick={() => setActiveAnswerTab(i)}
+                              className={`flex-1 md:flex-none px-4 py-2.5 rounded-full text-sm font-medium transition-colors duration-150 ${
+                                clampedTab === i
+                                  ? "bg-neutral-800 text-white"
+                                  : "bg-transparent border border-neutral-300 text-neutral-500 hover:bg-neutral-50"
+                              }`}
+                            >
+                              {i === 0 ? "30-second" : "Full answer"}
+                            </button>
+                          ))}
+                        </div>
 
-                    {/* Answer content rendered through Markdown */}
-                    {activeVersion && (
-                      <div className="max-w-[60ch]" style={{ fontSize: "15px", lineHeight: "1.7" }}>
-                        <Markdown
-                          content={activeVersion.content}
-                          className="prose-p:text-[15px] prose-p:leading-[1.7] prose-li:text-[15px]"
-                        />
+                        {/* Active content ONLY — not both */}
+                        <div className="text-left text-[15px] leading-relaxed text-neutral-800 max-w-[65ch]">
+                          {renderMarkdown(answerVersions[clampedTab].content)}
+                        </div>
                       </div>
-                    )}
-
-                    {/* Fallback: no answer versions parsed but content exists */}
-                    {answerVersions.length === 0 && (
-                      <div className="max-w-[60ch]" style={{ fontSize: "15px", lineHeight: "1.7" }}>
-                        <Markdown
-                          content={displayContent}
-                          className="prose-p:text-[15px] prose-p:leading-[1.7] prose-li:text-[15px]"
-                        />
+                    ) : (
+                      <div className="text-left text-[15px] leading-relaxed text-neutral-800 max-w-[65ch]">
+                        {renderMarkdown(answerVersions[0]?.content || displayContent)}
                       </div>
                     )}
 
@@ -1058,10 +1124,9 @@ export function AnswerCard({
                           count={`${countBullets(parsed.proofPoints)} metrics`}
                           type="proof"
                         >
-                          <Markdown
-                            content={parsed.proofPoints}
-                            className="prose-p:text-[13px] prose-li:text-[13px] prose-p:text-[#27500A] prose-li:text-[#27500A] prose-strong:text-[#27500A]"
-                          />
+                          <div className="text-[13px] text-left">
+                            {renderMarkdown(parsed.proofPoints)}
+                          </div>
                         </PrepMaterial>
                       )}
 
@@ -1072,10 +1137,9 @@ export function AnswerCard({
                           count=""
                           type="followup"
                         >
-                          <Markdown
-                            content={parsed.followups}
-                            className="prose-p:text-[13px] prose-li:text-[13px]"
-                          />
+                          <div className="text-[13px] text-left">
+                            {renderMarkdown(parsed.followups)}
+                          </div>
                         </PrepMaterial>
                       )}
 
@@ -1086,10 +1150,9 @@ export function AnswerCard({
                           count=""
                           type="coaching"
                         >
-                          <Markdown
-                            content={parsed.coaching}
-                            className="prose-p:text-[13px] prose-li:text-[13px] prose-p:text-[#633806] prose-li:text-[#633806] prose-strong:text-[#633806]"
-                          />
+                          <div className="text-[13px] text-left">
+                            {renderMarkdown(parsed.coaching)}
+                          </div>
                         </PrepMaterial>
                       )}
                     </div>
