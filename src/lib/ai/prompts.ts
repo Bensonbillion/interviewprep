@@ -33,6 +33,11 @@ interface PromptContext {
   jobListingSignals?: JobListingSignals;
   personalContext?: string;
   mockCallPersona?: MockCallPersona;
+  interviewerName?: string;
+  interviewContext?: string;
+  mockAccountName?: string;
+  mockAccountContext?: string;
+  previousRoundContext?: string;
 }
 
 interface PromptResult {

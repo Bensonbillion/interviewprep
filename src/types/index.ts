@@ -311,6 +311,12 @@ export interface PrepSession {
   personalContext?: string; // Optional "what makes you YOU" — hobbies, side projects, etc.
   mockCallType?: MockCallType;
   mockCallPersona?: MockCallPersona;
+  interviewerName?: string;
+  interviewContext?: string;
+  mockAccountName?: string;
+  mockAccountContext?: string;
+  previousRoundContext?: string;
+  isFirstRound?: boolean;
 }
 
 // ─── Interviewer Research ─────────────────────────────────────────────────────

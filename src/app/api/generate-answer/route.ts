@@ -88,6 +88,11 @@ export async function POST(req: NextRequest) {
         jobListingSignals,
         personalContext: session.personalContext,
         mockCallPersona: session.mockCallPersona,
+        interviewerName: session.interviewerName,
+        interviewContext: session.interviewContext,
+        mockAccountName: session.mockAccountName,
+        mockAccountContext: session.mockAccountContext,
+        previousRoundContext: session.previousRoundContext,
       },
       {
         question: body.question,

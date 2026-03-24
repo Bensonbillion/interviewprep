@@ -26,6 +26,12 @@ interface StepDetailsProps {
     personalContext?: string;
     mockCallType?: MockCallType;
     mockCallPersona?: MockCallPersona;
+    interviewerName?: string;
+    interviewContext?: string;
+    mockAccountName?: string;
+    mockAccountContext?: string;
+    previousRoundContext?: string;
+    isFirstRound?: boolean;
   }) => void;
 }
 
@@ -45,6 +51,13 @@ export function StepDetails({ roleType, onCompanyNameChange, onGenerate }: StepD
   const [personalContext, setPersonalContext] = useState("");
   const [mockCallType, setMockCallType] = useState<MockCallType>(null);
   const [mockCallPersona, setMockCallPersona] = useState<MockCallPersona>(null);
+  const [showDiscoveryContext, setShowDiscoveryContext] = useState(false);
+  const [discoveryInterviewerName, setDiscoveryInterviewerName] = useState("");
+  const [discoveryInterviewContext, setDiscoveryInterviewContext] = useState("");
+  const [discoveryAccountName, setDiscoveryAccountName] = useState("");
+  const [discoveryAccountContext, setDiscoveryAccountContext] = useState("");
+  const [isFirstRound, setIsFirstRound] = useState(true);
+  const [previousRoundContext, setPreviousRoundContext] = useState("");
 
   // Smart default round based on role type
   useEffect(() => {
@@ -147,6 +160,12 @@ export function StepDetails({ roleType, onCompanyNameChange, onGenerate }: StepD
       personalContext: personalContext.trim() || undefined,
       mockCallType: stage === "role_play" ? mockCallType : null,
       mockCallPersona: stage === "role_play" ? mockCallPersona : null,
+      interviewerName: discoveryInterviewerName.trim() || undefined,
+      interviewContext: discoveryInterviewContext.trim() || undefined,
+      mockAccountName: discoveryAccountName.trim() || undefined,
+      mockAccountContext: discoveryAccountContext.trim() || undefined,
+      previousRoundContext: !isFirstRound ? previousRoundContext.trim() || undefined : undefined,
+      isFirstRound,
     });
   };
 
@@ -176,6 +195,155 @@ export function StepDetails({ roleType, onCompanyNameChange, onGenerate }: StepD
         mockCallPersona={mockCallPersona}
         onMockCallPersonaChange={setMockCallPersona}
       />
+
+      {/* Discovery context capture — visible only for role_play + discovery */}
+      {stage === "role_play" && mockCallType === "discovery" && (() => {
+        const hasContext = !!(discoveryInterviewerName.trim() || discoveryInterviewContext.trim() || discoveryAccountName.trim() || discoveryAccountContext.trim() || previousRoundContext.trim());
+        return (
+          <div
+            className="border border-dashed border-gray-200 rounded-xl overflow-hidden"
+            style={{ opacity: 0, animation: "action-reveal 200ms ease-out forwards" }}
+          >
+            <button
+              type="button"
+              onClick={() => setShowDiscoveryContext((o) => !o)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm">📋</span>
+                <div>
+                  <span className="text-sm font-medium text-ink">Add context about your interview</span>
+                  <span className="text-xs text-ink-muted block sm:inline sm:ml-2">The more you tell us, the better your prep</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {hasContext ? (
+                  <span className="text-xs text-emerald-600 font-medium">✓ Context added</span>
+                ) : (
+                  <span className="text-xs text-primary-500 font-medium">Optional</span>
+                )}
+                {showDiscoveryContext ? (
+                  <ChevronUp className="w-4 h-4 text-ink-muted" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-ink-muted" />
+                )}
+              </div>
+            </button>
+
+            <div
+              style={{
+                maxHeight: showDiscoveryContext ? "2000px" : "0px",
+                overflow: "hidden",
+                transition: "max-height 300ms ease-out",
+              }}
+            >
+              <div className="px-4 pb-4 space-y-4 border-t border-dashed border-gray-100 pt-3">
+
+                {/* Input 1: Interviewer name */}
+                <div>
+                  <label className="text-sm font-medium text-ink mb-1 block">
+                    Who&apos;s interviewing you?
+                  </label>
+                  <input
+                    type="text"
+                    value={discoveryInterviewerName}
+                    onChange={(e) => setDiscoveryInterviewerName(e.target.value)}
+                    placeholder="e.g. Sarah Chen"
+                    className="w-full text-sm border border-[#DBEAFE] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white placeholder:text-gray-400"
+                  />
+                  <p className="text-xs text-ink-muted mt-1">We&apos;ll research their background and tailor your prep to what they care about</p>
+                </div>
+
+                {/* Input 2: Interview format */}
+                <div>
+                  <label className="text-sm font-medium text-ink mb-1 block">
+                    What do you know about the format?
+                  </label>
+                  <div className="relative">
+                    <textarea
+                      rows={3}
+                      maxLength={2000}
+                      value={discoveryInterviewContext}
+                      onChange={(e) => setDiscoveryInterviewContext(e.target.value)}
+                      placeholder="e.g. 10-minute mock discovery call, they use MEDDIC, I found a Reddit post saying they do two attempts and score on coachability..."
+                      className="w-full text-sm border border-[#DBEAFE] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white placeholder:text-gray-400 resize-y min-h-[80px]"
+                    />
+                    <span className="absolute bottom-2 right-3 text-xs text-ink-muted">
+                      {discoveryInterviewContext.length}/2000
+                    </span>
+                  </div>
+                  <p className="text-xs text-ink-muted mt-1">Copy-paste anything — Glassdoor reviews, recruiter notes, LinkedIn posts, Reddit threads</p>
+                </div>
+
+                {/* Input 3: Account/prospect context */}
+                <div>
+                  <label className="text-sm font-medium text-ink mb-1 block">
+                    Do you know what company you&apos;ll be calling?
+                  </label>
+                  <input
+                    type="text"
+                    value={discoveryAccountName}
+                    onChange={(e) => setDiscoveryAccountName(e.target.value)}
+                    placeholder="e.g. Acme Corp, or 'a construction company'"
+                    className="w-full text-sm border border-[#DBEAFE] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white placeholder:text-gray-400"
+                  />
+                  <textarea
+                    rows={2}
+                    value={discoveryAccountContext}
+                    onChange={(e) => setDiscoveryAccountContext(e.target.value)}
+                    placeholder="e.g. 200-truck fleet, been using Lytx for 3 years, Safety Manager persona, insurance costs rising..."
+                    className="w-full text-sm border border-[#DBEAFE] rounded-lg px-3 py-2 mt-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white placeholder:text-gray-400 resize-y min-h-[60px]"
+                  />
+                </div>
+
+                {/* Input 4: Previous round */}
+                <div>
+                  <label className="text-sm font-medium text-ink mb-2 block">
+                    Is this your first interview with this company?
+                  </label>
+                  <div className="flex gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsFirstRound(true)}
+                      className={`flex-1 text-sm py-2.5 rounded-full border-2 font-medium transition-all ${
+                        isFirstRound
+                          ? "border-primary-500 bg-primary-50 text-primary-600"
+                          : "border-[#DBEAFE] bg-white text-ink-muted hover:border-primary-100"
+                      }`}
+                    >
+                      Yes, first round
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsFirstRound(false)}
+                      className={`flex-1 text-sm py-2.5 rounded-full border-2 font-medium transition-all ${
+                        !isFirstRound
+                          ? "border-primary-500 bg-primary-50 text-primary-600"
+                          : "border-[#DBEAFE] bg-white text-ink-muted hover:border-primary-100"
+                      }`}
+                    >
+                      No, I&apos;ve had round 1
+                    </button>
+                  </div>
+                  {!isFirstRound && (
+                    <div style={{ opacity: 0, animation: "action-reveal 200ms ease-out forwards" }}>
+                      <textarea
+                        rows={3}
+                        value={previousRoundContext}
+                        onChange={(e) => setPreviousRoundContext(e.target.value)}
+                        placeholder="What happened in round 1? What questions did they ask? What feedback did you get?"
+                        className="w-full text-sm border border-[#DBEAFE] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white placeholder:text-gray-400 resize-y min-h-[80px]"
+                      />
+                      <p className="text-xs text-ink-muted mt-1">This helps us build on what they already know about you and focus on gaps</p>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Interview date (optional) */}
       <div>
