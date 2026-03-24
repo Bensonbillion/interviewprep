@@ -120,6 +120,8 @@ export interface CompanyInterviewIntel {
   employeeCountApprox: number | null;
   companyType: string | null;
   repvueDataUpdatedAt: string | null;
+  salesMethodology: string | null;
+  methodologyNotes: string | null;
 }
 
 export const INDUSTRY_BENCHMARKS: Record<string, { base_median: number; ote_median: number; top_performer: number; quota_attainment: number }> = {
@@ -159,7 +161,7 @@ export async function fetchCompanyInterviewIntel(companyName: string): Promise<C
 
   const { data } = await db
     .from("company_interview_intel")
-    .select("company_name, interview_rounds, avg_days_to_hire, key_test, unique_element, mock_call_format, common_questions, red_flags, tips, sdr_satisfaction_score, repvue_overall_rating, repvue_culture_rating, repvue_product_market_fit, repvue_base_comp_rating, repvue_incentive_comp_rating, repvue_future_outlook, repvue_industry_rank, repvue_industry_category, comp_by_role, quota_attainment_by_role, industry_avg_quota_attainment, company_size, employee_count_approx, company_type, repvue_data_updated_at")
+    .select("company_name, interview_rounds, avg_days_to_hire, key_test, unique_element, mock_call_format, common_questions, red_flags, tips, sdr_satisfaction_score, repvue_overall_rating, repvue_culture_rating, repvue_product_market_fit, repvue_base_comp_rating, repvue_incentive_comp_rating, repvue_future_outlook, repvue_industry_rank, repvue_industry_category, comp_by_role, quota_attainment_by_role, industry_avg_quota_attainment, company_size, employee_count_approx, company_type, repvue_data_updated_at, sales_methodology, methodology_notes")
     .eq("company_name_normalized", normalized)
     .maybeSingle();
 
@@ -191,6 +193,8 @@ export async function fetchCompanyInterviewIntel(companyName: string): Promise<C
     employeeCountApprox: data.employee_count_approx ?? null,
     companyType: data.company_type ?? null,
     repvueDataUpdatedAt: data.repvue_data_updated_at ?? null,
+    salesMethodology: data.sales_methodology ?? null,
+    methodologyNotes: data.methodology_notes ?? null,
   };
 }
 
@@ -260,6 +264,11 @@ export function formatInterviewIntelSection(intel: CompanyInterviewIntel): strin
   const parts: string[] = [];
 
   parts.push(`COMPANY-SPECIFIC INTERVIEW INTELLIGENCE — ${intel.companyName}:`);
+
+  // Sales methodology
+  if (intel.salesMethodology) {
+    parts.push(`SALES METHODOLOGY: ${intel.salesMethodology.replace(/_/g, " ").toUpperCase()}${intel.methodologyNotes ? `\n${intel.methodologyNotes}` : ""}`);
+  }
 
   // Company profile
   const profileDetails = [

@@ -1882,6 +1882,30 @@ Return ONLY the guide. No preamble.`,
   };
 }
 
+// ─── Discovery: Shared context blocks ────────────────────────────────────────
+
+function buildDiscoveryContextBlocks(ctx: PromptContext): string {
+  const blocks: string[] = [];
+
+  if (ctx.interviewerName) {
+    blocks.push(`INTERVIEWER: ${ctx.interviewerName}\nResearch this person's background and tailor prep to what they likely evaluate. Include any public information about their sales philosophy, past roles, or interview style.`);
+  }
+
+  if (ctx.interviewContext) {
+    blocks.push(`USER-PROVIDED INTERVIEW CONTEXT (HIGH PRIORITY — overrides generic assumptions):\n"${ctx.interviewContext}"\n\nUse this to: adjust the prospect persona if mentioned, use the specific format described, reference any scoring criteria mentioned, note any company-specific requirements.`);
+  }
+
+  if (ctx.mockAccountContext) {
+    blocks.push(`ACCOUNT CONTEXT:\n${ctx.mockAccountContext}`);
+  }
+
+  if (ctx.previousRoundContext) {
+    blocks.push(`PREVIOUS ROUND CONTEXT (this is round 2 or later):\n"${ctx.previousRoundContext}"\n\nBuild on what they already demonstrated. Focus on gaps mentioned. Don't repeat what already worked.`);
+  }
+
+  return blocks.length > 0 ? "\n\n" + blocks.join("\n\n") : "";
+}
+
 // ─── Discovery: Business Hypothesis ──────────────────────────────────────────
 
 export function buildDiscoveryHypothesisPrompt(ctx: PromptContext): PromptResult {
@@ -1895,7 +1919,7 @@ You are a sales discovery coach specializing in the Command of the Message (Forc
 Company: ${ctx.company.name}
 Role: ${ctx.targetRole}
 Persona the candidate will call: ${persona}
-${buildCompanyContext(ctx.company)}
+${buildCompanyContext(ctx.company)}${buildDiscoveryContextBlocks(ctx)}
 
 THE COMMAND OF THE MESSAGE HYPOTHESIS FORMULA:
 Because of [industry pain or persona pain], [COMPANY] may be experiencing [negative impact on safety, efficiency, or sustainability].
@@ -1966,7 +1990,7 @@ You are a sales discovery coach. Generate 4 discovery questions for the ${layer}
 Company: ${ctx.company.name}
 Role: ${ctx.targetRole}
 Persona: ${persona}
-${buildCompanyContext(ctx.company)}
+${buildCompanyContext(ctx.company)}${buildDiscoveryContextBlocks(ctx)}
 
 ${layerDefinitions[layer]}
 
@@ -2023,7 +2047,7 @@ export function buildDiscoveryTrapQuestionsPrompt(ctx: PromptContext): PromptRes
 You are a competitive sales strategist. Generate trap-setting discovery questions that position defensible differentiators as buyer requirements before competitors can claim alternatives.`,
     user: `Generate 3 trap-setting questions for a ${ctx.company.name} discovery mock call.
 
-${buildCompanyContext(ctx.company)}
+${buildCompanyContext(ctx.company)}${buildDiscoveryContextBlocks(ctx)}
 
 DEFENSIBLE DIFFERENTIATORS (use these — do NOT invent others):
 1. Real-time in-cab AI coaching — competitors like Lytx and Motive only upload clips after G-force events. 80% of dangerous behaviors like drowsiness and distraction never trigger G-force.
@@ -2070,7 +2094,7 @@ export function buildDiscoveryScoringGuidePrompt(ctx: PromptContext): PromptResu
 You are generating a scoring guide for a sales discovery mock call evaluation.`,
     user: `Generate a scoring guide for a ${ctx.company.name} Account Executive discovery mock call.
 
-${buildCompanyContext(ctx.company)}
+${buildCompanyContext(ctx.company)}${buildDiscoveryContextBlocks(ctx)}
 
 SCORING CATEGORIES (from the interview evaluation process):
 1. Industry Pain — industry knowledge demonstrated before the call begins
@@ -2133,7 +2157,7 @@ You are a sales discovery coach. Generate the pain recap template — the most i
 Company: ${ctx.company.name}
 Role: ${ctx.targetRole}
 Persona: ${persona}
-${buildCompanyContext(ctx.company)}
+${buildCompanyContext(ctx.company)}${buildDiscoveryContextBlocks(ctx)}
 
 CONTEXT: This is the moment after all discovery is complete and before recommending a solution. Luke O'Connor specifically evaluates whether the candidate:
 1. Recaps ALL pain threads — technical, personal, AND business — not just the last one discussed
@@ -2172,7 +2196,7 @@ You are a sales discovery coach. Generate a call opener and agenda-setting scrip
 Company: ${ctx.company.name}
 Role: ${ctx.targetRole}
 Persona: ${persona} at a construction company
-${buildCompanyContext(ctx.company)}
+${buildCompanyContext(ctx.company)}${buildDiscoveryContextBlocks(ctx)}
 
 Generate four parts:
 
@@ -2222,7 +2246,7 @@ You are a sales discovery coach specializing in the Command of the Message frame
 Company: ${ctx.company.name}
 Role: ${ctx.targetRole}
 Persona: ${persona}
-${buildCompanyContext(ctx.company)}
+${buildCompanyContext(ctx.company)}${buildDiscoveryContextBlocks(ctx)}
 
 The evaluator specifically scores:
 - Did the candidate use "my recommendation" language?
@@ -2279,7 +2303,7 @@ You are a sales discovery coach. Generate the closing sequence for a discovery m
 Company: ${ctx.company.name}
 Role: ${ctx.targetRole}
 Persona: ${persona}
-${buildCompanyContext(ctx.company)}
+${buildCompanyContext(ctx.company)}${buildDiscoveryContextBlocks(ctx)}
 
 The evaluator scores "expanding scope of the opportunity" as a key criterion. The close must multi-thread - bring in other stakeholders, propose a concrete next step.
 
