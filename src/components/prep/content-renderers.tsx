@@ -1,6 +1,13 @@
 import { tryParseJSON, keyToLabel } from "@/lib/content-parser";
 import { Badge } from "@/components/ui/badge";
 import type { AnswerType } from "@/types";
+import {
+  DiscoveryHypothesisCard,
+  DiscoveryQuestionsCard,
+  DiscoveryTrapCard,
+  DiscoveryScoringCard,
+  DiscoveryPainRecapCard,
+} from "./DiscoveryCards";
 
 // ─── Inline formatting: **bold** and *italic* ──────────────────────────────
 export function renderInlineFormatting(text: string): React.ReactNode {
@@ -1028,6 +1035,29 @@ export function ContentRouter({
         </div>
       );
     }
+  }
+
+  // ─ discovery answer types ─
+  if (answerType === "discovery_hypothesis" && parsed) {
+    return <DiscoveryHypothesisCard data={parsed} />;
+  }
+  if (answerType === "discovery_questions_technical" && parsed) {
+    return <DiscoveryQuestionsCard data={parsed} layer="technical" />;
+  }
+  if (answerType === "discovery_questions_personal" && parsed) {
+    return <DiscoveryQuestionsCard data={parsed} layer="personal" />;
+  }
+  if (answerType === "discovery_questions_business" && parsed) {
+    return <DiscoveryQuestionsCard data={parsed} layer="business" />;
+  }
+  if (answerType === "discovery_trap_questions" && parsed) {
+    return <DiscoveryTrapCard data={parsed} />;
+  }
+  if (answerType === "discovery_scoring_guide" && parsed) {
+    return <DiscoveryScoringCard data={parsed} />;
+  }
+  if (answerType === "discovery_pain_recap" && parsed) {
+    return <DiscoveryPainRecapCard data={parsed} />;
   }
 
   // Unknown JSON — generic structured layout

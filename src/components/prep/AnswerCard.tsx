@@ -55,11 +55,11 @@ const EMOJIS: Record<AnswerType, string> = {
   competitor_battle_card: "⚔️",
   discovery_hypothesis: "🎯",
   discovery_questions_technical: "🔧",
-  discovery_questions_personal: "💬",
-  discovery_questions_business: "💲",
+  discovery_questions_personal: "💭",
+  discovery_questions_business: "💰",
   discovery_trap_questions: "🪤",
   discovery_scoring_guide: "📊",
-  discovery_pain_recap: "📋",
+  discovery_pain_recap: "🔄",
 };
 
 const QUICK_ACTIONS = [
@@ -270,6 +270,27 @@ const QUESTION_COACHING: Partial<Record<AnswerType, Partial<Record<string, strin
     role_play: "When they name a competitor mid-call: acknowledge one strength, then use the discovery question. Bashing them makes you look defensive.",
     hiring_manager: "Know 2 specific reasons customers switch TO this company, not just generic differentiators.",
     panel: "Have one clear, confident positioning statement for each major competitor — not a feature list.",
+  },
+  discovery_hypothesis: {
+    role_play: "Say this in the first 60 seconds. It shows you did homework and positions you as a peer, not a seller. Pause after you say it — let them react.",
+  },
+  discovery_questions_technical: {
+    role_play: "Spend 2 to 3 minutes here max. Understand the current state then move to personal pain. Do not live here — SDRs live here, AEs pass through.",
+  },
+  discovery_questions_personal: {
+    role_play: "This is where you earn your score. After every answer: say more about that. Follow the thread. Do not move on until you feel their frustration.",
+  },
+  discovery_questions_business: {
+    role_play: "Get a number on the table. Do not leave without quantifying at least one pain in dollars, hours, or incidents. Calculate it together.",
+  },
+  discovery_trap_questions: {
+    role_play: "Ask one per call maximum. Never back to back. Ask naturally — if they can hear the product in the question, it is a leading question not a trap.",
+  },
+  discovery_scoring_guide: {
+    role_play: "Review this before the call starts. Know what a 5 out of 5 looks like before you say a word. Luke evaluates all 7 categories.",
+  },
+  discovery_pain_recap: {
+    role_play: "This is the most critical moment. Recap EVERYTHING before recommending. Get confirmation. Then say exactly: based on everything you have shared, my recommendation would be.",
   },
 };
 
