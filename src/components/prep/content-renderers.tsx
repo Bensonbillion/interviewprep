@@ -254,6 +254,41 @@ export function ContentRouter({
 }) {
   if (!content) return null;
 
+  // ─ Discovery cards — route FIRST with self-contained parsing ─
+  if (answerType.startsWith("discovery_")) {
+    let data: unknown = null;
+    try {
+      data = typeof content === "object" ? content : JSON.parse(content.trim());
+    } catch { /* fall through to generic */ }
+    // Handle double-encoded JSON strings (content stored as a JSON string inside JSONB)
+    if (typeof data === "string") {
+      try { data = JSON.parse(data); } catch { /* use as-is */ }
+    }
+    if (data) {
+      if (answerType === "discovery_hypothesis") {
+        return <DiscoveryHypothesisCard data={data as Record<string, unknown>} />;
+      }
+      if (answerType === "discovery_questions_technical") {
+        return <DiscoveryQuestionsCard data={Array.isArray(data) ? data : []} layer="technical" />;
+      }
+      if (answerType === "discovery_questions_personal") {
+        return <DiscoveryQuestionsCard data={Array.isArray(data) ? data : []} layer="personal" />;
+      }
+      if (answerType === "discovery_questions_business") {
+        return <DiscoveryQuestionsCard data={Array.isArray(data) ? data : []} layer="business" />;
+      }
+      if (answerType === "discovery_trap_questions") {
+        return <DiscoveryTrapCard data={Array.isArray(data) ? data : []} />;
+      }
+      if (answerType === "discovery_scoring_guide") {
+        return <DiscoveryScoringCard data={data as Record<string, unknown>} />;
+      }
+      if (answerType === "discovery_pain_recap") {
+        return <DiscoveryPainRecapCard data={data as Record<string, unknown>} />;
+      }
+    }
+  }
+
   const parsed = tryParseJSON(content);
 
   if (parsed === null) {
@@ -1035,29 +1070,6 @@ export function ContentRouter({
         </div>
       );
     }
-  }
-
-  // ─ discovery answer types ─
-  if (answerType === "discovery_hypothesis" && parsed) {
-    return <DiscoveryHypothesisCard data={parsed} />;
-  }
-  if (answerType === "discovery_questions_technical" && parsed) {
-    return <DiscoveryQuestionsCard data={parsed} layer="technical" />;
-  }
-  if (answerType === "discovery_questions_personal" && parsed) {
-    return <DiscoveryQuestionsCard data={parsed} layer="personal" />;
-  }
-  if (answerType === "discovery_questions_business" && parsed) {
-    return <DiscoveryQuestionsCard data={parsed} layer="business" />;
-  }
-  if (answerType === "discovery_trap_questions" && parsed) {
-    return <DiscoveryTrapCard data={parsed} />;
-  }
-  if (answerType === "discovery_scoring_guide" && parsed) {
-    return <DiscoveryScoringCard data={parsed} />;
-  }
-  if (answerType === "discovery_pain_recap" && parsed) {
-    return <DiscoveryPainRecapCard data={parsed} />;
   }
 
   // Unknown JSON — generic structured layout

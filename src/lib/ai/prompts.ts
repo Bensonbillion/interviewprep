@@ -1972,6 +1972,21 @@ ICEBERG FRAMEWORK POSITION:
 
 Each question must go one layer deeper than the last. Use the Sandler pain funnel: broad → specific → quantify → urgency.
 
+QUESTION TONE REQUIREMENTS:
+- All questions must be open-ended — never yes/no questions
+- Start questions with: "Walk me through...", "Tell me about...", "What does that look like for you...", "How does your team handle...", "What happens when..."
+- Use contractions throughout: "you're", "it's", "don't", "what's", "how's"
+- Sound like a curious peer having a conversation, not an interviewer running a checklist
+- Vary sentence length — mix short punchy questions with longer contextual ones
+- Never start a question with "Do you" or "Is there" — these invite one-word answers
+- Every question should make the prospect feel like talking, not just answering
+
+BAD: "Do you use multiple systems for tracking?"
+GOOD: "Walk me through how your team pieces together the full picture when an incident happens — how many different places are you pulling from?"
+
+BAD: "Is coaching delayed in your organization?"
+GOOD: "What does the gap look like between when a safety event happens and when the driver actually gets coached?"
+
 For each question include:
 1. The question itself (conversational, uses contractions, open-ended)
 2. listenFor: 2-3 specific signals to listen for in the answer
@@ -2017,6 +2032,13 @@ TRAP QUESTION RULES:
 - Must be open-ended — the buyer must be able to disagree
 - Never mention ${ctx.company.name}, Lytx, Motive, Verizon Connect, Azuga, or any vendor by name
 - Use contractions. Sound like a curious consultant, not a salesperson.
+
+TRAP QUESTION CONVERSATIONAL RULES:
+- Frame as "walk me through" or "help me understand" whenever possible
+- The prospect must be able to give any answer — the question cannot suggest its own answer
+- Use setup context before the actual question: "You mentioned you investigate incidents after the fact...", "Given what you're dealing with on the safety side..."
+- Sound like a thought that just occurred to you, not something scripted
+- Never start with "Do you" or "Is there" — these kill the trap by inviting one-word answers
 
 BANNED: leverage, utilize, robust, seamless, ensure, facilitate, empower, pivotal, transformative, groundbreaking.
 

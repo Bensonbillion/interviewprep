@@ -727,7 +727,8 @@ export function AnswerCard({
   };
 
   // ─── Determine rendering path ─────────────────────────────────────────────
-  const isJson = displayContent ? isValidJson(displayContent) : false;
+  const isDiscovery = slot.type.startsWith("discovery_");
+  const isJson = isDiscovery || (displayContent ? isValidJson(displayContent) : false);
 
   // Parse answer for structured rendering (spoken types with non-JSON content)
   const parsed = (!isJson && displayContent)
