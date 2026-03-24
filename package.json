@@ -23,7 +23,8 @@
     "security:audit": "npm audit --audit-level=high",
     "security:outdated": "npm outdated",
     "postinstall": "echo 'Run npm audit before proceeding'",
-    "seed:samsara": "npx tsx scripts/seed-samsara-session.ts"
+    "seed:samsara": "npx tsx scripts/seed-samsara-session.ts",
+    "seed:knowledge": "npx tsx scripts/seed-samsara-knowledge.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
