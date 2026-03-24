@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import type { InterviewStage, RoleType, InterviewerInput } from "@/types";
+import type { InterviewStage, RoleType, InterviewerInput, MockCallType, MockCallPersona } from "@/types";
 import { PaywallModal } from "./PaywallModal";
 import { useCredits } from "@/hooks/useCredits";
 import { JobUrlInput, type ExtractedJobData } from "./JobUrlInput";
@@ -24,6 +24,8 @@ interface StepDetailsProps {
     interviewDate?: string;
     interviewers?: InterviewerInput[];
     personalContext?: string;
+    mockCallType?: MockCallType;
+    mockCallPersona?: MockCallPersona;
   }) => void;
 }
 
@@ -41,11 +43,21 @@ export function StepDetails({ roleType, onCompanyNameChange, onGenerate }: StepD
   const [showInterviewerSection, setShowInterviewerSection] = useState(false);
   const [interviewers, setInterviewers] = useState<InterviewerInput[]>([{ name: "", linkedinUrl: "", roleTitle: "" }]);
   const [personalContext, setPersonalContext] = useState("");
+  const [mockCallType, setMockCallType] = useState<MockCallType>(null);
+  const [mockCallPersona, setMockCallPersona] = useState<MockCallPersona>(null);
 
   // Smart default round based on role type
   useEffect(() => {
     setStage(getDefaultRound(roleType));
   }, [roleType]);
+
+  // Reset mock call selections when leaving role_play
+  useEffect(() => {
+    if (stage !== "role_play") {
+      setMockCallType(null);
+      setMockCallPersona(null);
+    }
+  }, [stage]);
 
   const canGenerate = !!(companyName.trim() && roleTitle.trim() && stage);
   const { balance: creditsRemaining, loading: creditsLoading } = useCredits();
@@ -133,6 +145,8 @@ export function StepDetails({ roleType, onCompanyNameChange, onGenerate }: StepD
       interviewDate: interviewDate || undefined,
       interviewers: filledInterviewers.length > 0 ? filledInterviewers : undefined,
       personalContext: personalContext.trim() || undefined,
+      mockCallType: stage === "role_play" ? mockCallType : null,
+      mockCallPersona: stage === "role_play" ? mockCallPersona : null,
     });
   };
 
@@ -153,7 +167,15 @@ export function StepDetails({ roleType, onCompanyNameChange, onGenerate }: StepD
       />
 
       {/* Round selector */}
-      <RoundSelector roleType={roleType} selected={stage} onChange={setStage} />
+      <RoundSelector
+        roleType={roleType}
+        selected={stage}
+        onChange={setStage}
+        mockCallType={mockCallType}
+        onMockCallTypeChange={setMockCallType}
+        mockCallPersona={mockCallPersona}
+        onMockCallPersonaChange={setMockCallPersona}
+      />
 
       {/* Interview date (optional) */}
       <div>

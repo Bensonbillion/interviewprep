@@ -157,6 +157,22 @@ export type InterviewStage =
   | "panel"
   | "take_home";
 
+// ─── Mock Call Sub-Types ─────────────────────────────────────────────────────
+
+export type MockCallType =
+  | "cold_call"
+  | "discovery"
+  | "demo"
+  | null;
+
+export type MockCallPersona =
+  | "safety_manager"
+  | "fleet_manager"
+  | "vp_operations"
+  | "cfo"
+  | "owner"
+  | null;
+
 // ─── Answer Types ─────────────────────────────────────────────────────────────
 
 export type AnswerType =
