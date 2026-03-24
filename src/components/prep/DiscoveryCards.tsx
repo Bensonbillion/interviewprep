@@ -268,100 +268,161 @@ export function DiscoveryTrapCard({ data }: { data: TrapItem[] | { traps?: TrapI
 
 interface ScoringCategory {
   name?: string;
+  weight?: string;
   fiveOutOfFive?: string;
   threeOutOfFive?: string;
   commonMistake?: string;
   winningMove?: string;
 }
 
+interface ScoringGroup {
+  name?: string;
+  categories?: ScoringCategory[];
+}
+
+interface EvaluatorCriteria {
+  painRecapScript?: string;
+  recommendationTransition?: string;
+  capabilityLanguageRule?: string;
+  expandingScopePrompt?: string;
+  earlyRiskNote?: string;
+}
+
 interface ScoringData {
+  // New grouped format
+  groups?: ScoringGroup[];
+  evaluatorCriteria?: EvaluatorCriteria;
+  // Legacy flat format (backwards compat)
   categories?: ScoringCategory[];
   painRecapScript?: string;
   recommendationTransition?: string;
   multithreadingClose?: string;
 }
 
-const HIGH_WEIGHT_CATEGORIES = new Set([
-  "Business Pain",
-  "Personal Pain",
-  "Active Listening",
-]);
+function CategoryCard({ cat }: { cat: ScoringCategory }) {
+  const isHigh = (cat.weight ?? "").toLowerCase() === "high";
+  return (
+    <div className="border border-stone-200 dark:border-white/10 rounded-xl p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <p className="text-[15px] font-semibold text-[var(--text-primary)]">{cat.name}</p>
+        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+          isHigh
+            ? "bg-red-50 text-red-600 dark:bg-red-950/20 dark:text-red-400"
+            : "bg-blue-50 text-blue-600 dark:bg-blue-950/20 dark:text-blue-400"
+        }`}>
+          {isHigh ? "HIGH" : "MEDIUM"}
+        </span>
+      </div>
+      {cat.fiveOutOfFive && (
+        <p className="text-[13px] text-emerald-600 dark:text-emerald-400 flex items-start gap-1.5 mb-1">
+          <span className="shrink-0 mt-0.5">✓</span>
+          <span>{cat.fiveOutOfFive}</span>
+        </p>
+      )}
+      {cat.commonMistake && (
+        <Collapsible label="⚠ Common mistake">
+          <p className="text-[13px] text-red-600 dark:text-red-400 leading-relaxed pl-1">{cat.commonMistake}</p>
+        </Collapsible>
+      )}
+      {cat.winningMove && (
+        <Collapsible label="✓ Winning move">
+          <p className="text-[13px] text-emerald-600 dark:text-emerald-400 leading-relaxed pl-1">{cat.winningMove}</p>
+        </Collapsible>
+      )}
+    </div>
+  );
+}
 
 export function DiscoveryScoringCard({ data }: { data: ScoringData }) {
+  // Support both grouped (new) and flat (legacy) formats
+  const hasGroups = data.groups && data.groups.length > 0;
+  const ec = data.evaluatorCriteria;
+  const painRecap = ec?.painRecapScript ?? data.painRecapScript;
+  const recTransition = ec?.recommendationTransition ?? data.recommendationTransition;
+  const expandScope = ec?.expandingScopePrompt ?? data.multithreadingClose;
+
   return (
     <div className="space-y-5">
-      {/* Categories */}
-      {data.categories?.map((cat, i) => {
-        const isHigh = HIGH_WEIGHT_CATEGORIES.has(cat.name ?? "");
-        return (
-          <div key={i} className="border border-stone-200 dark:border-white/10 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <p className="text-[15px] font-semibold text-[var(--text-primary)]">{cat.name}</p>
-              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                isHigh
-                  ? "bg-red-50 text-red-600 dark:bg-red-950/20 dark:text-red-400"
-                  : "bg-blue-50 text-blue-600 dark:bg-blue-950/20 dark:text-blue-400"
-              }`}>
-                {isHigh ? "HIGH" : "MEDIUM"}
-              </span>
+      {/* Grouped categories */}
+      {hasGroups ? (
+        data.groups!.map((group, gi) => (
+          <div key={gi}>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-3 mt-2">
+              {group.name}
+            </p>
+            <div className="space-y-3">
+              {group.categories?.map((cat, ci) => (
+                <CategoryCard key={ci} cat={cat} />
+              ))}
             </div>
-
-            {cat.fiveOutOfFive && (
-              <p className="text-[13px] text-emerald-600 dark:text-emerald-400 flex items-start gap-1.5 mb-1">
-                <span className="shrink-0 mt-0.5">✓</span>
-                <span>{cat.fiveOutOfFive}</span>
-              </p>
-            )}
-
-            {cat.commonMistake && (
-              <Collapsible label="⚠ Common mistake">
-                <p className="text-[13px] text-red-600 dark:text-red-400 leading-relaxed pl-1">{cat.commonMistake}</p>
-              </Collapsible>
-            )}
-            {cat.winningMove && (
-              <Collapsible label="✓ Winning move">
-                <p className="text-[13px] text-emerald-600 dark:text-emerald-400 leading-relaxed pl-1">{cat.winningMove}</p>
-              </Collapsible>
-            )}
           </div>
-        );
-      })}
+        ))
+      ) : (
+        /* Legacy flat categories */
+        data.categories?.map((cat, i) => (
+          <CategoryCard key={i} cat={cat} />
+        ))
+      )}
 
-      {/* Pain Recap Script callout */}
-      {data.painRecapScript && (
+      {/* Pain Recap Script */}
+      {painRecap && (
         <div className="bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-400 rounded-r-xl px-4 py-3">
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wide">
               Pain Recap — say this before recommending
             </p>
-            <CopyButton text={data.painRecapScript} />
+            <CopyButton text={painRecap} />
           </div>
           <p className="text-[15px] text-stone-700 dark:text-amber-100 leading-relaxed">
-            {renderTemplate(data.painRecapScript)}
+            {renderTemplate(painRecap)}
           </p>
         </div>
       )}
 
-      {/* Recommendation Transition callout */}
-      {data.recommendationTransition && (
+      {/* Recommendation Transition */}
+      {recTransition && (
         <div className="bg-red-50 dark:bg-red-950/20 border-l-4 border-[#FF6B4A] rounded-r-xl px-4 py-3">
           <p className="text-xs font-bold text-[#FF6B4A] uppercase tracking-wide mb-2">
             The bridge phrase
           </p>
           <p className="text-[20px] font-bold text-[var(--text-primary)] leading-snug">
-            {data.recommendationTransition}
+            {renderTemplate(recTransition)}
           </p>
         </div>
       )}
 
-      {/* Multi-threading Close callout */}
-      {data.multithreadingClose && (
+      {/* Capability Language Rule */}
+      {ec?.capabilityLanguageRule && (
+        <div className="bg-violet-50 dark:bg-violet-950/20 border-l-4 border-violet-400 rounded-r-xl px-4 py-3">
+          <p className="text-xs font-bold text-violet-600 dark:text-violet-300 uppercase tracking-wide mb-2">
+            Capability language
+          </p>
+          <p className="text-[14px] text-stone-700 dark:text-violet-100 leading-relaxed">
+            {ec.capabilityLanguageRule}
+          </p>
+        </div>
+      )}
+
+      {/* Expand scope */}
+      {expandScope && (
         <div className="bg-blue-50 dark:bg-blue-950/20 border-l-4 border-blue-400 rounded-r-xl px-4 py-3">
           <p className="text-xs font-bold text-blue-600 dark:text-blue-300 uppercase tracking-wide mb-2">
             Expand scope
           </p>
           <p className="text-[15px] text-stone-700 dark:text-blue-100 leading-relaxed">
-            {data.multithreadingClose}
+            {expandScope}
+          </p>
+        </div>
+      )}
+
+      {/* Early Risk Note */}
+      {ec?.earlyRiskNote && (
+        <div className="bg-stone-50 dark:bg-white/5 border-l-4 border-stone-400 rounded-r-xl px-4 py-3">
+          <p className="text-xs font-bold text-stone-600 dark:text-stone-300 uppercase tracking-wide mb-2">
+            Early risk identification
+          </p>
+          <p className="text-[14px] text-stone-600 dark:text-stone-300 leading-relaxed">
+            {ec.earlyRiskNote}
           </p>
         </div>
       )}

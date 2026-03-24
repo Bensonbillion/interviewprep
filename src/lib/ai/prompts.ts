@@ -2096,52 +2096,104 @@ You are generating a scoring guide for a sales discovery mock call evaluation.`,
 
 ${buildCompanyContext(ctx.company)}${buildDiscoveryContextBlocks(ctx)}
 
-SCORING CATEGORIES (from the interview evaluation process):
-1. Industry Pain — industry knowledge demonstrated before the call begins
-2. Persona Pain — understanding the persona's daily reality, not just their title
-3. Active Listening — reflecting answers back before asking the next question
-4. Current State — building a complete picture of tools, team, process
-5. Technical Pain — identifying a specific gap and following up with probes
-6. Personal Pain — connecting that gap to individual frustration and time waste
-7. Business Pain — quantifying the cost in dollars, hours, or incidents
-8. Capability-Based Recommendation — recommending Required Capabilities tied to stated pains, with NO product names, NO feature names. The buyer should feel like THEY defined the solution from their own words. 5/5 = each capability statement starts with "you need a system that can..." and ends with "because you told me [their exact words]." Common mistake: saying product names instead of describing capabilities.
+COMPLETE SCORING RUBRIC (9 categories, 4 groups):
 
-EVALUATOR FOCUS (Luke O'Connor, Commercial Sales Manager):
-- Identify deal risk early — don't just collect pain, assess whether this is a real opportunity
-- Before and after scenarios (Command of the Message) — paint the current state vs. the possible future
-- Pain recap before solution recommendation — never pitch without summarizing all pain first
-- Use of "my recommendation" language for solution transitions — not "we can" or "our product does"
-- Exploring 2nd and 3rd level pain beyond the initial answer — go deeper, not wider
-- Challenger 3Ts: Teach (share an insight), Tailor (connect to their world), Take Control (guide the conversation)
-- Expanding scope of the opportunity — bring in other stakeholders, other use cases
+GROUP 1: ACTIVE LISTENING AND CONVERSATIONAL FLOW
 
-For each category return:
-- fiveOutOfFive: what excellence looks like (specific behavior, not vague)
-- threeOutOfFive: what average looks like
-- commonMistake: the thing that drops the score
-- winningMove: specific thing to say or do that impresses
+Category 1: Building on Previous Answers (HIGH)
+5/5: Every follow-up directly references something the prospect just said. "You mentioned [X] — tell me more about that."
+3/5: Mostly listens but occasionally moves to a scripted question without acknowledging the answer
+Common mistake: Asking disconnected questions from a prepared list instead of following the thread
+Winning move: After every answer repeat 2-3 of their key words back as a question. "Three different systems?"
 
-Also return:
-- painRecapScript: fill-in-the-blank template with [BRACKETS]
-- recommendationTransition: the exact phrase to use
-- multithreadingClose: how to expand scope at the end
+Category 2: Reflecting and Paraphrasing Understanding (HIGH)
+5/5: Regularly reflects back what they heard — genuine comprehension, not just mirroring words. "So what I'm hearing is..."
+3/5: Occasionally summarizes but mostly just asks next question
+Common mistake: Moving on without confirming understanding — makes prospect feel unheard
+Winning move: "Let me make sure I understand — you're saying [paraphrase]. Is that right?"
+
+GROUP 2: UNDERSTANDING CURRENT STATE
+
+Category 3: Exploring Role Responsibilities and Goals (MEDIUM)
+5/5: Understands exactly what the persona owns, what they are accountable for, what success looks like from leadership's perspective
+3/5: Asks what they do but not what they're measured on or trying to achieve
+Common mistake: Understanding the job title but not the job pressure
+Winning move: "What are you most accountable for when leadership thinks about safety?"
+
+Category 4: Understanding Current Processes and Tools (HIGH)
+5/5: Complete picture of how they work today — tools, workflows, what's manual, what happens step by step when things go wrong
+3/5: Gets tool names but not process depth
+Common mistake: Stopping at "what do you use" without getting "walk me through how it actually works in the field"
+Winning move: "Walk me through what actually happens when a safety event occurs — from the moment it happens to when you have what you need."
+
+GROUP 3: UNCOVERING MULTI-DIMENSIONAL PAIN
+
+Category 5: Identifying Technical Challenges and Impact (HIGH)
+5/5: Uncovers a specific technical gap, asks 2-3 follow-ups on duration and consequence, gets them to describe disruption
+3/5: Identifies a gap but does not probe further
+Common mistake: Accepting the first answer as the full picture
+Winning move: "How long has that been the case? And when that happens, what does your team have to do to work around it?"
+
+Category 6: Exploring Personal and Role-Specific Pain (HIGH)
+5/5: Connects technical gaps to personal frustration — their time, their stress, their credibility with leadership
+3/5: Finds the operational problem but does not connect it to the person
+Common mistake: Staying in the operational and never getting to the personal cost
+Winning move: "What does that mean for you specifically — like where does that show up in your day?"
+
+Category 7: Quantifying Business Impact and Cost (HIGH)
+5/5: Gets a dollar number. Calculates cost of inaction together. Gets them to state the annual cost themselves.
+3/5: References cost impact without quantifying
+Common mistake: Leaving without a number
+Winning move: "When something like that happens — what does it actually cost the company? Factor in the downtime, the time to sort it out."
+
+GROUP 4: NAVIGATING SKEPTICISM AND COST SENSITIVITY
+
+Category 8: Addressing Budget Concerns Authentically (HIGH)
+5/5: Does not defend price. Redirects to cost of current problem. Lets prospect calculate whether status quo is cheaper.
+3/5: Acknowledges cost concern but pivots too quickly to value proposition
+Common mistake: Defending price before understanding what current problems actually cost
+Winning move: "That's fair — before we get to cost, can I ask what the last time [their stated problem] happened actually ran you?"
+
+Category 9: Earning Information Through Genuine Curiosity (HIGH)
+5/5: Prospect shares more than expected because they feel genuinely understood. Questions feel like a consultant trying to help.
+3/5: Prospect answers but doesn't volunteer extra information
+Common mistake: Questions that sound like qualification criteria rather than genuine curiosity
+Winning move: "I'm asking because I want to understand what's actually going on before I say anything about what we do."
+
+ADDITIONAL EVALUATOR CRITERIA:
+- Pain Recap Before Recommendation: Must recap ALL pain threads out loud before transitioning. Get explicit confirmation.
+- Capability-Based Recommendation: Recommend Required Capabilities, not products. Never name ${ctx.company.name} or any feature. "A system that can..." not product names.
+- Expanding Scope: Before closing, ask who else needs to be involved. Multi-thread to operational and financial stakeholders.
+- Early Risk Identification: Identify whether this account has budget authority, a real pain, and a decision process.
+
+For each category return: name, weight (HIGH or MEDIUM), fiveOutOfFive, threeOutOfFive, commonMistake, winningMove.
 
 IMPORTANT: Return ONLY the raw JSON object below — no markdown, no headings, no prose before or after.
 {
-  "categories": [
+  "groups": [
     {
-      "name": "category name",
-      "fiveOutOfFive": "...",
-      "threeOutOfFive": "...",
-      "commonMistake": "...",
-      "winningMove": "..."
+      "name": "group name",
+      "categories": [
+        {
+          "name": "category name",
+          "weight": "HIGH or MEDIUM",
+          "fiveOutOfFive": "...",
+          "threeOutOfFive": "...",
+          "commonMistake": "...",
+          "winningMove": "..."
+        }
+      ]
     }
   ],
-  "painRecapScript": "template with [BRACKETS]",
-  "recommendationTransition": "Based on everything you have shared with me today, my recommendation would be... [then describe CAPABILITIES, not products — what the system must DO, not what it is called]",
-  "multithreadingClose": "the close"
+  "evaluatorCriteria": {
+    "painRecapScript": "fill-in template with [BRACKETS]",
+    "recommendationTransition": "Based on everything you have shared with me today, my recommendation would be... [describe CAPABILITIES not products]",
+    "capabilityLanguageRule": "Never name products. Describe what the system DOES tied to their stated pain.",
+    "expandingScopePrompt": "how to multi-thread",
+    "earlyRiskNote": "what to assess about deal viability"
+  }
 }`,
-    maxTokens: 1500,
+    maxTokens: 2000,
   };
 }
 
