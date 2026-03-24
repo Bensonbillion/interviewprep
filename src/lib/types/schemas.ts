@@ -44,6 +44,9 @@ export const AnswerTypeSchema = z.enum([
   "discovery_trap_questions",
   "discovery_scoring_guide",
   "discovery_pain_recap",
+  "discovery_opener",
+  "discovery_recommendation",
+  "discovery_close",
 ]);
 
 // ─── API input schemas ────────────────────────────────────────────────────────

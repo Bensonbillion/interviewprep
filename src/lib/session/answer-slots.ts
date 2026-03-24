@@ -112,6 +112,18 @@ const ANSWER_LABELS: Record<AnswerType, { label: string; description: string }> 
     label: "Pain Recap Template",
     description: "The most critical moment in discovery — how to recap all pain threads and transition to your recommendation.",
   },
+  discovery_opener: {
+    label: "Call Opener",
+    description: "How to open the call, set the agenda, and transition into discovery — the first 40 seconds that set the tone.",
+  },
+  discovery_recommendation: {
+    label: "My Recommendation",
+    description: "The Challenger teach moment and bridge phrase that transitions from pain recap to your recommendation.",
+  },
+  discovery_close: {
+    label: "Close + Next Steps",
+    description: "Multi-thread to other stakeholders, propose a concrete next step, and close the call.",
+  },
 };
 
 // ─── AE-specific label overrides ──────────────────────────────────────────────
@@ -193,14 +205,16 @@ const STAGE_SLOTS: Record<InterviewStage, AnswerType[]> = {
 // ─── Discovery call slot override (when mockCallType === 'discovery') ─────────
 
 const DISCOVERY_ROLE_PLAY_SLOTS: AnswerType[] = [
+  "discovery_opener",
   "discovery_hypothesis",
   "discovery_questions_technical",
   "discovery_questions_personal",
   "discovery_questions_business",
   "discovery_trap_questions",
-  "discovery_scoring_guide",
   "discovery_pain_recap",
-  "cheat_sheet",
+  "discovery_recommendation",
+  "discovery_close",
+  "discovery_scoring_guide",
 ];
 
 // ─── Background-type additions ────────────────────────────────────────────────

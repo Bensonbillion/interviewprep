@@ -25,6 +25,9 @@ const SPOKEN_ANSWER_TYPES: Set<AnswerType> = new Set([
   "discovery_questions_business",
   "discovery_trap_questions",
   "discovery_pain_recap",
+  "discovery_opener",
+  "discovery_recommendation",
+  "discovery_close",
 ]);
 
 /**

@@ -449,3 +449,204 @@ export function DiscoveryPainRecapCard({ data }: { data: PainRecapData }) {
     </div>
   );
 }
+
+// ─── 6. DiscoveryOpenerCard ──────────────────────────────────────────────────
+
+interface OpenerData {
+  grabAttention?: string;
+  benefitStatement?: string;
+  agenda?: string;
+  transitionToDiscovery?: string;
+  fullScript?: string;
+  coachingNote?: string;
+}
+
+export function DiscoveryOpenerCard({ data }: { data: OpenerData }) {
+  return (
+    <div className="space-y-4">
+      <Pill className="bg-emerald-500 text-white">CALL OPENER</Pill>
+
+      {data.coachingNote && (
+        <div className="bg-emerald-50 dark:bg-emerald-950/20 border-l-4 border-emerald-400 rounded-r-lg px-4 py-3">
+          <p className="text-[14px] italic text-stone-700 dark:text-emerald-100 leading-relaxed">
+            {data.coachingNote}
+          </p>
+        </div>
+      )}
+
+      {data.fullScript && (
+        <div className="border-l-4 border-emerald-500 pl-4 py-1">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Full Script</p>
+            <CopyButton text={data.fullScript} />
+          </div>
+          <p className="text-[16px] text-[var(--text-primary)] leading-relaxed">
+            {data.fullScript}
+          </p>
+        </div>
+      )}
+
+      {data.grabAttention && (
+        <Collapsible label="Grab attention (0-10s)">
+          <p className="text-[15px] text-[var(--text-secondary)] leading-relaxed pl-1">{data.grabAttention}</p>
+        </Collapsible>
+      )}
+      {data.benefitStatement && (
+        <Collapsible label="Benefit statement (10-20s)">
+          <p className="text-[15px] text-[var(--text-secondary)] leading-relaxed pl-1">{data.benefitStatement}</p>
+        </Collapsible>
+      )}
+      {data.agenda && (
+        <Collapsible label="Set the agenda (20-40s)">
+          <p className="text-[15px] text-[var(--text-secondary)] leading-relaxed pl-1">{data.agenda}</p>
+        </Collapsible>
+      )}
+      {data.transitionToDiscovery && (
+        <Collapsible label="Transition to discovery">
+          <p className="text-[15px] text-[var(--text-secondary)] leading-relaxed pl-1">{data.transitionToDiscovery}</p>
+        </Collapsible>
+      )}
+    </div>
+  );
+}
+
+// ─── 7. DiscoveryRecommendationCard ──────────────────────────────────────────
+
+interface RecommendationData {
+  challengerTeachMoment?: string;
+  bridgePhrase?: string;
+  recommendationTemplate?: string;
+  wrongTransitions?: Array<{ phrase?: string; why?: string }>;
+  fullScript?: string;
+  coachingNote?: string;
+}
+
+export function DiscoveryRecommendationCard({ data }: { data: RecommendationData }) {
+  return (
+    <div className="space-y-4">
+      <Pill className="bg-[#FF6B4A] text-white">MY RECOMMENDATION</Pill>
+
+      {data.coachingNote && (
+        <div className="bg-red-50 dark:bg-red-950/20 border-l-4 border-[#FF6B4A] rounded-r-lg px-4 py-3">
+          <p className="text-[14px] italic text-stone-700 dark:text-red-100 leading-relaxed">
+            {data.coachingNote}
+          </p>
+        </div>
+      )}
+
+      {data.bridgePhrase && (
+        <div className="border-2 border-[#FF6B4A]/30 rounded-xl px-5 py-4 text-center">
+          <p className="text-[22px] font-bold text-[#FF6B4A] leading-snug">
+            {data.bridgePhrase}
+          </p>
+        </div>
+      )}
+
+      {data.recommendationTemplate && (
+        <div className="bg-[var(--bg-card-elevated)] dark:bg-white/5 rounded-xl px-4 py-3">
+          <p className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-2">
+            Complete the bridge with their words
+          </p>
+          <p className="text-[16px] text-[var(--text-primary)] leading-[1.7]">
+            {renderTemplate(data.recommendationTemplate)}
+          </p>
+        </div>
+      )}
+
+      {data.challengerTeachMoment && (
+        <Collapsible label="The Challenger Teach Moment (say this BEFORE the bridge)">
+          <div className="bg-blue-50 dark:bg-blue-950/20 border-l-4 border-blue-400 rounded-r-lg px-4 py-3">
+            <p className="text-[15px] text-stone-700 dark:text-blue-100 leading-relaxed">
+              {data.challengerTeachMoment}
+            </p>
+          </div>
+        </Collapsible>
+      )}
+
+      {data.wrongTransitions && data.wrongTransitions.length > 0 && (
+        <Collapsible label="What not to say">
+          <div className="space-y-2">
+            {data.wrongTransitions.map((wt, i) => (
+              <div key={i} className="flex items-start gap-2 text-[14px]">
+                <span className="text-red-500 shrink-0 mt-0.5">✗</span>
+                <div>
+                  <p className="font-medium text-[var(--text-primary)]">&ldquo;{wt.phrase}&rdquo;</p>
+                  {wt.why && <p className="text-[var(--text-tertiary)] text-[13px] mt-0.5">{wt.why}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Collapsible>
+      )}
+    </div>
+  );
+}
+
+// ─── 8. DiscoveryCloseCard ───────────────────────────────────────────────────
+
+interface CloseData {
+  multithreadingAsk?: string;
+  confirmingQuestion?: string;
+  nextStepProposal?: string;
+  closeScript?: string;
+  notReadyHandle?: string;
+  fullScript?: string;
+  coachingNote?: string;
+}
+
+export function DiscoveryCloseCard({ data }: { data: CloseData }) {
+  return (
+    <div className="space-y-4">
+      <Pill className="bg-blue-500 text-white">CLOSE + NEXT STEPS</Pill>
+
+      {data.coachingNote && (
+        <div className="bg-blue-50 dark:bg-blue-950/20 border-l-4 border-blue-400 rounded-r-lg px-4 py-3">
+          <p className="text-[14px] italic text-stone-700 dark:text-blue-100 leading-relaxed">
+            {data.coachingNote}
+          </p>
+        </div>
+      )}
+
+      <div className="space-y-1">
+        {data.multithreadingAsk && (
+          <Collapsible label="1. Expand scope" defaultOpen>
+            <div className="border-l-4 border-blue-400 pl-4 py-1">
+              <p className="text-[15px] text-[var(--text-primary)] leading-relaxed">{data.multithreadingAsk}</p>
+            </div>
+          </Collapsible>
+        )}
+        {data.confirmingQuestion && (
+          <Collapsible label="2. Surface concerns">
+            <div className="border-l-4 border-blue-400 pl-4 py-1">
+              <p className="text-[15px] text-[var(--text-primary)] leading-relaxed">{data.confirmingQuestion}</p>
+            </div>
+          </Collapsible>
+        )}
+        {data.nextStepProposal && (
+          <Collapsible label="3. Propose next step">
+            <div className="border-l-4 border-blue-400 pl-4 py-1">
+              <p className="text-[15px] text-[var(--text-primary)] leading-relaxed">{data.nextStepProposal}</p>
+            </div>
+          </Collapsible>
+        )}
+        {data.closeScript && (
+          <Collapsible label="4. Set the calendar">
+            <div className="border-l-4 border-blue-400 pl-4 py-1">
+              <p className="text-[15px] text-[var(--text-primary)] leading-relaxed">{data.closeScript}</p>
+            </div>
+          </Collapsible>
+        )}
+      </div>
+
+      {data.notReadyHandle && (
+        <Collapsible label="If they're not ready">
+          <div className="bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-400 rounded-r-lg px-4 py-3">
+            <p className="text-[15px] text-stone-700 dark:text-amber-100 leading-relaxed">
+              {data.notReadyHandle}
+            </p>
+          </div>
+        </Collapsible>
+      )}
+    </div>
+  );
+}

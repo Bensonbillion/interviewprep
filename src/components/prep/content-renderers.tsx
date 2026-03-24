@@ -7,6 +7,9 @@ import {
   DiscoveryTrapCard,
   DiscoveryScoringCard,
   DiscoveryPainRecapCard,
+  DiscoveryOpenerCard,
+  DiscoveryRecommendationCard,
+  DiscoveryCloseCard,
 } from "./DiscoveryCards";
 
 // ─── Inline formatting: **bold** and *italic* ──────────────────────────────
@@ -285,6 +288,15 @@ export function ContentRouter({
       }
       if (answerType === "discovery_pain_recap") {
         return <DiscoveryPainRecapCard data={data as Record<string, unknown>} />;
+      }
+      if (answerType === "discovery_opener") {
+        return <DiscoveryOpenerCard data={data as Record<string, unknown>} />;
+      }
+      if (answerType === "discovery_recommendation") {
+        return <DiscoveryRecommendationCard data={data as Record<string, unknown>} />;
+      }
+      if (answerType === "discovery_close") {
+        return <DiscoveryCloseCard data={data as Record<string, unknown>} />;
       }
     }
   }

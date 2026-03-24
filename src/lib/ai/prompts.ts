@@ -2154,6 +2154,166 @@ IMPORTANT: Return ONLY the raw JSON object below — no markdown, no headings, n
   };
 }
 
+// ─── Discovery: Opener ───────────────────────────────────────────────────────
+
+export function buildDiscoveryOpenerPrompt(ctx: PromptContext): PromptResult {
+  const persona = ctx.mockCallPersona ?? "safety_manager";
+  return {
+    system: `${SPOKEN_SYSTEM}
+
+You are a sales discovery coach. Generate a call opener and agenda-setting script for a discovery mock call interview.`,
+    user: `Generate a call opener for a ${ctx.company.name} AE discovery mock call.
+
+Company: ${ctx.company.name}
+Role: ${ctx.targetRole}
+Persona: ${persona} at a construction company
+${buildCompanyContext(ctx.company)}
+
+Generate four parts:
+
+1. GRAB ATTENTION (first 10 seconds):
+Personalized opener showing you did research. References something real about the industry or company. Never generic. Never "excited to connect."
+Example style: "Hey [Name], appreciate you taking a few minutes - I know fleet safety is top of mind for teams like yours right now. I did a bit of research on your operation before jumping on and had a couple of thoughts I wanted to run by you."
+
+2. BENEFIT STATEMENT (one sentence):
+Why they should invest 10 minutes. Not a pitch.
+Example: "I work with a lot of construction fleets dealing with similar challenges, and I've seen some patterns that might be worth talking through."
+
+3. AGENDA (permission-based, 2-3 sentences):
+Set it transparently. Ask permission.
+Example: "What I'd love to do is spend a few minutes understanding how your safety program works today, share a couple of things we're seeing across similar fleets, and then figure out if there's a reason to keep talking. Does that work for you?"
+
+4. TRANSITION INTO DISCOVERY:
+Bridge into the first current state question.
+Example: "Great. So to start - tell me a bit about your current setup."
+
+VOICE RULES: Contractions throughout. Sound like a peer who knows their world. Never "excited", "synergy", "reach out", "circle back". Natural pacing.
+
+BANNED: leverage, utilize, robust, seamless, ensure, facilitate, empower, pivotal, transformative, groundbreaking.
+
+IMPORTANT: Return ONLY the raw JSON object below - no markdown, no headings, no prose before or after.
+{
+  "grabAttention": "first 10 seconds",
+  "benefitStatement": "one sentence",
+  "agenda": "2-3 sentences with permission ask",
+  "transitionToDiscovery": "bridge sentence",
+  "fullScript": "all four combined as natural flow",
+  "coachingNote": "delivery note - what the evaluator looks for here"
+}`,
+    maxTokens: 600,
+  };
+}
+
+// ─── Discovery: Recommendation Transition ────────────────────────────────────
+
+export function buildDiscoveryRecommendationPrompt(ctx: PromptContext): PromptResult {
+  const persona = ctx.mockCallPersona ?? "safety_manager";
+  return {
+    system: `${SPOKEN_SYSTEM}
+
+You are a sales discovery coach specializing in the Command of the Message framework. Generate the recommendation transition for a discovery mock call.`,
+    user: `Generate the recommendation transition for a ${ctx.company.name} AE discovery mock call.
+
+Company: ${ctx.company.name}
+Role: ${ctx.targetRole}
+Persona: ${persona}
+${buildCompanyContext(ctx.company)}
+
+The evaluator specifically scores:
+- Did the candidate use "my recommendation" language?
+- Did they teach before recommending (Challenger)?
+- Did they tie the recommendation to stated pains?
+- Did they NOT pitch features?
+
+Generate five parts:
+
+1. THE CHALLENGER TEACH MOMENT:
+One insight to share before the recommendation. Something they may not know that reframes the problem. Should feel like expertise, not a fact sheet.
+Example: "One thing we see consistently across fleets like yours - coaching that happens more than 24 hours after an event changes almost nothing behaviorally. The driver doesn't connect it. So the issue isn't that you're coaching wrong, it's that the architecture makes timely coaching structurally impossible."
+
+2. THE BRIDGE PHRASE (exact words):
+"Based on everything you've shared with me today, my recommendation would be..."
+
+3. THE RECOMMENDATION TEMPLATE:
+How to complete the bridge tied to their specific pains. Use [BRACKETS] for candidate to fill from discovery notes.
+Example: "...to start with [CAPABILITY] because you told me [THEIR PAIN] is costing you [THEIR COST] - and that gap is exactly what this addresses."
+
+4. WHAT NOT TO SAY:
+3 wrong transition examples with explanation of why each fails.
+
+5. FULL SCRIPT:
+Teach moment + bridge + template as one natural flow.
+
+BANNED: leverage, utilize, robust, seamless, ensure, facilitate, empower, pivotal, transformative, groundbreaking.
+
+IMPORTANT: Return ONLY the raw JSON object below - no markdown, no headings, no prose before or after.
+{
+  "challengerTeachMoment": "the insight",
+  "bridgePhrase": "Based on everything you've shared with me today, my recommendation would be...",
+  "recommendationTemplate": "fill-in template with [BRACKETS]",
+  "wrongTransitions": [
+    {"phrase": "wrong thing to say", "why": "why it fails"}
+  ],
+  "fullScript": "teach + bridge + template combined",
+  "coachingNote": "what the evaluator scores in this moment"
+}`,
+    maxTokens: 800,
+  };
+}
+
+// ─── Discovery: Close ────────────────────────────────────────────────────────
+
+export function buildDiscoveryClosePrompt(ctx: PromptContext): PromptResult {
+  const persona = ctx.mockCallPersona ?? "safety_manager";
+  return {
+    system: `${SPOKEN_SYSTEM}
+
+You are a sales discovery coach. Generate the closing sequence for a discovery mock call.`,
+    user: `Generate the closing sequence for a ${ctx.company.name} AE discovery mock call.
+
+Company: ${ctx.company.name}
+Role: ${ctx.targetRole}
+Persona: ${persona}
+${buildCompanyContext(ctx.company)}
+
+The evaluator scores "expanding scope of the opportunity" as a key criterion. The close must multi-thread - bring in other stakeholders, propose a concrete next step.
+
+Generate five parts:
+
+1. MULTI-THREADING ASK:
+Who else needs to be in the room. How to ask without being pushy or assumptive.
+Example: "This sounds like it touches more than just your safety program - there's a fleet operations angle and a financial angle here too. Who else in the organization is feeling this?"
+
+2. CONFIRMING QUESTION:
+One final question that surfaces remaining concerns before proposing next steps.
+Example: "Before I suggest a next step - is there anything I missed or anything you'd want to dig into further?"
+
+3. NEXT STEP PROPOSAL:
+Specific and concrete. Never "let me know what works."
+Example: "Based on what you've shared, the right next step would be to bring [VP Ops / CFO] into a focused 30-minute conversation where we can look at this across the full operation. Can you connect me with them this week?"
+
+4. CALENDAR CLOSE:
+How to end the call and set the follow-up.
+
+5. NOT READY HANDLE:
+If the prospect is not ready to commit - how to leave the door open without losing the deal.
+
+BANNED: leverage, utilize, robust, seamless, ensure, facilitate, empower, pivotal, transformative, groundbreaking.
+
+IMPORTANT: Return ONLY the raw JSON object below - no markdown, no headings, no prose before or after.
+{
+  "multithreadingAsk": "bring in stakeholders language",
+  "confirmingQuestion": "surface concerns question",
+  "nextStepProposal": "specific next step",
+  "closeScript": "calendar and follow-up close",
+  "notReadyHandle": "if they push back",
+  "fullScript": "all five in call sequence",
+  "coachingNote": "what expanding scope means in the evaluation"
+}`,
+    maxTokens: 800,
+  };
+}
+
 // ─── Final check (appended to every prompt) ──────────────────────────────────
 
 const FINAL_CHECK = `
@@ -2247,6 +2407,15 @@ export function buildPromptForAnswerType(
       break;
     case "discovery_pain_recap":
       result = buildDiscoveryPainRecapPrompt(ctx);
+      break;
+    case "discovery_opener":
+      result = buildDiscoveryOpenerPrompt(ctx);
+      break;
+    case "discovery_recommendation":
+      result = buildDiscoveryRecommendationPrompt(ctx);
+      break;
+    case "discovery_close":
+      result = buildDiscoveryClosePrompt(ctx);
       break;
     default:
       throw new Error(`Unknown answer type: ${answerType}`);

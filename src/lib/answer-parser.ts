@@ -53,6 +53,9 @@ const JSON_ANSWER_TYPES = new Set<AnswerType>([
   "discovery_trap_questions",
   "discovery_scoring_guide",
   "discovery_pain_recap",
+  "discovery_opener",
+  "discovery_recommendation",
+  "discovery_close",
 ]);
 
 // ─── Section classification ──────────────────────────────────────────────────

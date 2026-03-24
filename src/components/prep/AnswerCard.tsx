@@ -60,6 +60,9 @@ const EMOJIS: Record<AnswerType, string> = {
   discovery_trap_questions: "🪤",
   discovery_scoring_guide: "📊",
   discovery_pain_recap: "🔄",
+  discovery_opener: "📞",
+  discovery_recommendation: "🎯",
+  discovery_close: "🤝",
 };
 
 const QUICK_ACTIONS = [
@@ -291,6 +294,15 @@ const QUESTION_COACHING: Partial<Record<AnswerType, Partial<Record<string, strin
   },
   discovery_pain_recap: {
     role_play: "This is the most critical moment. Recap EVERYTHING before recommending. Get confirmation. Then say exactly: based on everything you have shared, my recommendation would be.",
+  },
+  discovery_opener: {
+    role_play: "Set the agenda before asking anything. Most candidates skip this — it is what separates AEs from SDRs.",
+  },
+  discovery_recommendation: {
+    role_play: "Do NOT say this until pain recap is complete and confirmed. Use the Challenger teach moment first, then the bridge phrase exactly.",
+  },
+  discovery_close: {
+    role_play: "Luke scores expanding scope. Ask who else is involved before proposing a next step.",
   },
 };
 
