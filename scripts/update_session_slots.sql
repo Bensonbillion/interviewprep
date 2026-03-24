@@ -1,0 +1,53 @@
+-- Add discovery_opener to session_data.answerSlots
+UPDATE prep_sessions
+SET session_data = jsonb_set(
+  session_data,
+  '{answerSlots}',
+  (session_data->'answerSlots') || '{"type":"discovery_opener","label":"Call Opener","description":"How to open the call, set the agenda, and transition into discovery.","status":"unlocked","content":"{\"grabAttention\": \"Hey Mark - it''s [Name] calling from Samsara. I know we''ve spoken before - your team did a demo with us back in 2023. I was doing some account research and a few things caught my attention. Do you have a few minutes?\", \"benefitStatement\": \"I''m not calling to rehash what we showed you before - I work with a lot of construction fleets in similar situations across BC and I wanted to understand if anything has shifted on the ground since then.\", \"agenda\": \"What I''d love to do is ask you a few questions about how things are running today - and if there''s something worth exploring, we can figure that out together. Does that work for you?\", \"transitionToDiscovery\": \"Great. So to start - since you went with the SD card cameras back in 2023, walk me through how that''s been working out day to day.\", \"fullScript\": \"Hey Mark - it''s [Name] calling from Samsara. I know we''ve spoken before - your team did a demo with us back in 2023. I was doing some account research and a few things caught my attention. Do you have a few minutes?\\n\\nI''m not calling to rehash what we showed you before. I work with a lot of construction fleets in similar situations across BC and I wanted to understand if anything has shifted since then.\\n\\nWhat I''d love to do is ask you a few questions about how things are running today - and if there''s something worth exploring, we can figure that out together. Does that work for you?\\n\\nGreat. So to start - since you went with the SD card cameras back in 2023, walk me through how that''s been working out day to day.\", \"coachingNote\": \"Mark knows Samsara already. Do not re-pitch. The agenda-setting is critical - get permission before asking anything. The last line bridges directly into Technical Pain. Measured pace. Not rushed.\"}"}'::jsonb
+)
+WHERE user_id = '148508d2-dc0a-4d5b-859b-5513ce4ba7ae'
+AND session_data->>'companyName' = 'Samsara'
+AND session_data->>'mockCallType' = 'discovery'
+AND NOT EXISTS (
+  SELECT 1 FROM jsonb_array_elements(session_data->'answerSlots') AS elem
+  WHERE elem->>'type' = 'discovery_opener'
+);
+
+-- Add discovery_recommendation to session_data.answerSlots
+UPDATE prep_sessions
+SET session_data = jsonb_set(
+  session_data,
+  '{answerSlots}',
+  (session_data->'answerSlots') || '{"type":"discovery_recommendation","label":"My Recommendation","description":"The Challenger teach moment and bridge phrase that transitions from pain recap to your recommendation.","status":"unlocked","content":"{\"challengerTeachMoment\": \"One thing we see consistently with fleets that went the SD card route - and this isn''t a knock on that decision, it made sense at the time - is that the footage is really only useful if you can get to it fast. On remote sites, that usually means waiting until the vehicle comes back in. By then the incident is cold, the driver doesn''t connect the coaching to the behavior, and you can''t use it for anything proactive. The system architecture is working against you before the coach even picks up the phone.\", \"bridgePhrase\": \"Based on everything you''ve shared with me today, my recommendation would be...\", \"capabilityStatements\": [{\"capability\": \"a system that gives you visibility into what''s happening on your vehicles in real time - even on remote sites with limited connectivity - so when something happens, you know immediately, not when the vehicle comes back in\", \"tiedToPain\": \"you told me your footage is only accessible when the vehicle returns to the yard\", \"limitation\": \"which means incidents on remote jobsites are cold by the time you can investigate them\"}, {\"capability\": \"asset tracking that tells you where your equipment is at any moment - so if something goes missing, you can act the same day instead of discovering it''s gone two days later\", \"tiedToPain\": \"you told me theft and equipment loss has been creating jobsite downtime\", \"limitation\": \"and right now there''s no way to know where an asset went after it leaves the yard\"}, {\"capability\": \"workflows that replace the paper-based processes your team is running today - DVIRs, incident reports, maintenance logs - so that time goes back to the work that actually matters\", \"tiedToPain\": \"you described how much of your team''s time goes into manual paperwork\", \"limitation\": \"which is reactive by definition - you''re always documenting after the fact rather than preventing issues\"}], \"scopeExpansion\": \"And based on what you shared about Ted and Paris being involved in these decisions - the asset tracking and workflow side of this is as much a fleet and ops conversation as it is a safety one. That might be worth bringing them into.\", \"fullScript\": \"One thing we see consistently with fleets that went the SD card route - the footage is only useful if you can get to it fast. On remote sites that means waiting until the vehicle comes back in. By then the incident is cold and you can''t use it for anything proactive. The system architecture is working against you before the coach even picks up the phone.\\n\\nBased on everything you''ve shared with me today, my recommendation would be this:\\n\\nFirst, you need a system that gives you visibility into what''s happening on your vehicles in real time - even on remote sites with limited connectivity. Because you told me your footage is only accessible when the vehicle returns to the yard. Incidents on remote jobsites are cold by the time you can investigate them.\\n\\nSecond, you need asset tracking that tells you where your equipment is at any moment. Because you told me theft and equipment loss has been creating jobsite downtime - and right now there''s no way to know where an asset went after it leaves the yard.\\n\\nThird, you need workflows that replace the paper-based processes your team is running today. Because that time should go back to the work that actually matters.\\n\\nAnd based on what you shared about Ted and Paris being involved in these decisions - the asset tracking and workflow side is as much a fleet and ops conversation as it is a safety one. That might be worth bringing them into.\", \"bannedCheck\": \"No product names present. Samsara, AI Dash Cams, Vehicle Gateway, Asset Tags, Driver App not mentioned anywhere in fullScript.\", \"coachingNote\": \"Luke specifically scores whether you recommend capabilities not products. Every statement describes what the system DOES, not what it IS CALLED. The scope expansion at the end references Ted and Paris - this is the multi-threading move Luke evaluates.\"}"}'::jsonb
+)
+WHERE user_id = '148508d2-dc0a-4d5b-859b-5513ce4ba7ae'
+AND session_data->>'companyName' = 'Samsara'
+AND session_data->>'mockCallType' = 'discovery'
+AND NOT EXISTS (
+  SELECT 1 FROM jsonb_array_elements(session_data->'answerSlots') AS elem
+  WHERE elem->>'type' = 'discovery_recommendation'
+);
+
+-- Add discovery_close to session_data.answerSlots
+UPDATE prep_sessions
+SET session_data = jsonb_set(
+  session_data,
+  '{answerSlots}',
+  (session_data->'answerSlots') || '{"type":"discovery_close","label":"Close + Next Steps","description":"Multi-thread to other stakeholders, propose a concrete next step, and close the call.","status":"unlocked","content":"{\"multithreadingAsk\": \"Based on what you''ve shared - the safety side, the asset loss, and the workflow piece - this sounds like it touches more than just your role. You mentioned Ted and Paris are both involved in decisions like this. Would it make sense to get the three of you in the same room for 30 minutes so we can look at the full picture together?\", \"confirmingQuestion\": \"Before we figure out next steps - is there anything that would prevent this from being a priority for Stqoya in the next 30 days?\", \"nextStepProposal\": \"What I''d like to propose is a working session with you, Ted, and Paris - not a demo, just a conversation where we put some numbers to what you''ve shared today and figure out if it actually makes sense for your operation. 30 minutes. Would next week work?\", \"closeScript\": \"Perfect. I''ll send a calendar invite and a quick summary of what we covered today so everyone comes in with context. Does [specific day] work for all three of you, or should I send it to you first to find a time?\", \"notReadyHandle\": \"That''s fair - I don''t want to push for something that doesn''t make sense right now. When would be a better time to revisit this? And in the meantime, is there anything I can send you that would be useful - maybe what similar fleets in BC have been doing?\", \"fullScript\": \"Based on what you''ve shared - the safety side, the asset loss, and the workflow piece - this sounds like it touches more than just your role. You mentioned Ted and Paris are both involved in decisions like this. Would it make sense to get the three of you in the same room for 30 minutes to look at the full picture together?\\n\\nBefore we figure out next steps - is there anything that would prevent this from being a priority for Stqoya in the next 30 days?\\n\\nWhat I''d propose is a working session - not a demo, just a conversation where we put some numbers to what you''ve shared today and figure out if it actually makes sense for your operation. 30 minutes. Would next week work?\\n\\nPerfect. I''ll send a calendar invite and a quick summary so everyone comes in with context.\", \"coachingNote\": \"Luke scores expanding scope. The multi-threading ask references Ted and Paris by name - this shows you were listening during discovery. The confirming question surfaces any remaining objections before you propose the next step. Never close for a demo - close for a working session.\"}"}'::jsonb
+)
+WHERE user_id = '148508d2-dc0a-4d5b-859b-5513ce4ba7ae'
+AND session_data->>'companyName' = 'Samsara'
+AND session_data->>'mockCallType' = 'discovery'
+AND NOT EXISTS (
+  SELECT 1 FROM jsonb_array_elements(session_data->'answerSlots') AS elem
+  WHERE elem->>'type' = 'discovery_close'
+);
+
+-- Verify
+SELECT jsonb_array_length(session_data->'answerSlots') as slot_count,
+  (SELECT string_agg(elem->>'type', ', ' ORDER BY ordinality)
+   FROM jsonb_array_elements(session_data->'answerSlots') WITH ORDINALITY AS elem)
+   as slot_types
+FROM prep_sessions
+WHERE user_id = '148508d2-dc0a-4d5b-859b-5513ce4ba7ae'
+AND session_data->>'companyName' = 'Samsara';
