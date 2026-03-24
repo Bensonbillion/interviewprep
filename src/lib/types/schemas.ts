@@ -37,6 +37,13 @@ export const AnswerTypeSchema = z.enum([
   "questions_to_ask",
   "coachability_coaching",
   "career_switcher_bridge",
+  "discovery_hypothesis",
+  "discovery_questions_technical",
+  "discovery_questions_personal",
+  "discovery_questions_business",
+  "discovery_trap_questions",
+  "discovery_scoring_guide",
+  "discovery_pain_recap",
 ]);
 
 // ─── API input schemas ────────────────────────────────────────────────────────

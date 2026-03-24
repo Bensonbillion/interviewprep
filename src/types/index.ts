@@ -194,7 +194,14 @@ export type AnswerType =
   | "cold_email"
   | "pain_point_analysis"
   | "assignment_guide"
-  | "competitor_battle_card";
+  | "competitor_battle_card"
+  | "discovery_hypothesis"
+  | "discovery_questions_technical"
+  | "discovery_questions_personal"
+  | "discovery_questions_business"
+  | "discovery_trap_questions"
+  | "discovery_scoring_guide"
+  | "discovery_pain_recap";
 
 // ─── Answer Slot (locked / loading / unlocked states) ─────────────────────────
 

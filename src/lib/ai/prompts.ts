@@ -17,6 +17,7 @@ import type {
   InterviewStage,
   RoleType,
   AnswerType,
+  MockCallPersona,
 } from "@/types";
 
 interface PromptContext {
@@ -31,6 +32,7 @@ interface PromptContext {
   seniority: RoleSeniority;
   jobListingSignals?: JobListingSignals;
   personalContext?: string;
+  mockCallPersona?: MockCallPersona;
 }
 
 interface PromptResult {
@@ -1875,6 +1877,261 @@ Return ONLY the guide. No preamble.`,
   };
 }
 
+// ─── Discovery: Business Hypothesis ──────────────────────────────────────────
+
+export function buildDiscoveryHypothesisPrompt(ctx: PromptContext): PromptResult {
+  const persona = ctx.mockCallPersona ?? "safety_manager";
+  return {
+    system: `${SPOKEN_SYSTEM}
+
+You are a sales discovery coach specializing in the Command of the Message (Force Management) framework.`,
+    user: `Generate a business hypothesis for a candidate preparing for a deep discovery mock call.
+
+Company: ${ctx.company.name}
+Role: ${ctx.targetRole}
+Persona the candidate will call: ${persona}
+${buildCompanyContext(ctx.company)}
+
+THE COMMAND OF THE MESSAGE HYPOTHESIS FORMULA:
+Because of [industry pain or persona pain], [COMPANY] may be experiencing [negative impact on safety, efficiency, or sustainability].
+
+REQUIREMENTS:
+- One single sentence under 30 words, memorizable
+- Must reference the specific persona's world — what keeps them up at night
+- Must connect to one value driver: Reduce Risk, Increase Efficiency, or Digitally Transform The Business
+- Must NOT mention ${ctx.company.name} or any product name — it's an assumption to validate, not a pitch
+- Use contractions. No corporate language.
+- Include a 2-sentence coaching note on delivery: when to say it and how
+
+BANNED: leverage, utilize, robust, seamless, ensure, facilitate, empower, pivotal, transformative, groundbreaking, innovative, cutting-edge, synergy.
+
+IMPORTANT: Return ONLY the raw JSON object below — no markdown, no headings, no prose before or after.
+{
+  "hypothesis": "the one sentence",
+  "valueDriver": "reduce_risk | increase_efficiency | digitally_transform",
+  "deliveryNote": "2 sentences on when and how to say it",
+  "backupHypothesis": "alternate version targeting a different value driver"
+}`,
+    maxTokens: 500,
+  };
+}
+
+// ─── Discovery: Layer Questions ──────────────────────────────────────────────
+
+export function buildDiscoveryQuestionsPrompt(
+  ctx: PromptContext,
+  layer: "technical" | "personal" | "business"
+): PromptResult {
+  const persona = ctx.mockCallPersona ?? "safety_manager";
+
+  const layerDefinitions: Record<string, string> = {
+    technical: `TECHNICAL PAIN LAYER:
+Current state, tools, processes, visible gaps.
+Goal: Understand HOW things work today and WHERE they break.
+Tone: Genuine curiosity, not screening.
+
+CONSTRUCTION FLEET CONTEXT (use for specificity):
+Safety Manager pain: reactive incident investigation, manual coaching identification, paper DVIRs, 3+ disconnected systems, rising insurance premiums, CSA score scrutiny, inability to exonerate drivers quickly, coaching delay of 3+ days.`,
+    personal: `PERSONAL PAIN LAYER:
+Individual frustration, time waste, daily burden.
+Goal: Make the pain personal — their job, their stress, their time.
+Tone: Invite them to vent and share.
+
+CONSTRUCTION FLEET CONTEXT:
+Safety Managers spend 10+ hours/week on manual coaching prep, incident investigation, and report building. When something goes wrong on the road, the first hour is scrambling — pulling footage from multiple systems, notifying leadership, documenting manually.`,
+    business: `BUSINESS PAIN LAYER:
+Quantified cost, leadership pressure, dollars on the table.
+Goal: Get a number — hours, dollars, incidents. Calculate the cost of the status quo together.
+Tone: Collaborative math, not interrogation.
+
+KEY NUMBERS:
+- Average crash cost: $16,500 before litigation
+- Nuclear verdict average: $27.5M
+- Insurance premium increases: 20%+ market-wide
+- Real-time coaching: teachable moment lost after 24 hours
+- IDC 2024: customers cut total fleet operating costs 6% on average — $2M annual savings per organization`,
+  };
+
+  return {
+    system: `${SPOKEN_SYSTEM}
+
+You are a sales discovery coach. Generate 4 discovery questions for the ${layer} pain layer of a deep discovery mock call.`,
+    user: `Generate 4 ${layer}-layer discovery questions for a mock call.
+
+Company: ${ctx.company.name}
+Role: ${ctx.targetRole}
+Persona: ${persona}
+${buildCompanyContext(ctx.company)}
+
+${layerDefinitions[layer]}
+
+ICEBERG FRAMEWORK POSITION:
+- Technical = surface (what's visible)
+- Personal = middle (what's felt)
+- Business = deep (what it costs)
+
+Each question must go one layer deeper than the last. Use the Sandler pain funnel: broad → specific → quantify → urgency.
+
+For each question include:
+1. The question itself (conversational, uses contractions, open-ended)
+2. listenFor: 2-3 specific signals to listen for in the answer
+3. followUp: a probe question if they stay surface-level
+4. trapOpportunity: if this opens a trap question opportunity, note it — otherwise null
+
+BANNED: leverage, utilize, robust, seamless, ensure, facilitate, empower, pivotal, transformative, groundbreaking.
+
+IMPORTANT: Return ONLY the raw JSON array below — no markdown, no headings, no prose before or after.
+[
+  {
+    "layer": "${layer}",
+    "question": "the question",
+    "listenFor": "what to hear",
+    "followUp": "probe question",
+    "trapOpportunity": "trap note or null"
+  }
+]`,
+    maxTokens: 800,
+  };
+}
+
+// ─── Discovery: Trap Questions ───────────────────────────────────────────────
+
+export function buildDiscoveryTrapQuestionsPrompt(ctx: PromptContext): PromptResult {
+  return {
+    system: `${SPOKEN_SYSTEM}
+
+You are a competitive sales strategist. Generate trap-setting discovery questions that position defensible differentiators as buyer requirements before competitors can claim alternatives.`,
+    user: `Generate 3 trap-setting questions for a ${ctx.company.name} discovery mock call.
+
+${buildCompanyContext(ctx.company)}
+
+DEFENSIBLE DIFFERENTIATORS (use these — do NOT invent others):
+1. Real-time in-cab AI coaching — competitors like Lytx and Motive only upload clips after G-force events. 80% of dangerous behaviors like drowsiness and distraction never trigger G-force.
+2. Natively integrated ELD + cameras + GPS — competitors bolt on cameras to separate GPS or ELD systems, creating data inconsistency that becomes a liability issue in court.
+3. Per-second GPS updates — Verizon Connect refreshes every 30 seconds, Azuga every 120 seconds.
+4. First-party AI trained on 220 billion+ miles of driving data.
+
+TRAP QUESTION RULES:
+- Must sound like genuine curiosity, not a pitch or a gotcha
+- The competitor gap must be INVISIBLE in the question — the buyer discovers it themselves
+- Must be open-ended — the buyer must be able to disagree
+- Never mention ${ctx.company.name}, Lytx, Motive, Verizon Connect, Azuga, or any vendor by name
+- Use contractions. Sound like a curious consultant, not a salesperson.
+
+BANNED: leverage, utilize, robust, seamless, ensure, facilitate, empower, pivotal, transformative, groundbreaking.
+
+IMPORTANT: Return ONLY the raw JSON array below — no markdown, no headings, no prose before or after.
+[
+  {
+    "question": "the trap question",
+    "trapsFor": "which defensible differentiator this positions",
+    "targetedCompetitor": "which competitor this hurts and why",
+    "sprangAnswer": "example buyer answer that sets the trap",
+    "reuseInRecap": "how to reference this answer in the pain recap"
+  }
+]`,
+    maxTokens: 800,
+  };
+}
+
+// ─── Discovery: Scoring Guide ────────────────────────────────────────────────
+
+export function buildDiscoveryScoringGuidePrompt(ctx: PromptContext): PromptResult {
+  return {
+    system: `${REFERENCE_SYSTEM}
+
+You are generating a scoring guide for a sales discovery mock call evaluation.`,
+    user: `Generate a scoring guide for a ${ctx.company.name} Account Executive discovery mock call.
+
+${buildCompanyContext(ctx.company)}
+
+SCORING CATEGORIES (from the interview evaluation process):
+1. Industry Pain — industry knowledge demonstrated before the call begins
+2. Persona Pain — understanding the persona's daily reality, not just their title
+3. Active Listening — reflecting answers back before asking the next question
+4. Current State — building a complete picture of tools, team, process
+5. Technical Pain — identifying a specific gap and following up with probes
+6. Personal Pain — connecting that gap to individual frustration and time waste
+7. Business Pain — quantifying the cost in dollars, hours, or incidents
+
+EVALUATOR FOCUS (Luke O'Connor, Commercial Sales Manager):
+- Identify deal risk early — don't just collect pain, assess whether this is a real opportunity
+- Before and after scenarios (Command of the Message) — paint the current state vs. the possible future
+- Pain recap before solution recommendation — never pitch without summarizing all pain first
+- Use of "my recommendation" language for solution transitions — not "we can" or "our product does"
+- Exploring 2nd and 3rd level pain beyond the initial answer — go deeper, not wider
+- Challenger 3Ts: Teach (share an insight), Tailor (connect to their world), Take Control (guide the conversation)
+- Expanding scope of the opportunity — bring in other stakeholders, other use cases
+
+For each category return:
+- fiveOutOfFive: what excellence looks like (specific behavior, not vague)
+- threeOutOfFive: what average looks like
+- commonMistake: the thing that drops the score
+- winningMove: specific thing to say or do that impresses
+
+Also return:
+- painRecapScript: fill-in-the-blank template with [BRACKETS]
+- recommendationTransition: the exact phrase to use
+- multithreadingClose: how to expand scope at the end
+
+IMPORTANT: Return ONLY the raw JSON object below — no markdown, no headings, no prose before or after.
+{
+  "categories": [
+    {
+      "name": "category name",
+      "fiveOutOfFive": "...",
+      "threeOutOfFive": "...",
+      "commonMistake": "...",
+      "winningMove": "..."
+    }
+  ],
+  "painRecapScript": "template with [BRACKETS]",
+  "recommendationTransition": "exact phrase",
+  "multithreadingClose": "the close"
+}`,
+    maxTokens: 1500,
+  };
+}
+
+// ─── Discovery: Pain Recap Template ──────────────────────────────────────────
+
+export function buildDiscoveryPainRecapPrompt(ctx: PromptContext): PromptResult {
+  const persona = ctx.mockCallPersona ?? "safety_manager";
+  return {
+    system: `${SPOKEN_SYSTEM}
+
+You are a sales discovery coach. Generate the pain recap template — the most important moment in a discovery call.`,
+    user: `Generate a pain recap template for a ${ctx.company.name} discovery mock call.
+
+Company: ${ctx.company.name}
+Role: ${ctx.targetRole}
+Persona: ${persona}
+${buildCompanyContext(ctx.company)}
+
+CONTEXT: This is the moment after all discovery is complete and before recommending a solution. Luke O'Connor specifically evaluates whether the candidate:
+1. Recaps ALL pain threads — technical, personal, AND business — not just the last one discussed
+2. Gets explicit confirmation before recommending ("Does that track?" / "Am I hearing that right?")
+3. Transitions with "my recommendation" language — not "we can" or "our product"
+4. Expands scope by referencing other stakeholders who might share this pain
+
+Use the Challenger "rational drowning" pattern — stack the costs so the total feels overwhelming. Technical pain → personal time cost → business dollar impact → and that's just one department.
+
+Generate a fill-in-the-blank template with [BRACKETS] for the candidate to complete from their discovery notes during the call.
+
+BANNED: leverage, utilize, robust, seamless, ensure, facilitate, empower, pivotal, transformative, groundbreaking.
+
+IMPORTANT: Return ONLY the raw JSON object below — no markdown, no headings, no prose before or after.
+{
+  "recapTemplate": "the template with [BRACKETS] — must cover all three pain layers",
+  "confirmationQuestion": "exact question to get buy-in before recommending",
+  "recommendationBridge": "exact transition phrase using my recommendation language",
+  "scopeExpansionPrompt": "how to bring in other stakeholders or departments",
+  "coachingNote": "what Luke specifically evaluates in this moment and the most common mistake"
+}`,
+    maxTokens: 800,
+  };
+}
+
 // ─── Final check (appended to every prompt) ──────────────────────────────────
 
 const FINAL_CHECK = `
@@ -1947,6 +2204,27 @@ export function buildPromptForAnswerType(
       break;
     case "assignment_guide":
       result = buildAssignmentGuidePrompt(ctx);
+      break;
+    case "discovery_hypothesis":
+      result = buildDiscoveryHypothesisPrompt(ctx);
+      break;
+    case "discovery_questions_technical":
+      result = buildDiscoveryQuestionsPrompt(ctx, "technical");
+      break;
+    case "discovery_questions_personal":
+      result = buildDiscoveryQuestionsPrompt(ctx, "personal");
+      break;
+    case "discovery_questions_business":
+      result = buildDiscoveryQuestionsPrompt(ctx, "business");
+      break;
+    case "discovery_trap_questions":
+      result = buildDiscoveryTrapQuestionsPrompt(ctx);
+      break;
+    case "discovery_scoring_guide":
+      result = buildDiscoveryScoringGuidePrompt(ctx);
+      break;
+    case "discovery_pain_recap":
+      result = buildDiscoveryPainRecapPrompt(ctx);
       break;
     default:
       throw new Error(`Unknown answer type: ${answerType}`);

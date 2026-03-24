@@ -53,6 +53,13 @@ const EMOJIS: Record<AnswerType, string> = {
   pain_point_analysis: "🔍",
   assignment_guide: "📝",
   competitor_battle_card: "⚔️",
+  discovery_hypothesis: "🎯",
+  discovery_questions_technical: "🔧",
+  discovery_questions_personal: "💬",
+  discovery_questions_business: "💲",
+  discovery_trap_questions: "🪤",
+  discovery_scoring_guide: "📊",
+  discovery_pain_recap: "📋",
 };
 
 const QUICK_ACTIONS = [

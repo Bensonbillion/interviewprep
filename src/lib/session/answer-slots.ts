@@ -3,7 +3,7 @@
  * Maps stage + backgroundType + roleType → which answer types to include.
  */
 
-import type { AnswerSlot, AnswerType, InterviewStage, BackgroundType, RoleType } from "@/types";
+import type { AnswerSlot, AnswerType, InterviewStage, BackgroundType, RoleType, MockCallType } from "@/types";
 
 // ─── Answer type metadata (base — may be overridden per roleType) ─────────────
 
@@ -84,6 +84,34 @@ const ANSWER_LABELS: Record<AnswerType, { label: string; description: string }> 
     label: "Competitor Battle Cards",
     description: "Structured competitive intel for each main competitor — their strengths, where you win, customer switching triggers, and a discovery question to use when a prospect names them.",
   },
+  discovery_hypothesis: {
+    label: "Business Hypothesis",
+    description: "Your opening statement — a single sentence that frames the entire discovery call around a specific business pain.",
+  },
+  discovery_questions_technical: {
+    label: "Technical Discovery Questions",
+    description: "Questions that uncover current state, tools, and process gaps — the surface layer of the Iceberg Framework.",
+  },
+  discovery_questions_personal: {
+    label: "Personal Discovery Questions",
+    description: "Questions that make the pain personal — daily frustrations, time waste, and individual burden.",
+  },
+  discovery_questions_business: {
+    label: "Business Discovery Questions",
+    description: "Questions that quantify pain in dollars — cost of the status quo, leadership pressure, liability exposure.",
+  },
+  discovery_trap_questions: {
+    label: "Trap Questions",
+    description: "Discovery questions that position defensible differentiators as buyer requirements before competitors can claim alternatives.",
+  },
+  discovery_scoring_guide: {
+    label: "Scoring Guide",
+    description: "How you'll be evaluated — the 7 scoring categories, what excellence looks like, and the winning moves for each.",
+  },
+  discovery_pain_recap: {
+    label: "Pain Recap Template",
+    description: "The most critical moment in discovery — how to recap all pain threads and transition to your recommendation.",
+  },
 };
 
 // ─── AE-specific label overrides ──────────────────────────────────────────────
@@ -162,6 +190,19 @@ const STAGE_SLOTS: Record<InterviewStage, AnswerType[]> = {
   ],
 };
 
+// ─── Discovery call slot override (when mockCallType === 'discovery') ─────────
+
+const DISCOVERY_ROLE_PLAY_SLOTS: AnswerType[] = [
+  "discovery_hypothesis",
+  "discovery_questions_technical",
+  "discovery_questions_personal",
+  "discovery_questions_business",
+  "discovery_trap_questions",
+  "discovery_scoring_guide",
+  "discovery_pain_recap",
+  "cheat_sheet",
+];
+
 // ─── Background-type additions ────────────────────────────────────────────────
 
 const BACKGROUND_ADDITIONS: Partial<Record<BackgroundType, AnswerType[]>> = {
@@ -173,9 +214,13 @@ const BACKGROUND_ADDITIONS: Partial<Record<BackgroundType, AnswerType[]>> = {
 export function buildAnswerSlots(
   stage: InterviewStage,
   backgroundType: BackgroundType,
-  roleType?: RoleType
+  roleType?: RoleType,
+  mockCallType?: MockCallType
 ): AnswerSlot[] {
-  const baseTypes = STAGE_SLOTS[stage] ?? [];
+  const baseTypes =
+    stage === "role_play" && mockCallType === "discovery"
+      ? DISCOVERY_ROLE_PLAY_SLOTS
+      : STAGE_SLOTS[stage] ?? [];
   const extraTypes = BACKGROUND_ADDITIONS[backgroundType] ?? [];
 
   // Deduplicate (extras added after base list)
