@@ -87,6 +87,7 @@ export async function POST(req: NextRequest) {
         seniority,
         jobListingSignals,
         personalContext: session.personalContext,
+        mockCallPersona: session.mockCallPersona,
       },
       {
         question: body.question,
@@ -135,6 +136,15 @@ export async function POST(req: NextRequest) {
       .replace(/^```(?:json)?\s*/i, "")
       .replace(/\s*```$/i, "")
       .trim();
+
+    // ── Empty content safety net ───────────────────────────────────────────
+    if (!rawContent || rawContent.length < 50) {
+      console.error("[generate-answer] Empty or too-short content:", rawContent?.length, "chars for", answerType);
+      return NextResponse.json(
+        { error: "Generation produced empty content. Please try again." },
+        { status: 500 }
+      );
+    }
 
     const answerId = crypto.randomUUID();
 

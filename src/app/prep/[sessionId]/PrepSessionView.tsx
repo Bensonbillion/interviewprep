@@ -590,12 +590,50 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
         console.error("[unlock] spend-credit failed:", res.status);
         return;
       }
-      setSlots((prev) =>
-        prev.map((s) => (s.type === type ? { ...s, status: "unlocked" as const } : s))
-      );
+
+      // Check if the slot already has content — if empty, generate it now
+      const slot = slots.find((s) => s.type === type);
+      if (!slot?.content?.trim()) {
+        // No content — trigger generation before unlocking
+        setSlots((prev) =>
+          prev.map((s) => (s.type === type ? { ...s, status: "loading" as const } : s))
+        );
+        refreshCredits?.();
+        const currentSession = session;
+        if (currentSession) {
+          try {
+            const genRes = await fetch("/api/generate-answer", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sessionId, answerType: type, session: currentSession }),
+            });
+            if (genRes.ok) {
+              const data = await genRes.json().catch(() => null);
+              if (data?.content?.trim()) {
+                setSlots((prev) =>
+                  prev.map((s) =>
+                    s.type === type
+                      ? { ...s, status: "unlocked" as const, content: data.content, answerId: data.answerId }
+                      : s
+                  )
+                );
+                return;
+              }
+            }
+          } catch { /* fall through to unlock with empty */ }
+        }
+        // Generation failed — still unlock but with whatever content exists
+        setSlots((prev) =>
+          prev.map((s) => (s.type === type ? { ...s, status: "unlocked" as const } : s))
+        );
+      } else {
+        setSlots((prev) =>
+          prev.map((s) => (s.type === type ? { ...s, status: "unlocked" as const } : s))
+        );
+      }
       refreshCredits?.();
     },
-    [sessionId, refreshCredits]
+    [sessionId, session, slots, refreshCredits]
   );
 
   // ─── Unlock all locked answers ───────────────────────────────────────────────
