@@ -42,6 +42,14 @@ interface GenerationScreenProps {
   interviewDate?: string;
   interviewers?: InterviewerInput[];
   personalContext?: string;
+  mockCallType?: string | null;
+  mockCallPersona?: string | null;
+  interviewerName?: string;
+  interviewContext?: string;
+  mockAccountName?: string;
+  mockAccountContext?: string;
+  previousRoundContext?: string;
+  isFirstRound?: boolean;
 }
 
 export function GenerationScreen({
@@ -55,13 +63,21 @@ export function GenerationScreen({
   interviewDate,
   interviewers,
   personalContext,
+  mockCallType,
+  mockCallPersona,
+  interviewerName,
+  interviewContext,
+  mockAccountName,
+  mockAccountContext,
+  previousRoundContext,
+  isFirstRound,
 }: GenerationScreenProps) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [error, setError] = useState("");
   const hasStarted = useRef(false);
-  const STEPS = buildSteps(!!(interviewers && interviewers.length > 0));
+  const STEPS = buildSteps(!!(interviewers && interviewers.length > 0) || !!interviewerName?.trim());
 
   const complete = (step: number) => {
     setCompletedSteps((prev) => new Set([...prev, step]));
@@ -108,7 +124,15 @@ export function GenerationScreen({
 
       // Build session object
       const sessionId = crypto.randomUUID();
-      const answerSlots = buildAnswerSlots(stage, resume.backgroundType, roleType);
+      const mcType = (mockCallType as PrepSession["mockCallType"]) ?? undefined;
+      const answerSlots = buildAnswerSlots(stage, resume.backgroundType, roleType, mcType);
+
+      // Merge discovery interviewer name into formal interviewers array
+      const allInterviewers = [...(interviewers ?? [])];
+      if (interviewerName?.trim() && !allInterviewers.some((iv) => iv.name.toLowerCase() === interviewerName.trim().toLowerCase())) {
+        allInterviewers.push({ name: interviewerName.trim(), linkedinUrl: "", roleTitle: "" });
+      }
+
       const session: PrepSession = {
         id: sessionId,
         resume,
@@ -123,16 +147,24 @@ export function GenerationScreen({
         answerSlots,
         createdAt: Date.now(),
         interviewDate: interviewDate ?? undefined,
-        interviewers: interviewers ?? [],
+        interviewers: allInterviewers,
         interviewerDossiers: [],
         personalContext: personalContext ?? undefined,
+        mockCallType: mcType,
+        mockCallPersona: (mockCallPersona as PrepSession["mockCallPersona"]) ?? undefined,
+        interviewerName: interviewerName?.trim() || undefined,
+        interviewContext: interviewContext?.trim() || undefined,
+        mockAccountName: mockAccountName?.trim() || undefined,
+        mockAccountContext: mockAccountContext?.trim() || undefined,
+        previousRoundContext: previousRoundContext?.trim() || undefined,
+        isFirstRound: isFirstRound ?? true,
       };
 
       // Step 3 (optional): research interviewers
-      if (interviewers && interviewers.length > 0) {
+      if (allInterviewers.length > 0) {
         advance(3);
         const dossiers: InterviewerDossier[] = [];
-        for (const iv of interviewers) {
+        for (const iv of allInterviewers) {
           try {
             const ivRes = await fetch("/api/interviewer/research", {
               method: "POST",

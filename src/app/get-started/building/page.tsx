@@ -77,6 +77,14 @@ export default function BuildingPage() {
       interviewDate={details.interviewDate}
       interviewers={details.interviewers}
       personalContext={details.personalContext}
+      mockCallType={(details as unknown as Record<string, unknown>).mockCallType as string | null | undefined}
+      mockCallPersona={(details as unknown as Record<string, unknown>).mockCallPersona as string | null | undefined}
+      interviewerName={(details as unknown as Record<string, unknown>).interviewerName as string | undefined}
+      interviewContext={(details as unknown as Record<string, unknown>).interviewContext as string | undefined}
+      mockAccountName={(details as unknown as Record<string, unknown>).mockAccountName as string | undefined}
+      mockAccountContext={(details as unknown as Record<string, unknown>).mockAccountContext as string | undefined}
+      previousRoundContext={(details as unknown as Record<string, unknown>).previousRoundContext as string | undefined}
+      isFirstRound={(details as unknown as Record<string, unknown>).isFirstRound as boolean | undefined}
     />
   );
 }
