@@ -2104,6 +2104,7 @@ SCORING CATEGORIES (from the interview evaluation process):
 5. Technical Pain — identifying a specific gap and following up with probes
 6. Personal Pain — connecting that gap to individual frustration and time waste
 7. Business Pain — quantifying the cost in dollars, hours, or incidents
+8. Capability-Based Recommendation — recommending Required Capabilities tied to stated pains, with NO product names, NO feature names. The buyer should feel like THEY defined the solution from their own words. 5/5 = each capability statement starts with "you need a system that can..." and ends with "because you told me [their exact words]." Common mistake: saying product names instead of describing capabilities.
 
 EVALUATOR FOCUS (Luke O'Connor, Commercial Sales Manager):
 - Identify deal risk early — don't just collect pain, assess whether this is a real opportunity
@@ -2137,7 +2138,7 @@ IMPORTANT: Return ONLY the raw JSON object below — no markdown, no headings, n
     }
   ],
   "painRecapScript": "template with [BRACKETS]",
-  "recommendationTransition": "exact phrase",
+  "recommendationTransition": "Based on everything you have shared with me today, my recommendation would be... [then describe CAPABILITIES, not products — what the system must DO, not what it is called]",
   "multithreadingClose": "the close"
 }`,
     maxTokens: 1500,
@@ -2252,39 +2253,56 @@ The evaluator specifically scores:
 - Did the candidate use "my recommendation" language?
 - Did they teach before recommending (Challenger)?
 - Did they tie the recommendation to stated pains?
-- Did they NOT pitch features?
+- Did they recommend CAPABILITIES, not products or features?
 
-Generate five parts:
+THE CAPABILITY-BASED RECOMMENDATION (Command of Message):
+The recommendation must describe REQUIRED CAPABILITIES — not products, not features, not brand names.
 
-1. THE CHALLENGER TEACH MOMENT:
-One insight to share before the recommendation. Something they may not know that reframes the problem. Should feel like expertise, not a fact sheet.
-Example: "One thing we see consistently across fleets like yours - coaching that happens more than 24 hours after an event changes almost nothing behaviorally. The driver doesn't connect it. So the issue isn't that you're coaching wrong, it's that the architecture makes timely coaching structurally impossible."
+The formula: "What you need is a system that can [CAPABILITY tied to their stated pain] — because you told me [THEIR EXACT WORDS about the pain]."
 
-2. THE BRIDGE PHRASE (exact words):
-"Based on everything you've shared with me today, my recommendation would be..."
+Each capability statement must:
+1. Map directly to a pain the prospect stated in discovery
+2. Describe what the system DOES, not what it IS CALLED
+3. Use the prospect's own language where possible
+4. Never name ${ctx.company.name} or any specific product name
 
-3. THE RECOMMENDATION TEMPLATE:
-How to complete the bridge tied to their specific pains. Use [BRACKETS] for candidate to fill from discovery notes.
-Example: "...to start with [CAPABILITY] because you told me [THEIR PAIN] is costing you [THEIR COST] - and that gap is exactly what this addresses."
+CAPABILITY TRANSLATION GUIDE (DO NOT SAY → SAY THIS INSTEAD):
+- Product names (cameras, apps, gateways) → "a system that detects/coaches/tracks..."
+- "Our platform" → "a platform that..."
+- "Our solution" → "what you'd need is..."
+- Feature names → describe the CAPABILITY: what it does for them
 
-4. WHAT NOT TO SAY:
-3 wrong transition examples with explanation of why each fails.
+Generate these parts:
 
-5. FULL SCRIPT:
-Teach moment + bridge + template as one natural flow.
+1. CHALLENGER TEACH MOMENT: An insight that reframes the problem. Must not reference ${ctx.company.name} or any product. Should feel like expertise.
 
-BANNED: leverage, utilize, robust, seamless, ensure, facilitate, empower, pivotal, transformative, groundbreaking.
+2. THE BRIDGE: "Based on everything you've shared with me today, my recommendation would be..." (exact words, non-negotiable)
+
+3. CAPABILITY STATEMENTS (4): Each follows: "You need [CAPABILITY DESCRIPTION] — because you told me [THEIR STATED PAIN] and right now [LIMITATION THEY DESCRIBED]."
+   a) Detection/coaching gap (tied to timing pain)
+   b) System fragmentation (tied to investigation pain)
+   c) Visibility gap (tied to coaching prioritization pain)
+   d) Proof/exoneration capability (tied to liability pain)
+
+4. SCOPE EXPANSION: One sentence connecting safety recommendation to broader operational opportunity — without pitching.
+
+5. FULL SCRIPT: Teach + bridge + all capabilities + scope as one natural flow.
+
+BANNED WORDS: ${ctx.company.name}, any product feature names, "our platform", "our solution", "what we do". Also: leverage, utilize, robust, seamless, ensure, facilitate, empower, pivotal, transformative, groundbreaking.
+
+INSTEAD USE: "a system that...", "technology that can...", "a platform that...", "what you'd need is...", "the capability to..."
 
 IMPORTANT: Return ONLY the raw JSON object below - no markdown, no headings, no prose before or after.
 {
-  "challengerTeachMoment": "the insight",
+  "challengerTeachMoment": "the insight - no product names",
   "bridgePhrase": "Based on everything you've shared with me today, my recommendation would be...",
-  "recommendationTemplate": "fill-in template with [BRACKETS]",
-  "wrongTransitions": [
-    {"phrase": "wrong thing to say", "why": "why it fails"}
+  "capabilityStatements": [
+    {"capability": "what the system does", "tiedToPain": "their exact pain", "limitation": "current system gap"}
   ],
-  "fullScript": "teach + bridge + template combined",
-  "coachingNote": "what the evaluator scores in this moment"
+  "scopeExpansion": "one sentence connecting to second value driver",
+  "fullScript": "teach + bridge + all capabilities + scope in natural flow",
+  "bannedCheck": "confirmation that no product names appear",
+  "coachingNote": "reminder about capability language and why evaluator scores this"
 }`,
     maxTokens: 800,
   };

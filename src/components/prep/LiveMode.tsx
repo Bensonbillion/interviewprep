@@ -227,7 +227,7 @@ function flattenPhaseCards(slots: AnswerSlot[]): PhaseCard[] {
   }
 
   // PHASE 8: MY RECOMMENDATION
-  const recData = getSlotContent(slots, "discovery_recommendation") as { challengerTeachMoment?: string; bridgePhrase?: string; recommendationTemplate?: string } | null;
+  const recData = getSlotContent(slots, "discovery_recommendation") as { challengerTeachMoment?: string; bridgePhrase?: string; recommendationTemplate?: string; capabilityStatements?: unknown[]; fullScript?: string } | null;
   if (recData) {
     if (recData.challengerTeachMoment) {
       cards.push({
@@ -235,7 +235,7 @@ function flattenPhaseCards(slots: AnswerSlot[]): PhaseCard[] {
         id: `p8-${cards.length}`,
         layer: "recap",
         question: recData.challengerTeachMoment,
-        hint: "Say this BEFORE the bridge phrase",
+        hint: "Lead with this insight. No product names here either — this is about their situation, not your solution.",
         phase: "MY RECOMMENDATION",
         phaseNumber: 8,
       });
@@ -246,8 +246,8 @@ function flattenPhaseCards(slots: AnswerSlot[]): PhaseCard[] {
         id: `p8-${cards.length}`,
         layer: "recap",
         question: recData.bridgePhrase,
-        hint: 'These exact words. Not "let me show you."',
-        followUp: recData.recommendationTemplate || undefined,
+        hint: 'Describe capabilities, not products. "A system that can..." not product names. Tie each capability to their exact stated pain.',
+        followUp: "Check: Did you name any product? Any feature? If yes — rephrase as a capability. What does it DO, not what is it CALLED.",
         phase: "MY RECOMMENDATION",
         phaseNumber: 8,
       });

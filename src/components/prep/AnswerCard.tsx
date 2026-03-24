@@ -299,7 +299,7 @@ const QUESTION_COACHING: Partial<Record<AnswerType, Partial<Record<string, strin
     role_play: "Set the agenda before asking anything. Most candidates skip this — it is what separates AEs from SDRs.",
   },
   discovery_recommendation: {
-    role_play: "Do NOT say this until pain recap is complete and confirmed. Use the Challenger teach moment first, then the bridge phrase exactly.",
+    role_play: "Describe capabilities — never product names. Say \"a system that detects behavior continuously\" not the product name. Each statement ties back to their exact words. Luke specifically scores whether you can recommend without pitching.",
   },
   discovery_close: {
     role_play: "Luke scores expanding scope. Ask who else is involved before proposing a next step.",
