@@ -10,6 +10,7 @@ import { QuickRoundModal } from "@/components/prep/QuickRoundModal";
 import { InterviewerIntelCard } from "@/components/prep/InterviewerIntelCard";
 import { ClosingCoachCard } from "@/components/prep/ClosingCoachCard";
 import { LiveMode } from "@/components/prep/LiveMode";
+import { TeleprompterMode } from "@/components/prep/TeleprompterMode";
 import { FollowUpSection } from "@/components/prep/FollowUpSection";
 import { ConfidenceCheck } from "@/components/prep/ConfidenceCheck";
 import { CustomQuestionSection } from "@/components/prep/CustomQuestionSection";
@@ -371,7 +372,7 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
   const [copiedAll, setCopiedAll] = useState(false);
   const [extraDossiers, setExtraDossiers] = useState<InterviewerDossier[]>([]);
   const [reviewedAnswers, setReviewedAnswers] = useState<Set<AnswerType>>(new Set());
-  const [liveModeActive, setLiveModeActive] = useState(false);
+  const [viewMode, setViewMode] = useState<"study" | "live" | "teleprompter">("study");
   const [showConfidenceCheck, setShowConfidenceCheck] = useState(false);
   const generatingRef = useRef<Set<AnswerType>>(new Set());
   const reviewTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -802,13 +803,26 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
                 );
               })()}
               {session.stage === "role_play" && session.mockCallType === "discovery" && allGenerated && (
-                <button
-                  type="button"
-                  onClick={() => setLiveModeActive(true)}
-                  className="text-sm rounded-full px-4 py-1.5 bg-stone-100 dark:bg-white/10 border border-stone-300 dark:border-white/15 text-stone-600 dark:text-stone-300 hover:bg-[#FF6B4A] hover:text-white hover:border-[#FF6B4A] transition-all duration-150"
-                >
-                  📱 Live Mode
-                </button>
+                <div className="rounded-full border border-stone-200 dark:border-white/15 bg-stone-50 dark:bg-white/5 inline-flex p-0.5">
+                  {([
+                    { key: "study" as const, label: "📋 Study" },
+                    { key: "live" as const, label: "📱 Live" },
+                    { key: "teleprompter" as const, label: "📜 Call" },
+                  ]).map((m) => (
+                    <button
+                      key={m.key}
+                      type="button"
+                      onClick={() => setViewMode(m.key)}
+                      className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-all duration-150 ${
+                        viewMode === m.key
+                          ? "bg-white dark:bg-white/15 shadow-sm text-stone-900 dark:text-white"
+                          : "text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
               )}
               {allGenerated && (
                 <span className="text-[12px] font-semibold px-3 py-1.5 rounded-lg bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success)]/15">
@@ -1078,11 +1092,20 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
       )}
 
       {/* ── Live mode overlay ────────────────────────────────────────────── */}
-      {liveModeActive && (
+      {viewMode === "live" && (
         <LiveMode
           session={session}
           answerSlots={slots}
-          onExit={() => setLiveModeActive(false)}
+          onExit={() => setViewMode("study")}
+        />
+      )}
+
+      {/* ── Teleprompter mode overlay ──────────────────────────────────────── */}
+      {viewMode === "teleprompter" && (
+        <TeleprompterMode
+          session={session}
+          answerSlots={slots}
+          onExit={() => setViewMode("study")}
         />
       )}
     </div>
