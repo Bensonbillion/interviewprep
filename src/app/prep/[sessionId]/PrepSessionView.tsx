@@ -9,6 +9,7 @@ import { AnswerCard } from "@/components/prep/AnswerCard";
 import { QuickRoundModal } from "@/components/prep/QuickRoundModal";
 import { InterviewerIntelCard } from "@/components/prep/InterviewerIntelCard";
 import { ClosingCoachCard } from "@/components/prep/ClosingCoachCard";
+import { LiveMode } from "@/components/prep/LiveMode";
 import { FollowUpSection } from "@/components/prep/FollowUpSection";
 import { ConfidenceCheck } from "@/components/prep/ConfidenceCheck";
 import { CustomQuestionSection } from "@/components/prep/CustomQuestionSection";
@@ -370,6 +371,7 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
   const [copiedAll, setCopiedAll] = useState(false);
   const [extraDossiers, setExtraDossiers] = useState<InterviewerDossier[]>([]);
   const [reviewedAnswers, setReviewedAnswers] = useState<Set<AnswerType>>(new Set());
+  const [liveModeActive, setLiveModeActive] = useState(false);
   const [showConfidenceCheck, setShowConfidenceCheck] = useState(false);
   const generatingRef = useRef<Set<AnswerType>>(new Set());
   const reviewTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -761,6 +763,15 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
                   </span>
                 );
               })()}
+              {session.stage === "role_play" && session.mockCallType === "discovery" && allGenerated && (
+                <button
+                  type="button"
+                  onClick={() => setLiveModeActive(true)}
+                  className="text-sm rounded-full px-4 py-1.5 bg-stone-100 dark:bg-white/10 border border-stone-300 dark:border-white/15 text-stone-600 dark:text-stone-300 hover:bg-[#FF6B4A] hover:text-white hover:border-[#FF6B4A] transition-all duration-150"
+                >
+                  📱 Live Mode
+                </button>
+              )}
               {allGenerated && (
                 <span className="text-[12px] font-semibold px-3 py-1.5 rounded-lg bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success)]/15">
                   {unlockedCount === totalCount ? "Ready to prep" : `${unlockedCount}/${totalCount} unlocked`}
@@ -1025,6 +1036,15 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
           slots={slots}
           isFirstSession={getSessionListForCount().length <= 1}
           onDismiss={() => setShowConfidenceCheck(false)}
+        />
+      )}
+
+      {/* ── Live mode overlay ────────────────────────────────────────────── */}
+      {liveModeActive && (
+        <LiveMode
+          session={session}
+          answerSlots={slots}
+          onExit={() => setLiveModeActive(false)}
         />
       )}
     </div>

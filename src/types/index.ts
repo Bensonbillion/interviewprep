@@ -306,6 +306,8 @@ export interface PrepSession {
   interviewers?: InterviewerInput[];
   interviewerDossiers?: InterviewerDossier[];
   personalContext?: string; // Optional "what makes you YOU" — hobbies, side projects, etc.
+  mockCallType?: MockCallType;
+  mockCallPersona?: MockCallPersona;
 }
 
 // ─── Interviewer Research ─────────────────────────────────────────────────────
