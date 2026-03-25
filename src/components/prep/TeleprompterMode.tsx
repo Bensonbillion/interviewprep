@@ -279,6 +279,16 @@ const RESCUE_TABS: Array<{ label: string; lines: RescueLine[] }> = [
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+// ─── Font size presets ───────────────────────────────────────────────────────
+
+const FONT_SIZES = [
+  { label: "A", speak: "text-[22px]", listen: "text-[15px]" },
+  { label: "A", speak: "text-[26px]", listen: "text-[17px]" },
+  { label: "A", speak: "text-[32px]", listen: "text-[20px]" },
+] as const;
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
 export function TeleprompterMode({ session, answerSlots, onExit }: TeleprompterModeProps) {
   const lines = buildLines(answerSlots);
   const storageKey = `salesprep_tp_${session.id}`;
@@ -297,6 +307,17 @@ export function TeleprompterMode({ session, answerSlots, onExit }: TeleprompterM
 
   // Triple-tap section skip
   const lastThreeTaps = useRef<number[]>([]);
+
+  // Font size (0=small, 1=default, 2=large)
+  const [fontSizeIdx, setFontSizeIdx] = useState(1);
+
+  // Auto-scroll rehearsal mode
+  const [autoScroll, setAutoScroll] = useState(false);
+  const [autoInterval, setAutoInterval] = useState(4000); // ms per line
+  const autoScrollTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Settings panel
+  const [showSettings, setShowSettings] = useState(false);
 
   // Restore from localStorage
   useEffect(() => {
@@ -331,6 +352,35 @@ export function TeleprompterMode({ session, answerSlots, onExit }: TeleprompterM
     return () => { wakeLock?.release(); };
   }, []);
 
+  // Landscape orientation lock
+  useEffect(() => {
+    try {
+      const sl = screen?.orientation as { lock?: (o: string) => Promise<void>; unlock?: () => void } | undefined;
+      sl?.lock?.("landscape").catch(() => {});
+      return () => { sl?.unlock?.(); };
+    } catch { /* not supported */ }
+  }, []);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (rescueOpen) return;
+      if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); advance(); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); goBack(); }
+      else if (e.key === "Escape") onExit();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  });
+
+  // Haptic feedback on section transitions
+  useEffect(() => {
+    const line = lines[currentIndex];
+    if (line?.type === "section") {
+      try { navigator?.vibrate?.(50); } catch { /* not supported */ }
+    }
+  }, [currentIndex, lines]);
+
   // Auto-advance for section lines
   useEffect(() => {
     clearTimeout(autoAdvanceTimer.current);
@@ -343,6 +393,19 @@ export function TeleprompterMode({ session, answerSlots, onExit }: TeleprompterM
     return () => clearTimeout(autoAdvanceTimer.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIndex]);
+
+  // Auto-scroll rehearsal mode
+  useEffect(() => {
+    clearTimeout(autoScrollTimer.current);
+    if (!autoScroll || rescueOpen) return;
+    const line = lines[currentIndex];
+    if (line?.type === "section") return; // section auto-advance handles itself
+    autoScrollTimer.current = setTimeout(() => {
+      advance();
+    }, line?.type === "pause" ? 2000 : autoInterval);
+    return () => clearTimeout(autoScrollTimer.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex, autoScroll, autoInterval, rescueOpen]);
 
   const advance = useCallback(() => {
     if (currentIndex >= lines.length - 1) return;
@@ -450,13 +513,86 @@ export function TeleprompterMode({ session, answerSlots, onExit }: TeleprompterM
     <div className="fixed inset-0 z-[60] bg-[#0A0A0F] flex flex-col select-none">
       {/* Top bar */}
       <div className="h-[48px] flex items-center justify-between shrink-0">
-        <button type="button" onClick={onExit} className="text-[12px] text-white/30 px-4 py-3 hover:text-white/60 transition-colors">
-          ✕ Exit
-        </button>
-        <span className="text-[11px] text-white/20 font-mono px-4 tabular-nums">
-          {currentIndex + 1} / {lines.length}
-        </span>
+        <div className="flex items-center">
+          <button type="button" onClick={onExit} className="text-[12px] text-white/30 px-4 py-3 hover:text-white/60 transition-colors">
+            ✕ Exit
+          </button>
+          {autoScroll && (
+            <span className="text-[10px] text-emerald-400/60 uppercase tracking-wider animate-pulse">AUTO</span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 px-4">
+          <button
+            type="button"
+            onClick={() => setShowSettings((o) => !o)}
+            className="text-[14px] text-white/20 hover:text-white/50 transition-colors"
+            title="Settings"
+          >
+            ⚙
+          </button>
+          <span className="text-[11px] text-white/20 font-mono tabular-nums">
+            {currentIndex + 1} / {lines.length}
+          </span>
+        </div>
       </div>
+
+      {/* Settings panel */}
+      {showSettings && (
+        <div className="bg-[#1E1F2B] border-b border-[#2A2B3D] px-4 py-3 shrink-0 space-y-3" onClick={(e) => e.stopPropagation()}>
+          {/* Font size */}
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-white/40 uppercase tracking-wider">Font size</span>
+            <div className="flex gap-1">
+              {FONT_SIZES.map((fs, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setFontSizeIdx(i)}
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                    fontSizeIdx === i ? "bg-white/15 text-white" : "bg-white/5 text-white/30 hover:text-white/50"
+                  }`}
+                  style={{ fontSize: 10 + i * 4 }}
+                >
+                  {fs.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Auto-scroll */}
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-white/40 uppercase tracking-wider">Auto-scroll</span>
+            <div className="flex items-center gap-2">
+              {autoScroll && (
+                <div className="flex gap-1">
+                  {[2000, 4000, 6000, 8000].map((ms) => (
+                    <button
+                      key={ms}
+                      type="button"
+                      onClick={() => setAutoInterval(ms)}
+                      className={`text-[10px] px-2 py-1 rounded transition-colors ${
+                        autoInterval === ms ? "bg-white/15 text-white" : "bg-white/5 text-white/30"
+                      }`}
+                    >
+                      {ms / 1000}s
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setAutoScroll((o) => !o)}
+                className={`w-10 h-6 rounded-full transition-colors relative ${autoScroll ? "bg-emerald-500" : "bg-white/10"}`}
+              >
+                <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-all ${autoScroll ? "left-5" : "left-1"}`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Keyboard hint */}
+          <p className="text-[10px] text-white/20">← → arrow keys or spacebar to navigate</p>
+        </div>
+      )}
 
       {/* Progress bar */}
       <div className="h-[2px] bg-white/5 shrink-0">
@@ -475,7 +611,7 @@ export function TeleprompterMode({ session, answerSlots, onExit }: TeleprompterM
           style={{ opacity }}
         >
           {line.type === "speak" && (
-            <p className="text-[26px] font-semibold text-white leading-[1.5] tracking-[-0.01em]">
+            <p className={`${FONT_SIZES[fontSizeIdx].speak} font-semibold text-white leading-[1.5] tracking-[-0.01em]`}>
               {renderBrackets(line.text)}
             </p>
           )}
@@ -485,7 +621,7 @@ export function TeleprompterMode({ session, answerSlots, onExit }: TeleprompterM
               <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: `${SECTION_COLORS.PERSONAL ?? "#F59E0B"}60` }}>
                 LISTEN FOR
               </p>
-              <p className="text-[17px] font-normal leading-[1.5]" style={{ color: "#F59E0B" }}>
+              <p className={`${FONT_SIZES[fontSizeIdx].listen} font-normal leading-[1.5]`} style={{ color: "#F59E0B" }}>
                 {line.text}
               </p>
             </div>
