@@ -10,11 +10,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         {/* Desktop sidebar — SOLID, not glass */}
         <Sidebar className="hidden md:flex" />
 
-        {/* Main content — constrained width for readability */}
+        {/* Main content */}
         <main className="flex-1 min-w-0 pb-20 md:pb-0">
-          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6">
-            {children}
-          </div>
+          {children}
         </main>
       </div>
 
