@@ -763,88 +763,66 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
   const isDiscovery = session.stage === "role_play" && session.mockCallType === "discovery";
   const activeSlot = activeBlock ? slots.find((s) => s.type === activeBlock) : null;
 
+  const progressPct = unlockedCount > 0 ? Math.round((reviewedUnlockedCount / unlockedCount) * 100) : 0;
+
   return (
-    <div className="lg:flex lg:h-screen lg:overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-[#F7F6F3] dark:bg-[var(--bg-page)]">
 
       {/* ── Center column ────────────────────────────────────────────────── */}
-      <main className="flex-1 min-w-0 overflow-y-auto">
-      <div className="max-w-[700px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-5 pb-24 md:pb-8">
+      <main className="flex-1 min-w-0 overflow-hidden flex flex-col">
 
-      {/* ── Breadcrumb ──────────────────────────────────────────────────── */}
-      <nav className="flex items-center gap-1.5 text-[12px] text-[var(--text-tertiary)]">
-        <Link href="/dashboard" className="hover:text-[var(--text-primary)] transition-colors">
-          Dashboard
-        </Link>
-        <span className="text-warm-300">›</span>
-        <span className="text-[var(--text-primary)] font-medium truncate">{session.companyName}</span>
-      </nav>
-
-      {/* ── Page header ──────────────────────────────────────────────────── */}
-      <div className="mb-3">
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-[22px] font-semibold text-[var(--text-primary)] leading-tight truncate">
-              {session.companyName}
-            </h1>
-            <p className="text-[13px] text-[var(--text-secondary)] mt-0.5 whitespace-nowrap">
-              {session.targetRole} · {stageLabel}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {session.interviewDate && (() => {
-              const d = new Date(session.interviewDate + "T12:00:00");
-              const diff = Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-              if (diff < 0) return null;
-              const label = diff === 0 ? "Today!" : diff === 1 ? "Tomorrow" : `In ${diff} days`;
-              const urgent = diff <= 3;
-              return (
-                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold ${urgent ? "bg-[var(--coral-bg)] text-[var(--coral-text)]" : "bg-[var(--blue-bg)] text-[var(--blue-text)]"}`}>
-                  <Calendar className="w-3 h-3" />
-                  {label}
+        {/* Header — fixed, never scrolls */}
+        <header className="flex-shrink-0 border-b border-[#E8E4DF] dark:border-white/5 bg-[#F7F6F3] dark:bg-[var(--bg-page)] px-4 sm:px-6 lg:px-8 py-5">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 mr-6">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Link href="/dashboard" className="text-[12px] text-[#9B8E82] hover:text-[#5C5347] transition-colors">Dashboard</Link>
+                <span className="text-[12px] text-[#C5BDB5]">/</span>
+                <span className="text-[12px] text-[#5C5347] dark:text-[var(--text-secondary)] font-medium">{session.companyName}</span>
+              </div>
+              <div className="flex items-baseline gap-3">
+                <h1 className="text-[20px] font-semibold text-[#1C1713] dark:text-[var(--text-primary)] leading-tight truncate">{session.companyName}</h1>
+                <span className="text-[13px] text-[#9B8E82] whitespace-nowrap flex-shrink-0">{session.targetRole} · {stageLabel}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              {allGenerated && (
+                <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 text-[12px] font-medium text-emerald-700 dark:text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  {unlockedCount === totalCount ? "Ready to prep" : `${unlockedCount}/${totalCount}`}
                 </span>
-              );
-            })()}
-            {allGenerated && (
-              <div className="rounded-full bg-[#F5F2ED] dark:bg-white/5 inline-flex p-1">
-                {([
-                  { key: "study" as const, label: "Study" },
-                  { key: "live" as const, label: "Live" },
-                  { key: "teleprompter" as const, label: "Call" },
-                ]).map((m) => (
-                  <button
-                    key={m.key}
-                    type="button"
-                    onClick={() => setViewMode(m.key)}
+              )}
+              <div className="flex items-center bg-[#EDE9E3] dark:bg-white/10 rounded-full p-1 gap-0.5">
+                {(["study", "live", "teleprompter"] as const).map((m) => (
+                  <button key={m} type="button" onClick={() => setViewMode(m)}
                     className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-all duration-150 ${
-                      viewMode === m.key
-                        ? "bg-white dark:bg-white/15 shadow-sm text-[var(--text-primary)]"
-                        : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
-                    }`}
-                  >
-                    {m.label}
+                      viewMode === m ? "bg-white dark:bg-white/15 text-[#1C1713] dark:text-white shadow-sm" : "text-[#7A6F65] dark:text-white/50 hover:text-[#1C1713] dark:hover:text-white"
+                    }`}>
+                    {m === "study" ? "Study" : m === "live" ? "Live" : "Call"}
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-[#E8E4DF] dark:border-white/5">
+            <div className="flex items-center gap-3">
+              <span className="text-[12px] text-[#9B8E82]">{reviewedUnlockedCount} of {unlockedCount} reviewed</span>
+              <div className="w-24 h-1 rounded-full bg-[#E8E4DF] dark:bg-white/10">
+                <div className="h-full rounded-full bg-[#E8735A] transition-all" style={{ width: `${progressPct}%` }} />
+              </div>
+            </div>
+            {unlockedCount > 0 && (
+              <button onClick={handleCopyAll} className="text-[12px] text-[#9B8E82] hover:text-[#5C5347] flex items-center gap-1.5 transition-colors">
+                {copiedAll ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                {copiedAll ? "Copied!" : "Copy all"}
+              </button>
             )}
           </div>
-        </div>
+        </header>
 
-        {/* Progress row */}
-        <div className="flex items-center justify-between mt-5 pt-5 border-t border-[#F0EDE8] dark:border-white/5">
-          <span className="text-[12px] text-[var(--text-tertiary)]">
-            {reviewedUnlockedCount} / {unlockedCount} reviewed
-          </span>
-          {unlockedCount > 0 && (
-            <button
-              onClick={handleCopyAll}
-              className="text-[12px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center gap-1 transition-colors"
-            >
-              {copiedAll ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-              {copiedAll ? "Copied!" : "Copy all"}
-            </button>
-          )}
-        </div>
-      </div>
+        {/* Scrollable content */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="max-w-[680px] space-y-5 pb-24 md:pb-8">
 
       {/* ── Round tabs — mobile only ──────────────────────────────────── */}
       <div className="lg:hidden">
@@ -1067,12 +1045,13 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
         Answers personalized from your resume · Edits are free · First 3 refinements per answer are free
       </p>
 
-      </div>{/* ── End inner max-width container ── */}
+      </div>{/* ── End max-w-[680px] ── */}
+      </div>{/* ── End scrollable area ── */}
       </main>{/* ── End center column ── */}
 
       {/* ── Desktop right panel (coach) ──────────────────────────────────── */}
-      <aside className="hidden lg:block w-[280px] flex-shrink-0 border-l border-[#F0EDE8] dark:border-white/5 overflow-y-auto bg-white dark:bg-[var(--bg-card)]">
-        <div className="px-6 py-8">
+      <aside className="hidden lg:flex lg:flex-col w-80 flex-shrink-0 border-l border-[#E8E4DF] dark:border-white/5 overflow-y-auto bg-white dark:bg-[var(--bg-card)]">
+        <div className="px-6 py-6">
           <CoachPanel
             answerType={(activeBlock ?? slots[0]?.type ?? "tell_me_about_yourself") as AnswerType}
             answerLabel={activeSlot?.label ?? slots[0]?.label ?? "Answer"}
