@@ -11,7 +11,7 @@ import { InterviewerIntelCard } from "@/components/prep/InterviewerIntelCard";
 import { ClosingCoachCard } from "@/components/prep/ClosingCoachCard";
 import { LiveMode } from "@/components/prep/LiveMode";
 import { TeleprompterMode } from "@/components/prep/TeleprompterMode";
-import { CoachPanel } from "@/components/prep/CoachPanel";
+import { getCoaching } from "@/lib/coaching-content";
 import { FollowUpSection } from "@/components/prep/FollowUpSection";
 import { ConfidenceCheck } from "@/components/prep/ConfidenceCheck";
 import { CustomQuestionSection } from "@/components/prep/CustomQuestionSection";
@@ -765,11 +765,15 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
 
   const progressPct = unlockedCount > 0 ? Math.round((reviewedUnlockedCount / unlockedCount) * 100) : 0;
 
+  const activeType = (activeBlock ?? slots[0]?.type ?? "tell_me_about_yourself") as AnswerType;
+  const coaching = getCoaching(activeType);
+  const activeLabel = activeSlot?.label ?? slots[0]?.label ?? "Answer";
+
   return (
     <>
     {/* ── Sticky header ──────────────────────────────────────────────────── */}
     <div className="sticky top-0 z-20 bg-[#F7F6F3] dark:bg-[var(--bg-page)] border-b border-[#E8E4DF] dark:border-white/5">
-      <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4">
+      <div className="flex items-center justify-between px-5 sm:px-8 lg:px-10 py-4">
         <div className="flex flex-col gap-0.5 min-w-0 mr-8">
           <div className="flex items-center gap-1.5">
             <Link href="/dashboard" className="text-[12px] text-[#9B8E82] hover:text-[#5C5347] transition-colors">Dashboard</Link>
@@ -777,12 +781,12 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
             <span className="text-[12px] text-[#5C5347] dark:text-[var(--text-secondary)] font-medium">{session.companyName}</span>
           </div>
           <div className="flex items-baseline gap-2">
-            <h1 className="text-[19px] font-semibold text-[#1C1713] dark:text-[var(--text-primary)] leading-tight">{session.companyName}</h1>
+            <h1 className="text-[20px] font-semibold text-[#1C1713] dark:text-[var(--text-primary)] leading-tight">{session.companyName}</h1>
             <span className="text-[13px] text-[#9B8E82] whitespace-nowrap flex-shrink-0">{session.targetRole} · {stageLabel}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="hidden sm:inline text-[12px] text-[#9B8E82]">{reviewedUnlockedCount}/{unlockedCount}</span>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <span className="hidden sm:inline text-[12px] text-[#9B8E82]">{reviewedUnlockedCount}/{unlockedCount} reviewed</span>
           <div className="flex items-center bg-[#EDE9E3] dark:bg-white/10 rounded-full p-1">
             {(["study", "live", "teleprompter"] as const).map((m) => (
               <button key={m} type="button" onClick={() => setViewMode(m)}
@@ -793,16 +797,53 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
               </button>
             ))}
           </div>
+          {isDiscovery && (
+            <button type="button" onClick={() => setViewMode("live")} className="hidden lg:flex px-4 py-2 rounded-xl bg-[#1C1C1E] text-white text-[13px] font-medium hover:bg-[#2C2C2E] transition-colors">
+              📱 Live Mode
+            </button>
+          )}
         </div>
       </div>
     </div>
 
-    {/* ── Two-column layout: center scrolls, right sticks ─────────────── */}
-    <div className="flex min-h-screen bg-[#F7F6F3] dark:bg-[var(--bg-page)]">
+    {/* ── Main content — full width, scrolls naturally ─────────────────── */}
+    <div className="min-h-screen bg-[#F7F6F3] dark:bg-[var(--bg-page)]">
+      <div className="px-5 sm:px-8 lg:px-10 py-8 space-y-5 pb-24 md:pb-8">
 
-      {/* Center — normal page flow, scrolls naturally */}
-      <div className="flex-1 min-w-0 py-8 px-5 sm:px-8 lg:px-10">
-        <div className="w-full space-y-5 pb-24 md:pb-8">
+      {/* ── Coach summary bar ──────────────────────────────────────────── */}
+      <div className="hidden lg:flex items-start gap-4 p-5 rounded-xl bg-white dark:bg-[var(--bg-card)] border border-[#E8E4DF] dark:border-white/5" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+        <div className="flex-shrink-0 w-[120px]">
+          <p className="text-[10px] uppercase tracking-wider text-[#9B8E82] font-semibold mb-1">Coach</p>
+          <p className="text-[13px] font-semibold text-[#1C1713] dark:text-[var(--text-primary)]">{activeLabel}</p>
+        </div>
+        <div className="w-px self-stretch bg-[#E8E4DF] dark:bg-white/5 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] uppercase tracking-wider text-emerald-600 font-semibold mb-1.5">What&apos;s Strong</p>
+          <ul className="space-y-1">
+            {coaching.strong.map((item, i) => (
+              <li key={i} className="flex items-start gap-1.5"><span className="text-emerald-500 text-[11px] font-bold flex-shrink-0 mt-0.5">✓</span><span className="text-[12px] text-[#3D3530] dark:text-[var(--text-primary)] leading-snug">{item}</span></li>
+            ))}
+          </ul>
+        </div>
+        <div className="w-px self-stretch bg-[#E8E4DF] dark:bg-white/5 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold mb-1.5">Improve</p>
+          <ul className="space-y-1">
+            {coaching.improve.map((item, i) => (
+              <li key={i} className="flex items-start gap-1.5"><span className="text-amber-500 text-[11px] flex-shrink-0 mt-0.5">→</span><span className="text-[12px] text-[#3D3530] dark:text-[var(--text-primary)] leading-snug">{item}</span></li>
+            ))}
+          </ul>
+        </div>
+        <div className="w-px self-stretch bg-[#E8E4DF] dark:bg-white/5 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] uppercase tracking-wider text-[#9B8E82] font-semibold mb-1.5">{coaching.stage}</p>
+          <ul className="space-y-1">
+            {coaching.listeningFor.map((item, i) => (
+              <li key={i} className="flex items-start gap-1.5"><span className="text-[#C5BDB5] text-[11px] flex-shrink-0 mt-0.5">☆</span><span className="text-[12px] text-[#5C5347] dark:text-[var(--text-secondary)] leading-snug">{item}</span></li>
+            ))}
+          </ul>
+        </div>
+      </div>
 
       {/* ── Round tabs — mobile only ──────────────────────────────────── */}
       <div className="lg:hidden">
@@ -1026,25 +1067,7 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
       </p>
 
       </div>{/* ── End content wrapper ── */}
-      </div>{/* ── End center column ── */}
-
-      {/* ── Right panel — sticks as page scrolls ─────────────────────────── */}
-      <aside className="hidden lg:block w-[300px] flex-shrink-0">
-        <div className="sticky top-0 h-screen overflow-y-auto border-l border-[#E8E4DF] dark:border-white/5 bg-white dark:bg-[var(--bg-card)]">
-          <div className="px-5 py-6">
-            <CoachPanel
-              answerType={(activeBlock ?? slots[0]?.type ?? "tell_me_about_yourself") as AnswerType}
-              answerLabel={activeSlot?.label ?? slots[0]?.label ?? "Answer"}
-              stage={session.stage}
-              isDiscovery={isDiscovery}
-              onLiveMode={() => setViewMode("live")}
-              onTeleprompter={() => setViewMode("teleprompter")}
-            />
-          </div>
-        </div>
-      </aside>
-
-    </div>{/* ── End flex layout ── */}
+    </div>{/* ── End main content ── */}
 
     {/* ── Modals and overlays (outside layout) ──────────────────────────── */}
     {showRoundModal && (
