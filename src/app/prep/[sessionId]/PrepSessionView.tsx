@@ -801,8 +801,8 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
     <div className="flex min-h-screen bg-[#F7F6F3] dark:bg-[var(--bg-page)]">
 
       {/* Center — normal page flow, scrolls naturally */}
-      <div className="flex-1 min-w-0 py-6 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-[680px] mx-auto space-y-5 pb-24 md:pb-8">
+      <div className="flex-1 min-w-0 py-8 px-5 sm:px-8 lg:px-10">
+        <div className="w-full space-y-5 pb-24 md:pb-8">
 
       {/* ── Round tabs — mobile only ──────────────────────────────────── */}
       <div className="lg:hidden">
@@ -1025,7 +1025,7 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
         Answers personalized from your resume · Edits are free · First 3 refinements per answer are free
       </p>
 
-      </div>{/* ── End max-w-[680px] ── */}
+      </div>{/* ── End content wrapper ── */}
       </div>{/* ── End center column ── */}
 
       {/* ── Right panel — sticks as page scrolls ─────────────────────────── */}

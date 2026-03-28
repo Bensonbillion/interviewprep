@@ -812,11 +812,9 @@ export function AnswerCard({
 
             {/* Coaching tip */}
             {coachingTip && !isLocked && (
-              <div className="bg-[#FFF9F0] dark:bg-amber-950/20 border-l-[3px] border-amber-300 dark:border-amber-600 p-3 rounded-r-lg mt-3">
-                <p className="text-[13px] text-warm-700 dark:text-amber-100 italic flex gap-2 leading-relaxed">
-                  <span className="flex-shrink-0">💡</span>
-                  <span>{coachingTip}</span>
-                </p>
+              <div className="mt-3 flex flex-row items-start gap-3 px-4 py-3 rounded-lg" style={{ backgroundColor: "#FFFBF0", borderLeft: "3px solid #F59E0B" }}>
+                <span className="text-[15px] leading-none mt-0.5 flex-shrink-0">💡</span>
+                <p className="text-[13px] text-[#92400E] dark:text-amber-100 leading-relaxed m-0 flex-1 min-w-0">{coachingTip}</p>
               </div>
             )}
           </div>
