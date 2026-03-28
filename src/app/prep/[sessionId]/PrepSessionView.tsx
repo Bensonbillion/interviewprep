@@ -764,59 +764,13 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
   const activeSlot = activeBlock ? slots.find((s) => s.type === activeBlock) : null;
 
   return (
-    <div className="lg:flex lg:gap-6 lg:items-start">
-
-      {/* ── Desktop left sidebar ─────────────────────────────────────────── */}
-      <aside className="hidden lg:block lg:w-[240px] lg:shrink-0 lg:sticky lg:top-6 space-y-5">
-        <div>
-          <h2 className="text-[18px] font-semibold text-[var(--text-primary)]">{session.companyName}</h2>
-          <p className="text-[13px] text-[var(--text-tertiary)]">{session.targetRole} · {stageLabel}</p>
-        </div>
-        <nav className="space-y-1">
-          {ROUNDS.map((round) => {
-            const isCurrent = session.stage === round.key;
-            const completedId = completedStages[round.key];
-            return (
-              <button
-                key={round.key}
-                type="button"
-                onClick={() => completedId ? window.location.href = `/prep/${completedId}` : undefined}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-[13px] transition-colors ${
-                  isCurrent
-                    ? "bg-[var(--coral-bg)] border-l-2 border-coral text-[var(--text-primary)] font-medium"
-                    : completedId
-                    ? "text-[var(--text-secondary)] hover:bg-[var(--bg-card-elevated)] cursor-pointer"
-                    : "text-[var(--text-tertiary)]"
-                }`}
-              >
-                <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center text-[8px] ${
-                  isCurrent ? "border-coral bg-coral text-white" : completedId ? "border-emerald-500 bg-emerald-500 text-white" : "border-warm-300"
-                }`}>
-                  {(isCurrent || completedId) && "✓"}
-                </span>
-                <span className="flex-1">{round.shortLabel}</span>
-              </button>
-            );
-          })}
-        </nav>
-        <div>
-          <div className="flex items-center justify-between text-[12px] text-[var(--text-tertiary)] mb-1.5">
-            <span>{reviewedUnlockedCount}/{unlockedCount} reviewed</span>
-          </div>
-          <div className="h-1.5 bg-cream-200 dark:bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-coral rounded-full transition-all duration-500" style={{ width: `${unlockedCount > 0 ? (reviewedUnlockedCount / unlockedCount) * 100 : 0}%` }} />
-          </div>
-        </div>
-        <Link href="/get-started/details" className="block w-full text-center text-[13px] font-medium text-[var(--text-secondary)] border border-cream-300 dark:border-white/10 rounded-lg py-2 hover:bg-cream-50 dark:hover:bg-white/5 transition-colors">
-          + New Prep
-        </Link>
-      </aside>
+    <div className="lg:flex lg:gap-0">
 
       {/* ── Center column ────────────────────────────────────────────────── */}
-      <div className="flex-1 lg:max-w-2xl space-y-5 pb-24 md:pb-8">
+      <main className="flex-1 lg:overflow-y-auto space-y-5 pb-24 md:pb-8 lg:px-8 lg:py-6">
 
       {/* ── Breadcrumb ──────────────────────────────────────────────────── */}
-      <nav className="flex items-center gap-1.5 text-sm text-[var(--text-tertiary)] lg:hidden">
+      <nav className="flex items-center gap-1.5 text-sm text-[var(--text-tertiary)]">
         <Link href="/dashboard" className="hover:text-[var(--text-primary)] transition-colors">
           Dashboard
         </Link>
@@ -1128,18 +1082,18 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
         Answers personalized from your resume · Edits are free · First 3 refinements per answer are free
       </p>
 
-      </div>{/* ── End center column ── */}
+      </main>{/* ── End center column ── */}
 
       {/* ── Desktop right panel (coach) ──────────────────────────────────── */}
-      <aside className="hidden lg:block lg:w-[320px] lg:shrink-0 lg:sticky lg:top-6">
-        <div className="bg-[var(--bg-card)] rounded-[var(--card-radius)] shadow-card border border-stone-200/50 dark:border-white/5 p-5">
+      <aside className="hidden lg:block lg:w-[300px] lg:shrink-0 lg:border-l lg:border-stone-200/50 dark:lg:border-white/5 lg:overflow-y-auto lg:sticky lg:top-0 lg:h-screen">
+        <div className="p-5">
           <CoachPanel
             answerType={(activeBlock ?? slots[0]?.type ?? "tell_me_about_yourself") as AnswerType}
             answerLabel={activeSlot?.label ?? slots[0]?.label ?? "Answer"}
             stage={session.stage}
             isDiscovery={isDiscovery}
-            onLiveMode={isDiscovery ? () => setViewMode("live") : undefined}
-            onTeleprompter={isDiscovery ? () => setViewMode("teleprompter") : undefined}
+            onLiveMode={() => setViewMode("live")}
+            onTeleprompter={() => setViewMode("teleprompter")}
           />
         </div>
       </aside>

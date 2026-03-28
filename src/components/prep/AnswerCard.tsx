@@ -812,8 +812,8 @@ export function AnswerCard({
 
             {/* Coaching tip */}
             {coachingTip && !isLocked && (
-              <div className="bg-[#E6F1FB] p-3 rounded-lg mt-3">
-                <p className="text-[13px] text-[#0C447C] font-medium flex gap-2">
+              <div className="bg-[#FFF9F0] dark:bg-amber-950/20 border-l-[3px] border-amber-300 dark:border-amber-600 p-3 rounded-r-lg mt-3">
+                <p className="text-[13px] text-warm-700 dark:text-amber-100 italic flex gap-2 leading-relaxed">
                   <span className="flex-shrink-0">💡</span>
                   <span>{coachingTip}</span>
                 </p>
