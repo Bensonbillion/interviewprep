@@ -776,45 +776,32 @@ export function AnswerCard({
 
   return (
     <div
-      className={`rounded-xl border border-cream-300 overflow-hidden shadow-card hover:shadow-card-hover transition-shadow bg-white ${CONTENT_TYPE_STRIPE[slot.type] ?? ""} ${
+      className={`rounded-xl border border-[#E8E4DF] overflow-hidden bg-white transition-shadow hover:shadow-md ${CONTENT_TYPE_STRIPE[slot.type] ?? ""} ${
         justUnlocked ? "animate-unlock-flash" : ""
       }`}
+      style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 3px 8px rgba(0,0,0,0.03)" }}
     >
       {/* ═══ HEADER ═══════════════════════════════════════════════════════ */}
-      <div className="flex items-start justify-between px-4 md:px-6 pt-5 pb-4">
-        <div className="flex items-start gap-3 min-w-0 flex-1">
-          <span className="text-[16px] leading-none mt-1 flex-shrink-0 select-none">
+      <div className="flex items-center justify-between px-6 pt-5 pb-4">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center text-[17px] bg-[#FEF0EB]">
             {EMOJIS[slot.type]}
-          </span>
-          <div className="min-w-0 flex-1">
-            <h3 className="font-medium text-[18px] text-warm-800 leading-snug">
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-semibold text-[15px] text-[#1C1713] leading-tight">
               {slot.label}
             </h3>
-            <p className="text-[13px] text-warm-500 mt-0.5 line-clamp-1">
+            <p className="text-[12px] text-[#9B8E82] mt-0.5 line-clamp-1">
               {slot.description}
             </p>
-
-            {/* Tags */}
-            {!isLocked && (
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
+            {!isLocked && (isReference || isPrimaryForRound) && (
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 {isReference && (
-                  <span className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-[#0C447C] text-[11px] font-medium rounded">
-                    Reference
-                  </span>
+                  <span className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-[#0C447C] text-[11px] font-medium rounded">Reference</span>
                 )}
                 {isPrimaryForRound && (
-                  <span className="inline-flex items-center px-2 py-0.5 bg-green-50 text-green-900 text-[11px] font-medium rounded">
-                    ★ Priority
-                  </span>
+                  <span className="inline-flex items-center px-2 py-0.5 bg-green-50 text-green-900 text-[11px] font-medium rounded">★ Priority</span>
                 )}
-              </div>
-            )}
-
-            {/* Coaching tip */}
-            {coachingTip && !isLocked && (
-              <div className="mt-3 flex flex-row items-start gap-3 px-4 py-3 rounded-lg" style={{ backgroundColor: "#FFFBF0", borderLeft: "3px solid #F59E0B" }}>
-                <span className="text-[15px] leading-none mt-0.5 flex-shrink-0">💡</span>
-                <p className="text-[13px] text-[#92400E] dark:text-amber-100 leading-relaxed m-0 flex-1 min-w-0">{coachingTip}</p>
               </div>
             )}
           </div>
@@ -889,6 +876,14 @@ export function AnswerCard({
           </div>
         )}
       </div>
+
+      {/* ═══ COACHING TIP — full card width ════════════════════════════════ */}
+      {coachingTip && !isLocked && (
+        <div className="mx-6 mb-1 flex flex-row items-start gap-3 px-4 py-3 rounded-lg" style={{ backgroundColor: "#FFFBF0", borderLeft: "3px solid #F59E0B" }}>
+          <span className="text-[15px] leading-none mt-0.5 flex-shrink-0">💡</span>
+          <p className="text-[13px] text-[#92400E] dark:text-amber-100 leading-relaxed m-0 flex-1 min-w-0">{coachingTip}</p>
+        </div>
+      )}
 
       {/* ═══ MOBILE TOGGLE STRIP ══════════════════════════════════════════ */}
       {isCollapsible && !isLocked && (
@@ -1010,7 +1005,7 @@ export function AnswerCard({
           )}
 
           {/* ── Content zone ─────────────────────────────────────────────── */}
-          <div className={`px-4 md:px-6 py-5 relative ${justUnlocked ? "animate-blur-reveal" : ""}`}>
+          <div className={`px-6 py-5 relative ${justUnlocked ? "animate-blur-reveal" : ""}`}>
             {isRegenerating && (
               <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-b-xl">
                 <div className="flex items-center gap-2 text-sm text-warm-500 bg-white border border-cream-300 px-4 py-2 rounded-full shadow-sm">
