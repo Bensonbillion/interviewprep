@@ -810,36 +810,33 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
     <div className="min-h-screen bg-[#F7F6F3] dark:bg-[var(--bg-page)]">
       <div className="px-5 sm:px-8 lg:px-10 py-8 space-y-5 pb-24 md:pb-8">
 
-      {/* ── Coach summary bar ──────────────────────────────────────────── */}
-      <div className="hidden lg:flex items-start gap-4 p-5 rounded-xl bg-white dark:bg-[var(--bg-card)] border border-[#E8E4DF] dark:border-white/5" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-        <div className="flex-shrink-0 w-[120px]">
+      {/* ── Coach summary bar — no card, just sections ─────────────────── */}
+      <div className="hidden lg:flex items-start gap-8 pb-6 mb-6 border-b border-[#E8E4DF] dark:border-white/5">
+        <div className="flex-shrink-0 min-w-[140px]">
           <p className="text-[10px] uppercase tracking-wider text-[#9B8E82] font-semibold mb-1">Coach</p>
           <p className="text-[13px] font-semibold text-[#1C1713] dark:text-[var(--text-primary)]">{activeLabel}</p>
         </div>
-        <div className="w-px self-stretch bg-[#E8E4DF] dark:bg-white/5 flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] uppercase tracking-wider text-emerald-600 font-semibold mb-1.5">What&apos;s Strong</p>
-          <ul className="space-y-1">
+          <p className="text-[10px] uppercase tracking-wider text-emerald-600 font-semibold mb-2">What&apos;s Strong</p>
+          <ul className="space-y-1.5">
             {coaching.strong.map((item, i) => (
-              <li key={i} className="flex items-start gap-1.5"><span className="text-emerald-500 text-[11px] font-bold flex-shrink-0 mt-0.5">✓</span><span className="text-[12px] text-[#3D3530] dark:text-[var(--text-primary)] leading-snug">{item}</span></li>
+              <li key={i} className="flex items-start gap-2"><span className="text-emerald-500 font-bold text-[11px] flex-shrink-0 mt-0.5">✓</span><span className="text-[13px] text-[#3D3530] dark:text-[var(--text-primary)] leading-snug">{item}</span></li>
             ))}
           </ul>
         </div>
-        <div className="w-px self-stretch bg-[#E8E4DF] dark:bg-white/5 flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold mb-1.5">Improve</p>
-          <ul className="space-y-1">
+          <p className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold mb-2">Improve</p>
+          <ul className="space-y-1.5">
             {coaching.improve.map((item, i) => (
-              <li key={i} className="flex items-start gap-1.5"><span className="text-amber-500 text-[11px] flex-shrink-0 mt-0.5">→</span><span className="text-[12px] text-[#3D3530] dark:text-[var(--text-primary)] leading-snug">{item}</span></li>
+              <li key={i} className="flex items-start gap-2"><span className="text-amber-500 text-[11px] flex-shrink-0 mt-0.5">→</span><span className="text-[13px] text-[#3D3530] dark:text-[var(--text-primary)] leading-snug">{item}</span></li>
             ))}
           </ul>
         </div>
-        <div className="w-px self-stretch bg-[#E8E4DF] dark:bg-white/5 flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] uppercase tracking-wider text-[#9B8E82] font-semibold mb-1.5">{coaching.stage}</p>
-          <ul className="space-y-1">
+          <p className="text-[10px] uppercase tracking-wider text-[#9B8E82] font-semibold mb-2">{coaching.stage}</p>
+          <ul className="space-y-1.5">
             {coaching.listeningFor.map((item, i) => (
-              <li key={i} className="flex items-start gap-1.5"><span className="text-[#C5BDB5] text-[11px] flex-shrink-0 mt-0.5">☆</span><span className="text-[12px] text-[#5C5347] dark:text-[var(--text-secondary)] leading-snug">{item}</span></li>
+              <li key={i} className="flex items-start gap-2"><span className="text-[#C5BDB5] text-[12px] flex-shrink-0 mt-0.5">☆</span><span className="text-[13px] text-[#5C5347] dark:text-[var(--text-secondary)] leading-snug">{item}</span></li>
             ))}
           </ul>
         </div>
