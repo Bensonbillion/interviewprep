@@ -582,59 +582,86 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
   }, [slots, handleMarkReviewed, sessionId]);
 
   // ─── Unlock a single answer (costs 1 credit) ─────────────────────────────────
+  // Credit is deducted AFTER successful generation — never for blanks.
   const handleUnlock = useCallback(
     async (type: AnswerType) => {
-      const res = await fetch("/api/user/spend-credit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: `unlock-${sessionId}-${type}` }),
-      });
-      if (!res.ok) {
-        console.error("[unlock] spend-credit failed:", res.status);
+      const slot = slots.find((s) => s.type === type);
+
+      // If content already exists, just spend credit and unlock
+      if (slot?.content?.trim()) {
+        const res = await fetch("/api/user/spend-credit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId: `unlock-${sessionId}-${type}` }),
+        });
+        if (!res.ok) {
+          console.error("[unlock] spend-credit failed:", res.status);
+          return;
+        }
+        setSlots((prev) =>
+          prev.map((s) => (s.type === type ? { ...s, status: "unlocked" as const } : s))
+        );
+        refreshCredits?.();
         return;
       }
 
-      // Check if the slot already has content — if empty, generate it now
-      const slot = slots.find((s) => s.type === type);
-      if (!slot?.content?.trim()) {
-        // No content — trigger generation before unlocking
-        setSlots((prev) =>
-          prev.map((s) => (s.type === type ? { ...s, status: "loading" as const } : s))
-        );
-        refreshCredits?.();
-        const currentSession = session;
-        if (currentSession) {
-          try {
-            const genRes = await fetch("/api/generate-answer", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ sessionId, answerType: type, session: currentSession }),
-            });
-            if (genRes.ok) {
-              const data = await genRes.json().catch(() => null);
-              if (data?.content?.trim()) {
-                setSlots((prev) =>
-                  prev.map((s) =>
-                    s.type === type
-                      ? { ...s, status: "unlocked" as const, content: data.content, answerId: data.answerId }
-                      : s
-                  )
-                );
-                return;
+      // No content — generate first, then spend credit only on success
+      setSlots((prev) =>
+        prev.map((s) => (s.type === type ? { ...s, status: "loading" as const } : s))
+      );
+
+      const currentSession = session;
+      if (!currentSession) return;
+
+      let generated = false;
+      // Try up to 2 attempts
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const genRes = await fetch("/api/generate-answer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId, answerType: type, session: currentSession }),
+          });
+          if (genRes.ok) {
+            const data = await genRes.json().catch(() => null);
+            if (data?.content?.trim()) {
+              // Generation succeeded — NOW deduct credit
+              const creditRes = await fetch("/api/user/spend-credit", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sessionId: `unlock-${sessionId}-${type}` }),
+              });
+              if (!creditRes.ok) {
+                console.error("[unlock] spend-credit failed after generation");
               }
+              setSlots((prev) =>
+                prev.map((s) =>
+                  s.type === type
+                    ? { ...s, status: "unlocked" as const, content: data.content, answerId: data.answerId }
+                    : s
+                )
+              );
+              refreshCredits?.();
+              generated = true;
+              break;
             }
-          } catch { /* fall through to unlock with empty */ }
+          }
+          // Failed — retry after brief delay
+          if (attempt < 1) await new Promise((r) => setTimeout(r, 1500));
+        } catch {
+          if (attempt < 1) await new Promise((r) => setTimeout(r, 1500));
         }
-        // Generation failed — still unlock but with whatever content exists
-        setSlots((prev) =>
-          prev.map((s) => (s.type === type ? { ...s, status: "unlocked" as const } : s))
-        );
-      } else {
-        setSlots((prev) =>
-          prev.map((s) => (s.type === type ? { ...s, status: "unlocked" as const } : s))
-        );
       }
-      refreshCredits?.();
+
+      if (!generated) {
+        // Both attempts failed — revert to locked, NO credit spent
+        setSlots((prev) =>
+          prev.map((s) => (s.type === type ? { ...s, status: "locked" as const } : s))
+        );
+        // Show a visible error by briefly setting a custom status message
+        // The card will show as locked again — user can retry
+        alert("Generation failed. No credit was charged. Please try again.");
+      }
     },
     [sessionId, session, slots, refreshCredits]
   );

@@ -143,11 +143,11 @@ export async function POST(req: NextRequest) {
       .trim();
 
     // ── Empty content safety net ───────────────────────────────────────────
-    if (!rawContent || rawContent.length < 50) {
+    if (!rawContent || rawContent.length < 80) {
       console.error("[generate-answer] Empty or too-short content:", rawContent?.length, "chars for", answerType);
       return NextResponse.json(
-        { error: "Generation produced empty content. Please try again." },
-        { status: 500 }
+        { error: "generation_empty", message: "Generation produced empty content.", retryFree: true },
+        { status: 422 }
       );
     }
 
@@ -264,7 +264,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("Generate answer error:", err);
     return NextResponse.json(
-      { error: "Failed to generate answer. Please try again." },
+      { error: "generation_failed", message: "Failed to generate answer. Please try again.", retryFree: true },
       { status: 500 }
     );
   }
