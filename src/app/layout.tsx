@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Serif_Display, Inter, JetBrains_Mono } from "next/font/google";
+import { DM_Serif_Display, DM_Sans, JetBrains_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
 import { Suspense } from "react";
@@ -15,16 +15,18 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const dmSerif = DM_Serif_Display({
-  weight: "400",
   subsets: ["latin"],
   variable: "--font-serif",
   display: "swap",
+  weight: "400",
+  style: ["normal", "italic"],
 });
 
-const inter = Inter({
+const dmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
+  weight: ["300", "400", "500"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -117,7 +119,7 @@ export default async function RootLayout({
         <JsonLd data={softwareApplicationSchema()} />
         <AnalyticsScripts nonce={nonce} />
       </head>
-      <body className={`${dmSerif.variable} ${inter.variable} ${jetbrainsMono.variable} bg-[var(--bg-page)] text-[var(--text-primary)] transition-colors duration-300 antialiased`}>
+      <body className={`${dmSerif.variable} ${dmSans.variable} ${jetbrainsMono.variable} bg-[var(--bg-page)] text-[var(--text-primary)] transition-colors duration-300 antialiased`}>
         <GTMNoScript />
         <Suspense fallback={null}>
           <GTMPageViewTracker />
