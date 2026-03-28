@@ -1,741 +1,517 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import type { PrepSession, AnswerSlot } from "@/types";
+import type { PrepSession, AnswerSlot, AnswerType } from "@/types";
+import { getCoaching } from "@/lib/coaching-content";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-interface TeleprompterLine {
+type TpMode = "flow" | "call" | "cue";
+
+interface TpLine {
   id: string;
   text: string;
   type: "speak" | "listen" | "pause" | "section";
   sectionName?: string;
   sectionColor?: string;
+  answerType?: AnswerType;
+  fullAnswer?: string; // for cue card reveal
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Slot helpers ────────────────────────────────────────────────────────────
 
 function getSlotContent(slots: AnswerSlot[], type: string): unknown {
   const slot = slots.find((s) => s.type === type && s.content);
   if (!slot?.content) return null;
   try {
-    let data: unknown = JSON.parse(slot.content);
-    if (typeof data === "string") data = JSON.parse(data);
-    return data;
+    let d: unknown = JSON.parse(slot.content);
+    if (typeof d === "string") d = JSON.parse(d);
+    return d;
   } catch { return null; }
 }
 
-/** Split text >100 chars at sentence or comma boundaries */
-function splitLong(text: string, max = 100): string[] {
+function splitLong(text: string, max = 150): string[] {
   if (text.length <= max) return [text];
   const parts: string[] = [];
-  let remaining = text;
-  while (remaining.length > max) {
-    let splitAt = -1;
-    // Try sentence break
-    for (let i = max; i >= max / 2; i--) {
-      if (remaining[i] === "." && remaining[i + 1] === " ") { splitAt = i + 1; break; }
-      if (remaining[i] === "," && remaining[i + 1] === " ") { splitAt = i + 1; break; }
-      if (remaining[i] === " " && i >= max * 0.6) { splitAt = i; break; }
+  let rem = text;
+  while (rem.length > max) {
+    let at = -1;
+    for (let i = max; i >= max * 0.5; i--) {
+      if ((rem[i] === "." || rem[i] === "!" || rem[i] === "?") && rem[i + 1] === " ") { at = i + 1; break; }
+      if (rem[i] === "," && rem[i + 1] === " ") { at = i + 1; break; }
     }
-    if (splitAt === -1) splitAt = max;
-    parts.push(remaining.slice(0, splitAt).trim());
-    remaining = remaining.slice(splitAt).trim();
+    if (at === -1) { for (let i = max; i >= max * 0.6; i--) { if (rem[i] === " ") { at = i; break; } } }
+    if (at === -1) at = max;
+    parts.push(rem.slice(0, at).trim());
+    rem = rem.slice(at).trim();
   }
-  if (remaining) parts.push(remaining);
+  if (rem) parts.push(rem);
   return parts;
 }
 
-/** Render text with [BRACKETS] highlighted */
+// ─── Render helpers ──────────────────────────────────────────────────────────
+
+function renderBold(text: string, companyName?: string): React.ReactNode {
+  // Bold: numbers, dollar amounts, [BRACKETS], company name
+  const pattern = new RegExp(
+    `(\\$[\\d,.]+[KMBkmbTt]?|\\d+[%x]|\\d+\\.\\d+|\\[\\^\\]]+\\]${companyName ? `|${companyName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}` : ""})`,
+    "gi"
+  );
+  const parts = text.split(pattern);
+  return parts.map((p, i) =>
+    pattern.test(p)
+      ? <span key={i} className="text-[#E8735A] font-bold">{p}</span>
+      : <span key={i}>{p}</span>
+  );
+}
+
 function renderBrackets(text: string): React.ReactNode {
   const parts = text.split(/(\[[^\]]+\])/g);
   return parts.map((p, i) =>
-    p.startsWith("[") && p.endsWith("]") ? (
-      <span key={i} className="bg-amber-900/50 text-amber-300 rounded px-1">{p}</span>
-    ) : (
-      <span key={i}>{p}</span>
-    )
+    p.startsWith("[") && p.endsWith("]")
+      ? <span key={i} className="bg-amber-900/50 text-amber-300 rounded px-1">{p}</span>
+      : <span key={i}>{p}</span>
   );
 }
 
 // ─── Section colors ──────────────────────────────────────────────────────────
 
 const SECTION_COLORS: Record<string, string> = {
-  "OPEN THE CALL": "#10B981",
-  "YOUR HYPOTHESIS": "#FF6B4A",
-  TECHNICAL: "#FF6B4A",
-  PERSONAL: "#F59E0B",
-  "BUSINESS + TRAPS": "#10B981",
-  "PAIN RECAP": "#D97706",
-  RECOMMENDATION: "#FF6B4A",
-  CLOSE: "#3B82F6",
+  "OPEN THE CALL": "#10B981", "YOUR HYPOTHESIS": "#FF6B4A", TECHNICAL: "#FF6B4A",
+  PERSONAL: "#F59E0B", "BUSINESS + TRAPS": "#10B981", "PAIN RECAP": "#D97706",
+  RECOMMENDATION: "#FF6B4A", CLOSE: "#3B82F6",
 };
 
-// ─── Line builder ────────────────────────────────────────────────────────────
+const ANSWER_COLORS: Partial<Record<string, string>> = {
+  tell_me_about_yourself: "#E8735A", why_sales: "#E8735A", why_this_company: "#E8735A",
+  behavioral_star: "#E8735A", comp_expectations: "#E8735A", resume_walkthrough: "#E8735A",
+  constructive_feedback: "#E8735A", career_switcher_bridge: "#E8735A",
+  questions_to_ask: "#3B82F6", role_play_script: "#8B5CF6", objection_response: "#8B5CF6",
+  coachability_game_plan: "#8B5CF6", coachability_coaching: "#8B5CF6",
+  company_brief: "#888", cheat_sheet: "#888", competitor_battle_card: "#888",
+  cold_email: "#888", pain_point_analysis: "#888", assignment_guide: "#888",
+};
 
-interface ParsedQ { question?: string; listenFor?: string }
-interface ParsedTrap { question?: string; trapsFor?: string; sprangAnswer?: string }
+const ANSWER_LABELS: Partial<Record<string, string>> = {
+  tell_me_about_yourself: "Tell Me About Yourself", why_sales: "Why Sales?",
+  why_this_company: "Why This Company?", behavioral_star: "Behavioral Answer (STAR)",
+  comp_expectations: "Comp Expectations", questions_to_ask: "Questions to Ask",
+  company_brief: "Company Research Brief", cheat_sheet: "Stage Cheat Sheet",
+  coachability_game_plan: "Coachability Game Plan", role_play_script: "Role Play Script",
+  objection_response: "Objection Responses", competitor_battle_card: "Competitor Battle Card",
+  coachability_coaching: "Coachability Coaching", resume_walkthrough: "Walk Me Through Your Resume",
+  constructive_feedback: "Constructive Feedback", career_switcher_bridge: "Career Switcher Bridge",
+  cold_email: "Follow-Up Email", pain_point_analysis: "Pain Point Analysis",
+  assignment_guide: "Assignment Guide",
+  discovery_opener: "Call Opener", discovery_hypothesis: "Business Hypothesis",
+  discovery_questions_technical: "Technical Questions", discovery_questions_personal: "Personal Questions",
+  discovery_questions_business: "Business Questions", discovery_trap_questions: "Trap Questions",
+  discovery_pain_recap: "Pain Recap", discovery_recommendation: "My Recommendation",
+  discovery_close: "Close + Next Steps", discovery_scoring_guide: "Scoring Guide",
+};
 
-function buildLines(slots: AnswerSlot[]): TeleprompterLine[] {
-  const lines: TeleprompterLine[] = [];
+const REFERENCE_TYPES = new Set(["company_brief", "cheat_sheet", "discovery_scoring_guide", "assignment_guide", "competitor_battle_card"]);
+
+// ─── Flow Mode line builder ──────────────────────────────────────────────────
+
+function buildFlowLines(slots: AnswerSlot[]): TpLine[] {
+  const lines: TpLine[] = [];
   let id = 0;
-  const add = (type: TeleprompterLine["type"], text: string, sectionName?: string, sectionColor?: string) => {
-    if (type === "section") {
-      lines.push({ id: `l${id++}`, text: "", type: "section", sectionName, sectionColor });
-      return;
+  const spoken = slots.filter((s) => s.content?.trim() && !REFERENCE_TYPES.has(s.type) && s.status === "unlocked");
+
+  for (const slot of spoken) {
+    const label = ANSWER_LABELS[slot.type] ?? slot.label ?? slot.type;
+    const color = ANSWER_COLORS[slot.type] ?? "#E8735A";
+    lines.push({ id: `f${id++}`, text: "", type: "section", sectionName: label.toUpperCase(), sectionColor: color, answerType: slot.type as AnswerType });
+
+    // Try JSON parse for structured content
+    let rawText = slot.content ?? "";
+    try {
+      const parsed = JSON.parse(rawText) as unknown;
+      if (typeof parsed === "string") rawText = parsed;
+      else if (typeof parsed === "object" && parsed !== null) {
+        const obj = parsed as Record<string, unknown>;
+        if (typeof obj.fullScript === "string") rawText = obj.fullScript;
+        else if (typeof obj.answer === "string") rawText = obj.answer;
+        else if (Array.isArray(parsed)) rawText = (parsed as Array<Record<string, unknown>>).map((item) => String(item.answer ?? item.question ?? item.text ?? JSON.stringify(item))).join("\n\n");
+        else if (Array.isArray(obj.answers)) rawText = (obj.answers as Array<Record<string, string>>).map((a) => `${a.question ?? ""}\n${a.answer ?? ""}`).join("\n\n");
+        else rawText = Object.values(obj).filter((v): v is string => typeof v === "string" && v.length > 20).join("\n\n") || (slot.content ?? "");
+      }
+    } catch { /* use raw */ }
+
+    // Split into paragraphs then sentences
+    const paragraphs = rawText.split(/\n\n+/).filter((p) => p.trim());
+    for (const para of paragraphs) {
+      for (const chunk of splitLong(para.trim())) {
+        if (chunk) lines.push({ id: `f${id++}`, text: chunk, type: "speak", answerType: slot.type as AnswerType });
+      }
     }
-    if (type === "pause") {
-      lines.push({ id: `l${id++}`, text: "· · ·", type: "pause" });
-      return;
-    }
-    for (const chunk of splitLong(text)) {
-      if (chunk.trim()) lines.push({ id: `l${id++}`, text: chunk, type });
-    }
+    lines.push({ id: `f${id++}`, text: "...", type: "pause" });
+  }
+  return lines;
+}
+
+// ─── Call Mode line builder (existing discovery logic) ───────────────────────
+
+interface PQ { question?: string; listenFor?: string; followUp?: string }
+interface PT { question?: string; trapsFor?: string; sprangAnswer?: string }
+
+function buildCallLines(slots: AnswerSlot[]): TpLine[] {
+  const lines: TpLine[] = [];
+  let id = 0;
+  const add = (type: TpLine["type"], text: string, sn?: string, sc?: string) => {
+    if (type === "section") { lines.push({ id: `c${id++}`, text: "", type: "section", sectionName: sn, sectionColor: sc }); return; }
+    if (type === "pause") { lines.push({ id: `c${id++}`, text: "...", type: "pause" }); return; }
+    for (const chunk of splitLong(text, 100)) { if (chunk.trim()) lines.push({ id: `c${id++}`, text: chunk, type }); }
   };
 
-  // OPEN THE CALL
-  const opener = getSlotContent(slots, "discovery_opener") as { grabAttention?: string; benefitStatement?: string; agenda?: string; transitionToDiscovery?: string } | null;
-  if (opener) {
-    add("section", "", "OPEN THE CALL", SECTION_COLORS["OPEN THE CALL"]);
-    if (opener.grabAttention) add("speak", opener.grabAttention);
-    if (opener.benefitStatement) add("speak", opener.benefitStatement);
-    if (opener.agenda) add("speak", opener.agenda);
-    add("pause", "");
-    if (opener.transitionToDiscovery) add("speak", opener.transitionToDiscovery);
+  const opener = getSlotContent(slots, "discovery_opener") as Record<string, string> | null;
+  if (opener) { add("section", "", "OPEN THE CALL", "#10B981"); if (opener.grabAttention) add("speak", opener.grabAttention); if (opener.benefitStatement) add("speak", opener.benefitStatement); if (opener.agenda) add("speak", opener.agenda); add("pause", ""); if (opener.transitionToDiscovery) add("speak", opener.transitionToDiscovery); }
+
+  const hyp = getSlotContent(slots, "discovery_hypothesis") as Record<string, string> | null;
+  if (hyp?.hypothesis) { add("section", "", "YOUR HYPOTHESIS", "#FF6B4A"); add("speak", hyp.hypothesis); add("pause", ""); }
+
+  for (const [type, label, color] of [["discovery_questions_technical", "TECHNICAL", "#FF6B4A"], ["discovery_questions_personal", "PERSONAL", "#F59E0B"]] as const) {
+    const data = getSlotContent(slots, type); const items: PQ[] = Array.isArray(data) ? data : ((data as Record<string, unknown>)?.questions as PQ[] ?? []);
+    if (items.length) { add("section", "", label, color); for (const q of items) { if (q.question) add("speak", q.question); if (q.listenFor) add("listen", q.listenFor); } }
   }
 
-  // HYPOTHESIS
-  const hyp = getSlotContent(slots, "discovery_hypothesis") as { hypothesis?: string } | null;
-  if (hyp?.hypothesis) {
-    add("section", "", "YOUR HYPOTHESIS", SECTION_COLORS["YOUR HYPOTHESIS"]);
-    add("speak", hyp.hypothesis);
-    add("pause", "");
+  const bizData = getSlotContent(slots, "discovery_questions_business"); const bizItems: PQ[] = Array.isArray(bizData) ? bizData : ((bizData as Record<string, unknown>)?.questions as PQ[] ?? []);
+  const trapData = getSlotContent(slots, "discovery_trap_questions"); const trapItems: PT[] = Array.isArray(trapData) ? trapData : ((trapData as Record<string, unknown>)?.traps as PT[] ?? []);
+  if (bizItems.length || trapItems.length) {
+    add("section", "", "BUSINESS + TRAPS", "#10B981");
+    const inter: Array<{ k: "b"; i: PQ } | { k: "t"; i: PT }> = []; let bi = 0, ti = 0;
+    for (const p of ["b", "b", "t", "b", "b", "t", "t"] as const) { if (p === "b" && bi < bizItems.length) inter.push({ k: "b", i: bizItems[bi++] }); else if (p === "t" && ti < trapItems.length) inter.push({ k: "t", i: trapItems[ti++] }); }
+    while (bi < bizItems.length) inter.push({ k: "b", i: bizItems[bi++] }); while (ti < trapItems.length) inter.push({ k: "t", i: trapItems[ti++] });
+    for (const e of inter) { if (e.k === "b") { if (e.i.question) add("speak", e.i.question); if ((e.i as PQ).listenFor) add("listen", (e.i as PQ).listenFor!); } else { if (e.i.question) add("speak", e.i.question); if ((e.i as PT).sprangAnswer) add("listen", (e.i as PT).sprangAnswer!.slice(0, 80)); } }
   }
 
-  // TECHNICAL
-  const techData = getSlotContent(slots, "discovery_questions_technical");
-  const techItems: ParsedQ[] = Array.isArray(techData) ? techData : ((techData as Record<string, unknown>)?.questions as ParsedQ[] ?? []);
-  if (techItems.length > 0) {
-    add("section", "", "TECHNICAL", SECTION_COLORS.TECHNICAL);
-    for (const q of techItems) {
-      if (q.question) add("speak", q.question);
-      if (q.listenFor) add("listen", q.listenFor);
-    }
-  }
+  const recap = getSlotContent(slots, "discovery_pain_recap") as Record<string, string> | null;
+  if (recap) { add("section", "", "PAIN RECAP", "#D97706"); if (recap.recapTemplate) for (const l of recap.recapTemplate.split("\n")) { const t = l.trim(); if (t) add("speak", t); } if (recap.confirmationQuestion) add("speak", recap.confirmationQuestion); add("pause", ""); }
 
-  // PERSONAL
-  const persData = getSlotContent(slots, "discovery_questions_personal");
-  const persItems: ParsedQ[] = Array.isArray(persData) ? persData : ((persData as Record<string, unknown>)?.questions as ParsedQ[] ?? []);
-  if (persItems.length > 0) {
-    add("section", "", "PERSONAL", SECTION_COLORS.PERSONAL);
-    for (const q of persItems) {
-      if (q.question) add("speak", q.question);
-      if (q.listenFor) add("listen", q.listenFor);
-    }
-  }
+  const rec = getSlotContent(slots, "discovery_recommendation") as Record<string, string> | null;
+  if (rec) { add("section", "", "RECOMMENDATION", "#FF6B4A"); if (rec.challengerTeachMoment) add("speak", rec.challengerTeachMoment); add("pause", ""); if (rec.fullScript) { const banned = /samsara|dash cam|driver app|vehicle gateway|asset tag/i; for (const s of rec.fullScript.split(/(?<=\.)\s+/)) { const t = s.trim(); if (t && !banned.test(t)) add("speak", t); } } }
 
-  // BUSINESS + TRAPS interleaved
-  const bizData = getSlotContent(slots, "discovery_questions_business");
-  const bizItems: ParsedQ[] = Array.isArray(bizData) ? bizData : ((bizData as Record<string, unknown>)?.questions as ParsedQ[] ?? []);
-  const trapData = getSlotContent(slots, "discovery_trap_questions");
-  const trapItems: ParsedTrap[] = Array.isArray(trapData) ? trapData : ((trapData as Record<string, unknown>)?.traps as ParsedTrap[] ?? []);
-
-  if (bizItems.length > 0 || trapItems.length > 0) {
-    add("section", "", "BUSINESS + TRAPS", SECTION_COLORS["BUSINESS + TRAPS"]);
-    const interleaved: Array<{ kind: "biz"; item: ParsedQ } | { kind: "trap"; item: ParsedTrap }> = [];
-    let bi = 0, ti = 0;
-    const pattern = ["biz", "biz", "trap", "biz", "biz", "trap", "trap"] as const;
-    for (const p of pattern) {
-      if (p === "biz" && bi < bizItems.length) interleaved.push({ kind: "biz", item: bizItems[bi++] });
-      else if (p === "trap" && ti < trapItems.length) interleaved.push({ kind: "trap", item: trapItems[ti++] });
-    }
-    while (bi < bizItems.length) interleaved.push({ kind: "biz", item: bizItems[bi++] });
-    while (ti < trapItems.length) interleaved.push({ kind: "trap", item: trapItems[ti++] });
-
-    for (const entry of interleaved) {
-      if (entry.kind === "biz") {
-        if (entry.item.question) add("speak", entry.item.question);
-        if (entry.item.listenFor) add("listen", entry.item.listenFor);
-      } else {
-        if (entry.item.question) add("speak", entry.item.question);
-        if (entry.item.sprangAnswer) add("listen", entry.item.sprangAnswer.slice(0, 80));
-      }
-    }
-  }
-
-  // PAIN RECAP
-  const recap = getSlotContent(slots, "discovery_pain_recap") as { recapTemplate?: string; confirmationQuestion?: string } | null;
-  if (recap) {
-    add("section", "", "PAIN RECAP", SECTION_COLORS["PAIN RECAP"]);
-    if (recap.recapTemplate) {
-      for (const line of recap.recapTemplate.split("\n")) {
-        const trimmed = line.trim();
-        if (trimmed) add("speak", trimmed);
-      }
-    }
-    if (recap.confirmationQuestion) add("speak", recap.confirmationQuestion);
-    add("pause", "");
-  }
-
-  // RECOMMENDATION
-  const rec = getSlotContent(slots, "discovery_recommendation") as { challengerTeachMoment?: string; fullScript?: string } | null;
-  if (rec) {
-    add("section", "", "RECOMMENDATION", SECTION_COLORS.RECOMMENDATION);
-    if (rec.challengerTeachMoment) add("speak", rec.challengerTeachMoment);
-    add("pause", "");
-    if (rec.fullScript) {
-      const banned = /samsara|dash cam|driver app|vehicle gateway|asset tag/i;
-      for (const sentence of rec.fullScript.split(/(?<=\.)\s+/)) {
-        const trimmed = sentence.trim();
-        if (trimmed && !banned.test(trimmed)) add("speak", trimmed);
-      }
-    }
-  }
-
-  // CLOSE
-  const close = getSlotContent(slots, "discovery_close") as { multithreadingAsk?: string; confirmingQuestion?: string; nextStepProposal?: string; closeScript?: string } | null;
-  if (close) {
-    add("section", "", "CLOSE", SECTION_COLORS.CLOSE);
-    if (close.multithreadingAsk) add("speak", close.multithreadingAsk);
-    if (close.confirmingQuestion) add("speak", close.confirmingQuestion);
-    add("pause", "");
-    if (close.nextStepProposal) add("speak", close.nextStepProposal);
-    if (close.closeScript) add("speak", close.closeScript);
-  }
+  const close = getSlotContent(slots, "discovery_close") as Record<string, string> | null;
+  if (close) { add("section", "", "CLOSE", "#3B82F6"); if (close.multithreadingAsk) add("speak", close.multithreadingAsk); if (close.confirmingQuestion) add("speak", close.confirmingQuestion); add("pause", ""); if (close.nextStepProposal) add("speak", close.nextStepProposal); if (close.closeScript) add("speak", close.closeScript); }
 
   return lines;
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─── Cue Card line builder ───────────────────────────────────────────────────
 
-interface TeleprompterModeProps {
-  session: PrepSession;
-  answerSlots: AnswerSlot[];
-  onExit: () => void;
+function buildCueLines(slots: AnswerSlot[]): TpLine[] {
+  const lines: TpLine[] = [];
+  let id = 0;
+  const unlocked = slots.filter((s) => s.content?.trim() && s.status === "unlocked");
+  for (const slot of unlocked) {
+    const label = ANSWER_LABELS[slot.type] ?? slot.label ?? slot.type;
+    let cue = "";
+    let full = slot.content ?? "";
+    try {
+      const parsed = JSON.parse(full);
+      if (typeof parsed === "string") { full = parsed; cue = parsed.split(/[.!?]/)[0] + "."; }
+      else if (parsed?.hypothesis) { cue = parsed.hypothesis; full = parsed.fullScript ?? parsed.hypothesis; }
+      else if (parsed?.fullScript) { cue = parsed.fullScript.split(/[.!?]/)[0] + "."; full = parsed.fullScript; }
+      else if (parsed?.grabAttention) { cue = parsed.grabAttention; full = parsed.fullScript ?? parsed.grabAttention; }
+      else if (Array.isArray(parsed)) { cue = parsed[0]?.question ?? parsed[0]?.answer ?? ""; full = parsed.map((i: Record<string, string>) => i.question ?? i.answer ?? "").join("\n\n"); }
+      else if (parsed?.answers) { cue = parsed.answers[0]?.question ?? ""; full = parsed.answers.map((a: Record<string, string>) => `${a.question}\n${a.answer}`).join("\n\n"); }
+      else { cue = full.split(/[.!?\n]/)[0] + "."; }
+    } catch { cue = full.split(/[.!?\n]/)[0] + "."; }
+
+    lines.push({ id: `q${id++}`, text: cue, type: "section", sectionName: label.toUpperCase(), sectionColor: ANSWER_COLORS[slot.type] ?? "#888", answerType: slot.type as AnswerType, fullAnswer: full });
+    lines.push({ id: `q${id++}`, text: cue, type: "speak", answerType: slot.type as AnswerType, fullAnswer: full });
+  }
+  return lines;
 }
 
-// ─── Rescue deck content ─────────────────────────────────────────────────────
+// ─── Font sizes ──────────────────────────────────────────────────────────────
 
-type RescueLine = { type: "speak" | "listen" | "pause"; text: string };
+const FONTS = [
+  { speak: "text-[22px]", listen: "text-[15px]" },
+  { speak: "text-[28px]", listen: "text-[18px]" },
+  { speak: "text-[34px]", listen: "text-[21px]" },
+];
 
-const RESCUE_TABS: Array<{ label: string; lines: RescueLine[] }> = [
-  {
-    label: "He opened first",
-    lines: [
-      { type: "listen", text: "He just gave you Level 1 pain free. Do not pitch. Go deeper." },
-      { type: "speak", text: "That's actually what caught my attention when I was looking at your account." },
-      { type: "speak", text: "Tell me more about that — what happened exactly?" },
-      { type: "pause", text: "..." },
-      { type: "speak", text: "And what did that end up costing you — between the downtime and everything else that came with it?" },
-      { type: "pause", text: "..." },
-      { type: "speak", text: "How often has something like that happened in the last year?" },
-      { type: "listen", text: "Get a number. Frequency times cost = the business pain." },
-    ],
-  },
-  {
-    label: "He's defensive",
-    lines: [
-      { type: "listen", text: "Do not defend. Do not re-pitch. Acknowledge and redirect." },
-      { type: "speak", text: "Yeah, I know — I saw the notes from before." },
-      { type: "speak", text: "I'm not here to re-run that conversation." },
-      { type: "speak", text: "What I'm curious about is whether anything has changed since then." },
-      { type: "pause", text: "..." },
-      { type: "speak", text: "A lot of the fleets we work with ended up in a different place 12 to 18 months later — once they added up what the workarounds were actually costing them." },
-      { type: "speak", text: "Has the situation on the ground stayed pretty much the same, or has anything shifted?" },
-      { type: "pause", text: "..." },
-      { type: "listen", text: "Any answer works. 'Same' = opportunity to quantify. 'Changed' = new pain to explore." },
-    ],
-  },
-  {
-    label: "Lost the thread",
-    lines: [
-      { type: "listen", text: "Bridge back through his words. Never hard-pivot." },
-      { type: "speak", text: "That's interesting — and it actually connects to something I wanted to ask you about." },
-      { type: "speak", text: "When situations like that happen on a remote site — how does your team find out about it, and how quickly can you respond?" },
-      { type: "pause", text: "..." },
-      { type: "speak", text: "Help me understand — when you think about the biggest headaches day to day, what's taking up the most time that probably shouldn't be?" },
-      { type: "pause", text: "..." },
-      { type: "speak", text: "I want to make sure I'm asking the right questions before I say anything else. One more thing I want to understand —" },
-    ],
-  },
-  {
-    label: "Proof points",
-    lines: [
-      { type: "listen", text: "Lead with the pattern. Then ask if it resonates." },
-      { type: "speak", text: "Something we see a lot with construction fleets operating in remote areas —" },
-      { type: "speak", text: "it's usually not one big theft that breaks the budget. It's the cumulative downtime." },
-      { type: "speak", text: "A piece of equipment goes missing for two days, the crew can't work, the jobsite stalls." },
-      { type: "speak", text: "By the time they added it up — one season of that had cost them more than two years of a connected system would have." },
-      { type: "speak", text: "Has that pattern shown up for you at all?" },
-      { type: "pause", text: "..." },
-      { type: "speak", text: "The other thing we see with smaller construction fleets —" },
-      { type: "speak", text: "the admin burden is invisible until someone actually tracks it." },
-      { type: "speak", text: "DVIRs, incident reports, maintenance logs — it's usually one or two people spending 8 to 10 hours a week on paperwork that could be automated." },
-      { type: "speak", text: "Does that feel familiar at all?" },
-      { type: "pause", text: "..." },
-    ],
-  },
+// ─── Rescue deck ─────────────────────────────────────────────────────────────
+
+type RL = { type: "speak" | "listen" | "pause"; text: string };
+const RESCUE_TABS: Array<{ label: string; lines: RL[] }> = [
+  { label: "He opened first", lines: [{ type: "listen", text: "He gave you Level 1 pain free. Go deeper." }, { type: "speak", text: "That's actually what caught my attention when I was looking at your account." }, { type: "speak", text: "Tell me more about that — what happened exactly?" }, { type: "pause", text: "..." }, { type: "speak", text: "And what did that end up costing you?" }, { type: "speak", text: "How often has something like that happened in the last year?" }, { type: "listen", text: "Get a number. Frequency times cost = business pain." }] },
+  { label: "He's defensive", lines: [{ type: "listen", text: "Do not defend. Acknowledge and redirect." }, { type: "speak", text: "Yeah, I know — I saw the notes from before." }, { type: "speak", text: "I'm not here to re-run that conversation." }, { type: "speak", text: "What I'm curious about is whether anything has changed since then." }, { type: "pause", text: "..." }, { type: "speak", text: "Has the situation stayed the same, or has anything shifted?" }, { type: "listen", text: "'Same' = quantify. 'Changed' = new pain." }] },
+  { label: "Lost the thread", lines: [{ type: "listen", text: "Bridge back through his words." }, { type: "speak", text: "That's interesting — and it connects to something I wanted to ask." }, { type: "speak", text: "When situations like that happen — how does your team find out, and how quickly?" }, { type: "pause", text: "..." }, { type: "speak", text: "What's taking up the most time that probably shouldn't be?" }] },
+  { label: "Proof points", lines: [{ type: "listen", text: "Lead with the pattern. Ask if it resonates." }, { type: "speak", text: "Something we see with construction fleets — it's usually not one big theft." }, { type: "speak", text: "It's the cumulative downtime. Equipment missing for two days, crew can't work." }, { type: "speak", text: "Has that pattern shown up for you?" }, { type: "pause", text: "..." }, { type: "speak", text: "The other thing — the admin burden is invisible until tracked." }, { type: "speak", text: "DVIRs, incident reports — 8-10 hours a week on paperwork." }, { type: "speak", text: "Does that feel familiar?" }] },
 ];
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-// ─── Font size presets ───────────────────────────────────────────────────────
+interface Props { session: PrepSession; answerSlots: AnswerSlot[]; onExit: () => void }
 
-const FONT_SIZES = [
-  { label: "A", speak: "text-[22px]", listen: "text-[15px]" },
-  { label: "A", speak: "text-[26px]", listen: "text-[17px]" },
-  { label: "A", speak: "text-[32px]", listen: "text-[20px]" },
-] as const;
-
-// ─── Component ───────────────────────────────────────────────────────────────
-
-export function TeleprompterMode({ session, answerSlots, onExit }: TeleprompterModeProps) {
-  const lines = buildLines(answerSlots);
-  const storageKey = `salesprep_tp_${session.id}`;
-
+export function TeleprompterMode({ session, answerSlots, onExit }: Props) {
+  const isRolePlay = session.stage === "role_play";
+  const [mode, setMode] = useState<TpMode>(isRolePlay ? "call" : "flow");
+  const [fontIdx, setFontIdx] = useState(1);
+  const [speakMode, setSpeakMode] = useState(false);
+  const [revealed, setRevealed] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [opacity, setOpacity] = useState(1);
-  const touchStartRef = useRef<number>(0);
-  const autoAdvanceTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  // Rescue deck state
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerSec, setTimerSec] = useState(0);
+  const [topBarVisible, setTopBarVisible] = useState(true);
+  const [modeFlash, setModeFlash] = useState("");
   const [rescueOpen, setRescueOpen] = useState(false);
   const [rescueTab, setRescueTab] = useState(0);
-  const [rescueIndex, setRescueIndex] = useState(0);
-  const [rescueOpacity, setRescueOpacity] = useState(1);
-  const rescueTouchStart = useRef<number>(0);
+  const [rescueIdx, setRescueIdx] = useState(0);
+  const [rescueOp, setRescueOp] = useState(1);
 
-  // Triple-tap section skip
-  const lastThreeTaps = useRef<number[]>([]);
+  const touchRef = useRef(0);
+  const autoTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const topBarTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const timerIv = useRef<ReturnType<typeof setInterval>>(undefined);
+  const lastTaps = useRef<number[]>([]);
+  const storageKey = `salesprep_tp_${session.id}`;
 
-  // Font size (0=small, 1=default, 2=large)
-  const [fontSizeIdx, setFontSizeIdx] = useState(1);
+  // Build lines for current mode
+  const lines = mode === "call" ? buildCallLines(answerSlots) : mode === "cue" ? buildCueLines(answerSlots) : buildFlowLines(answerSlots);
+  const line = lines[currentIndex];
 
-  // Auto-scroll rehearsal mode
-  const [autoScroll, setAutoScroll] = useState(false);
-  const [autoInterval, setAutoInterval] = useState(4000); // ms per line
-  const autoScrollTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  // Settings panel
-  const [showSettings, setShowSettings] = useState(false);
-
-  // Restore from localStorage
+  // Persist + restore
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) {
-        const saved = JSON.parse(raw);
-        if (typeof saved.index === "number" && saved.index < lines.length) {
-          setCurrentIndex(saved.index);
-        }
-      }
-    } catch { /* ignore */ }
+    try { const s = JSON.parse(localStorage.getItem(storageKey) ?? "{}"); if (typeof s.index === "number" && s.index < lines.length) setCurrentIndex(s.index); } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Persist
-  useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify({ index: currentIndex }));
-  }, [currentIndex, storageKey]);
+  useEffect(() => { localStorage.setItem(storageKey, JSON.stringify({ index: currentIndex })); }, [currentIndex, storageKey]);
 
   // Wake lock
-  useEffect(() => {
-    let wakeLock: { release: () => void } | null = null;
-    const acquire = async () => {
-      try {
-        if ("wakeLock" in navigator) {
-          wakeLock = await (navigator as unknown as { wakeLock: { request: (type: string) => Promise<{ release: () => void }> } }).wakeLock.request("screen");
-        }
-      } catch { /* ignore */ }
-    };
-    acquire();
-    return () => { wakeLock?.release(); };
-  }, []);
+  useEffect(() => { let wl: { release: () => void } | null = null; (async () => { try { if ("wakeLock" in navigator) wl = await (navigator as unknown as { wakeLock: { request: (t: string) => Promise<{ release: () => void }> } }).wakeLock.request("screen"); } catch {} })(); return () => { wl?.release(); }; }, []);
 
-  // Landscape orientation lock
-  useEffect(() => {
-    try {
-      const sl = screen?.orientation as { lock?: (o: string) => Promise<void>; unlock?: () => void } | undefined;
-      sl?.lock?.("landscape").catch(() => {});
-      return () => { sl?.unlock?.(); };
-    } catch { /* not supported */ }
-  }, []);
+  // Timer
+  useEffect(() => { if (timerRunning) { timerIv.current = setInterval(() => setTimerSec((s) => s + 1), 1000); } else { clearInterval(timerIv.current); } return () => clearInterval(timerIv.current); }, [timerRunning]);
 
-  // Keyboard navigation
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (rescueOpen) return;
-      if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); advance(); }
-      else if (e.key === "ArrowLeft") { e.preventDefault(); goBack(); }
-      else if (e.key === "Escape") onExit();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  });
+  // Auto-advance sections
+  useEffect(() => { clearTimeout(autoTimer.current); if (line?.type === "section") autoTimer.current = setTimeout(advance, 1500); return () => clearTimeout(autoTimer.current); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex, mode]);
 
-  // Haptic feedback on section transitions
-  useEffect(() => {
-    const line = lines[currentIndex];
-    if (line?.type === "section") {
-      try { navigator?.vibrate?.(50); } catch { /* not supported */ }
-    }
-  }, [currentIndex, lines]);
+  // Top bar auto-hide
+  useEffect(() => { setTopBarVisible(true); clearTimeout(topBarTimer.current); topBarTimer.current = setTimeout(() => setTopBarVisible(false), 3000); return () => clearTimeout(topBarTimer.current); }, [currentIndex]);
 
-  // Auto-advance for section lines
-  useEffect(() => {
-    clearTimeout(autoAdvanceTimer.current);
-    const line = lines[currentIndex];
-    if (line?.type === "section") {
-      autoAdvanceTimer.current = setTimeout(() => {
-        advance();
-      }, 1500);
-    }
-    return () => clearTimeout(autoAdvanceTimer.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex]);
+  // Haptic on section
+  useEffect(() => { if (line?.type === "section") try { navigator?.vibrate?.(50); } catch {} }, [line]);
 
-  // Auto-scroll rehearsal mode
-  useEffect(() => {
-    clearTimeout(autoScrollTimer.current);
-    if (!autoScroll || rescueOpen) return;
-    const line = lines[currentIndex];
-    if (line?.type === "section") return; // section auto-advance handles itself
-    autoScrollTimer.current = setTimeout(() => {
-      advance();
-    }, line?.type === "pause" ? 2000 : autoInterval);
-    return () => clearTimeout(autoScrollTimer.current);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, autoScroll, autoInterval, rescueOpen]);
+  // Keyboard
+  useEffect(() => { const h = (e: KeyboardEvent) => { if (rescueOpen) return; if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); handleTap(); } else if (e.key === "ArrowLeft") { e.preventDefault(); goBack(); } else if (e.key === "Escape") onExit(); }; window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h); });
 
-  const advance = useCallback(() => {
-    if (currentIndex >= lines.length - 1) return;
-    setOpacity(0);
-    setTimeout(() => {
-      setCurrentIndex((i) => Math.min(i + 1, lines.length - 1));
-      setOpacity(1);
-    }, 80);
-  }, [currentIndex, lines.length]);
+  const advance = useCallback(() => { if (currentIndex >= lines.length - 1) return; setOpacity(0); setRevealed(false); setTimeout(() => { setCurrentIndex((i) => Math.min(i + 1, lines.length - 1)); setOpacity(1); }, 80); }, [currentIndex, lines.length]);
+  const goBack = useCallback(() => { if (currentIndex <= 0) return; setOpacity(0); setRevealed(false); setTimeout(() => { setCurrentIndex((i) => Math.max(i - 1, 0)); setOpacity(1); }, 80); }, [currentIndex]);
 
-  const goBack = useCallback(() => {
-    if (currentIndex <= 0) return;
-    setOpacity(0);
-    setTimeout(() => {
-      setCurrentIndex((i) => Math.max(i - 1, 0));
-      setOpacity(1);
-    }, 80);
-  }, [currentIndex]);
+  const handleTap = useCallback(() => {
+    if (speakMode && !revealed) { setRevealed(true); return; }
+    if (mode === "cue" && !revealed && line?.fullAnswer) { setRevealed(true); return; }
+    advance();
+  }, [speakMode, revealed, mode, line, advance]);
 
-  // Touch handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartRef.current = e.touches[0].clientY;
-  };
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    const dy = touchStartRef.current - e.changedTouches[0].clientY;
-    if (dy > 40) advance();
-    else if (dy < -40) goBack();
-  };
-
-  // Click zones with triple-tap section skip
   const handleClick = (e: React.MouseEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const x = e.clientX - rect.left;
-    const pctY = y / rect.height;
-    const pctX = x / rect.width;
-
-    // Triple-tap upper-left corner → skip to next section
-    if (pctY < 0.25 && pctX < 0.3) {
-      lastThreeTaps.current = [...lastThreeTaps.current, Date.now()].slice(-3);
-      if (lastThreeTaps.current.length === 3) {
-        const span = lastThreeTaps.current[2] - lastThreeTaps.current[0];
-        if (span < 600) {
-          const nextSection = lines.findIndex((l, i) => i > currentIndex && l.type === "section");
-          if (nextSection > -1) { setCurrentIndex(nextSection); lastThreeTaps.current = []; return; }
-        }
+    const pctY = (e.clientY - rect.top) / rect.height;
+    const pctX = (e.clientX - rect.left) / rect.width;
+    // Triple-tap upper-left → skip to next section
+    if (pctY < 0.25 && pctX < 0.3 && mode === "call") {
+      lastTaps.current = [...lastTaps.current, Date.now()].slice(-3);
+      if (lastTaps.current.length === 3 && lastTaps.current[2] - lastTaps.current[0] < 600) {
+        const next = lines.findIndex((l, i) => i > currentIndex && l.type === "section");
+        if (next > -1) { setCurrentIndex(next); lastTaps.current = []; return; }
       }
-      goBack();
-      return;
     }
-
-    if (pctY < 0.2) goBack();
-    else advance();
+    if (pctY < 0.15) goBack(); else handleTap();
   };
 
-  // Rescue deck navigation
-  const rescueAdvance = useCallback(() => {
-    const tabLines = RESCUE_TABS[rescueTab]?.lines ?? [];
-    if (rescueIndex >= tabLines.length - 1) return;
-    setRescueOpacity(0);
-    setTimeout(() => { setRescueIndex((i) => i + 1); setRescueOpacity(1); }, 80);
-  }, [rescueTab, rescueIndex]);
+  const handleTouch = (start: boolean, e: React.TouchEvent) => {
+    if (start) { touchRef.current = e.touches[0].clientY; return; }
+    const dy = touchRef.current - e.changedTouches[0].clientY;
+    if (dy > 40) handleTap(); else if (dy < -40) goBack();
+  };
 
-  const rescueBack = useCallback(() => {
-    if (rescueIndex <= 0) return;
-    setRescueOpacity(0);
-    setTimeout(() => { setRescueIndex((i) => i - 1); setRescueOpacity(1); }, 80);
-  }, [rescueIndex]);
+  const switchMode = () => {
+    const next: TpMode = mode === "flow" ? "call" : mode === "call" ? "cue" : "flow";
+    setMode(next);
+    setCurrentIndex(0);
+    setRevealed(false);
+    setModeFlash(next === "flow" ? "FLOW MODE" : next === "call" ? "CALL MODE" : "CUE CARDS");
+    setTimeout(() => setModeFlash(""), 1000);
+  };
 
-  // Current section color
+  // Derived
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
+  const pct = lines.length > 0 ? ((currentIndex + 1) / lines.length) * 100 : 0;
   let sectionColor = "#888";
-  for (let i = currentIndex; i >= 0; i--) {
-    if (lines[i]?.type === "section" && lines[i].sectionColor) {
-      sectionColor = lines[i].sectionColor!;
-      break;
-    }
-  }
-
-  const line = lines[currentIndex];
-  const progressPct = lines.length > 0 ? ((currentIndex + 1) / lines.length) * 100 : 0;
+  for (let i = currentIndex; i >= 0; i--) { if (lines[i]?.type === "section" && lines[i].sectionColor) { sectionColor = lines[i].sectionColor!; break; } }
+  const answerLabel = line?.answerType ? (ANSWER_LABELS[line.answerType] ?? line.answerType) : (line?.sectionName ?? "");
+  const coaching = line?.answerType ? getCoaching(line.answerType) : null;
   const isComplete = currentIndex >= lines.length - 1 && line?.type !== "section";
 
-  if (isComplete && line?.type !== "section") {
-    return (
-      <div className="fixed inset-0 z-[60] bg-[#0A0A0F] flex flex-col items-center justify-center text-center px-6">
-        <span className="text-[64px] text-emerald-400">✓</span>
-        <p className="text-[18px] text-white/50 mt-4">Call complete</p>
-        <button type="button" onClick={onExit} className="bg-[#FF6B4A] hover:bg-[#E85D3A] text-white font-semibold rounded-full px-8 py-3 text-[15px] transition-colors mt-8">
-          Exit
-        </button>
-      </div>
-    );
-  }
+  // Completion
+  if (isComplete) return (
+    <div className="fixed inset-0 z-50 bg-[#1A1A1E] flex flex-col items-center justify-center text-center px-6">
+      <span className="text-[64px] text-emerald-400">✓</span>
+      <p className="text-[18px] text-white/50 mt-4">Session complete</p>
+      <p className="text-[14px] text-white/30 mt-1">{fmt(timerSec)}</p>
+      <button type="button" onClick={onExit} className="bg-[#E8735A] text-white font-semibold rounded-full px-8 py-3 text-[15px] mt-8">Exit</button>
+    </div>
+  );
 
-  if (!line) {
-    return (
-      <div className="fixed inset-0 z-[60] bg-[#0A0A0F] flex items-center justify-center px-6">
-        <p className="text-white/30 text-sm">No teleprompter content available.</p>
-        <button type="button" onClick={onExit} className="ml-4 text-sm text-[#FF6B4A]">Exit</button>
-      </div>
-    );
-  }
+  if (!line) return (
+    <div className="fixed inset-0 z-50 bg-[#1A1A1E] flex items-center justify-center px-6">
+      <p className="text-white/30 text-sm">No content available.</p>
+      <button type="button" onClick={onExit} className="ml-4 text-sm text-[#E8735A]">Exit</button>
+    </div>
+  );
 
   return (
-    <div className="fixed inset-0 z-[60] bg-[#0A0A0F] flex flex-col select-none">
-      {/* Top bar */}
-      <div className="h-[48px] flex items-center justify-between shrink-0">
-        <div className="flex items-center">
-          <button type="button" onClick={onExit} className="text-[12px] text-white/30 px-4 py-3 hover:text-white/60 transition-colors">
-            ✕ Exit
-          </button>
-          {autoScroll && (
-            <span className="text-[10px] text-emerald-400/60 uppercase tracking-wider animate-pulse">AUTO</span>
-          )}
+    <div className="fixed inset-0 z-50 bg-[#1A1A1E] flex flex-col select-none">
+
+      {/* Top bar (auto-hides) */}
+      <div className={`h-[48px] flex items-center justify-between px-4 shrink-0 transition-opacity duration-300 ${topBarVisible ? "opacity-100" : "opacity-0"}`}>
+        <div className="flex items-center gap-2 text-[12px] text-white/40 min-w-0">
+          <span className="text-white/20">—</span>
+          <span className="truncate">{answerLabel}</span>
         </div>
-        <div className="flex items-center gap-3 px-4">
-          <button
-            type="button"
-            onClick={() => setShowSettings((o) => !o)}
-            className="text-[14px] text-white/20 hover:text-white/50 transition-colors"
-            title="Settings"
-          >
-            ⚙
-          </button>
-          <span className="text-[11px] text-white/20 font-mono tabular-nums">
-            {currentIndex + 1} / {lines.length}
-          </span>
+        <div className="flex items-center gap-3 text-[12px] text-white/30 shrink-0">
+          {coaching?.timeTarget && <span>Goal: {coaching.timeTarget}</span>}
+          <span className="font-mono tabular-nums">{fmt(timerSec)}</span>
+          <button type="button" onClick={onExit} className="hover:text-white/60">Exit | ESC</button>
         </div>
       </div>
 
-      {/* Settings panel */}
-      {showSettings && (
-        <div className="bg-[#1E1F2B] border-b border-[#2A2B3D] px-4 py-3 shrink-0 space-y-3" onClick={(e) => e.stopPropagation()}>
-          {/* Font size */}
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] text-white/40 uppercase tracking-wider">Font size</span>
-            <div className="flex gap-1">
-              {FONT_SIZES.map((fs, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setFontSizeIdx(i)}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                    fontSizeIdx === i ? "bg-white/15 text-white" : "bg-white/5 text-white/30 hover:text-white/50"
-                  }`}
-                  style={{ fontSize: 10 + i * 4 }}
-                >
-                  {fs.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Auto-scroll */}
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] text-white/40 uppercase tracking-wider">Auto-scroll</span>
-            <div className="flex items-center gap-2">
-              {autoScroll && (
-                <div className="flex gap-1">
-                  {[2000, 4000, 6000, 8000].map((ms) => (
-                    <button
-                      key={ms}
-                      type="button"
-                      onClick={() => setAutoInterval(ms)}
-                      className={`text-[10px] px-2 py-1 rounded transition-colors ${
-                        autoInterval === ms ? "bg-white/15 text-white" : "bg-white/5 text-white/30"
-                      }`}
-                    >
-                      {ms / 1000}s
-                    </button>
-                  ))}
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => setAutoScroll((o) => !o)}
-                className={`w-10 h-6 rounded-full transition-colors relative ${autoScroll ? "bg-emerald-500" : "bg-white/10"}`}
-              >
-                <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-all ${autoScroll ? "left-5" : "left-1"}`} />
-              </button>
-            </div>
-          </div>
-
-          {/* Keyboard hint */}
-          <p className="text-[10px] text-white/20">← → arrow keys or spacebar to navigate</p>
-        </div>
+      {/* Reading guide lines (flow mode only) */}
+      {mode === "flow" && (
+        <>
+          <div className="absolute top-[35%] left-0 right-0 h-px bg-white/[0.08] pointer-events-none z-10" />
+          <div className="absolute top-[65%] left-0 right-0 h-px bg-white/[0.08] pointer-events-none z-10" />
+        </>
       )}
 
-      {/* Progress bar */}
-      <div className="h-[2px] bg-white/5 shrink-0">
-        <div className="h-full transition-all duration-150 ease-out" style={{ width: `${progressPct}%`, backgroundColor: `${sectionColor}80` }} />
-      </div>
-
       {/* Content area */}
-      <div
-        className="flex-1 flex flex-col items-center justify-center px-7 cursor-pointer"
+      <div className="flex-1 flex flex-col items-center justify-center px-7 cursor-pointer relative"
         onClick={handleClick}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
+        onTouchStart={(e) => handleTouch(true, e)}
+        onTouchEnd={(e) => handleTouch(false, e)}
       >
-        <div
-          className="transition-opacity duration-150 ease-out max-w-[320px] text-center"
-          style={{ opacity }}
-        >
+        {/* Mode flash */}
+        {modeFlash && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50">
+            <p className="text-[24px] font-bold text-white uppercase tracking-widest">{modeFlash}</p>
+          </div>
+        )}
+
+        {/* Speak mode overlay */}
+        {speakMode && !revealed && line.type === "speak" && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#1A1A1E]">
+            <p className="text-[16px] text-white/30">Say it. Then tap to check.</p>
+          </div>
+        )}
+
+        {/* Cue card reveal overlay */}
+        {mode === "cue" && !revealed && line.type === "speak" && (
+          <div className="absolute inset-x-7 bottom-[30%] z-10 bg-white/5 backdrop-blur-sm rounded-lg h-16 flex items-center justify-center">
+            <p className="text-[12px] text-white/20">Tap to reveal</p>
+          </div>
+        )}
+
+        <div className="transition-opacity duration-150 ease-out max-w-[360px] text-center" style={{ opacity }}>
           {line.type === "speak" && (
-            <p className={`${FONT_SIZES[fontSizeIdx].speak} font-semibold text-white leading-[1.5] tracking-[-0.01em]`}>
-              {renderBrackets(line.text)}
+            <p className={`${FONTS[fontIdx].speak} font-semibold text-white leading-[1.5] tracking-[-0.01em]`}>
+              {mode === "cue" && revealed && line.fullAnswer
+                ? renderBrackets(line.fullAnswer.slice(0, 500))
+                : mode === "flow"
+                  ? renderBold(line.text, session.companyName)
+                  : renderBrackets(line.text)
+              }
             </p>
           )}
-
           {line.type === "listen" && (
             <div>
-              <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: `${SECTION_COLORS.PERSONAL ?? "#F59E0B"}60` }}>
-                LISTEN FOR
-              </p>
-              <p className={`${FONT_SIZES[fontSizeIdx].listen} font-normal leading-[1.5]`} style={{ color: "#F59E0B" }}>
-                {line.text}
-              </p>
+              <p className="text-[10px] uppercase tracking-widest text-amber-500/60 mb-2">LISTEN FOR</p>
+              <p className={`${FONTS[fontIdx].listen} font-normal text-amber-400 leading-[1.5]`}>{line.text}</p>
             </div>
           )}
-
-          {line.type === "pause" && (
-            <p className="text-[32px] text-white/15 tracking-[0.3em]">· · ·</p>
-          )}
-
+          {line.type === "pause" && <p className="text-[32px] text-white/15 tracking-[0.3em]">· · ·</p>}
           {line.type === "section" && (
             <div>
               <div className="h-px mb-3" style={{ backgroundColor: `${line.sectionColor}4D` }} />
-              <p className="text-[11px] font-bold uppercase tracking-widest py-3" style={{ color: line.sectionColor }}>
-                {line.sectionName}
-              </p>
+              <p className="text-[11px] font-bold uppercase tracking-widest py-3" style={{ color: line.sectionColor }}>{line.sectionName}</p>
               <div className="h-px mt-3" style={{ backgroundColor: `${line.sectionColor}4D` }} />
             </div>
           )}
         </div>
+      </div>
 
-        {/* Barely-visible advance indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
-          <span className="text-[24px] text-white/10 animate-pulse">›</span>
+      {/* Progress bar */}
+      <div className="h-[2px] bg-white/5 shrink-0">
+        <div className="h-full transition-all duration-150" style={{ width: `${pct}%`, backgroundColor: "#E8735A" }} />
+      </div>
+
+      {/* Bottom control bar */}
+      <div className="h-[72px] bg-[#111114] flex items-center justify-between px-3 shrink-0 safe-area-pb">
+        {/* Left: answer name + speak toggle */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <button type="button" onClick={() => setSpeakMode((o) => !o)}
+            className={`text-[10px] px-2 py-1 rounded-full border transition-colors ${speakMode ? "border-amber-500/50 text-amber-400" : "border-white/10 text-white/30"}`}>
+            {speakMode ? "Speak" : "Read"}
+          </button>
+          <span className="text-[11px] text-white/20 truncate">{answerLabel}</span>
+        </div>
+
+        {/* Center: controls */}
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={goBack} className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:text-white/70 text-[14px]">◀</button>
+          <button type="button" onClick={() => { setTimerRunning((r) => !r); if (!timerRunning) setTimerSec(0); }}
+            className={`w-9 h-9 rounded-full flex items-center justify-center text-[12px] ${timerRunning ? "bg-red-500/20 text-red-400" : "bg-white/5 text-white/40"}`}>
+            {timerRunning ? "■" : "▶"}
+          </button>
+          <button type="button" onClick={handleTap} className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:text-white/70 text-[14px]">▶</button>
+        </div>
+
+        {/* Right: font, mode, rescue */}
+        <div className="flex items-center gap-1.5 flex-1 justify-end">
+          <button type="button" onClick={() => setFontIdx((i) => (i + 1) % 3)}
+            className="w-8 h-8 rounded-lg bg-white/5 text-white/30 hover:text-white/50 text-[11px] font-bold">T</button>
+          <button type="button" onClick={switchMode}
+            className="w-8 h-8 rounded-lg bg-white/5 text-white/30 hover:text-white/50 text-[13px]">
+            {mode === "flow" ? "≡" : mode === "call" ? "↑" : "□"}
+          </button>
+          <button type="button" onClick={(e) => { e.stopPropagation(); setRescueOpen(true); setRescueIdx(0); setRescueOp(1); }}
+            className="w-8 h-8 rounded-lg bg-white/5 text-white/30 hover:text-white/50 text-[13px]">⚡</button>
         </div>
       </div>
 
-      {/* ⚡ Rescue deck button */}
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); setRescueOpen(true); setRescueIndex(0); setRescueOpacity(1); }}
-        className="fixed bottom-6 left-5 z-[61] w-11 h-11 rounded-full bg-[#1E1F2B] border border-[#2A2B3D] flex items-center justify-center text-white/40 hover:text-white/70 transition-colors"
-      >
-        ⚡
-      </button>
-
-      {/* Rescue deck overlay */}
+      {/* Rescue deck */}
       {rescueOpen && (() => {
-        const tab = RESCUE_TABS[rescueTab];
-        const rl = tab?.lines[rescueIndex];
+        const tab = RESCUE_TABS[rescueTab]; const rl = tab?.lines[rescueIdx];
         return (
-          <div
-            className="fixed inset-0 z-[62] flex flex-col justify-end"
-            onClick={() => setRescueOpen(false)}
-          >
-            <div
-              className="bg-[#0D0D14] rounded-t-2xl"
-              style={{ height: "75%", animation: "action-reveal 200ms ease-out forwards" }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header */}
+          <div className="fixed inset-0 z-[52] flex flex-col justify-end" onClick={() => setRescueOpen(false)}>
+            <div className="bg-[#0D0D14] rounded-t-2xl" style={{ height: "75%", animation: "action-reveal 200ms ease-out forwards" }} onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between px-5 pt-4 pb-2">
                 <p className="text-[14px] font-semibold text-white/60 uppercase tracking-wider">⚡ Rescue Deck</p>
-                <button type="button" onClick={() => setRescueOpen(false)} className="text-white/30 hover:text-white/60 text-sm">✕</button>
+                <button type="button" onClick={() => setRescueOpen(false)} className="text-white/30 hover:text-white/60">✕</button>
               </div>
-
-              {/* Tab pills */}
               <div className="flex gap-2 px-5 pb-3 overflow-x-auto scrollbar-none">
                 {RESCUE_TABS.map((t, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => { setRescueTab(i); setRescueIndex(0); setRescueOpacity(1); }}
-                    className={`text-[12px] font-medium px-3 py-1.5 rounded-full whitespace-nowrap transition-colors ${
-                      rescueTab === i ? "bg-white/15 text-white" : "bg-white/5 text-white/40 hover:text-white/60"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
+                  <button key={i} type="button" onClick={() => { setRescueTab(i); setRescueIdx(0); setRescueOp(1); }}
+                    className={`text-[12px] font-medium px-3 py-1.5 rounded-full whitespace-nowrap ${rescueTab === i ? "bg-white/15 text-white" : "bg-white/5 text-white/40"}`}>{t.label}</button>
                 ))}
               </div>
-
-              {/* Back to call */}
-              <div className="px-5 pb-3">
-                <button
-                  type="button"
-                  onClick={() => setRescueOpen(false)}
-                  className="text-[12px] text-[#FF6B4A] hover:text-[#FF8B70] transition-colors"
-                >
-                  ↩ Back to call
-                </button>
-              </div>
-
-              {/* Rescue content */}
-              <div
-                className="flex-1 flex flex-col items-center justify-center px-7 cursor-pointer"
-                style={{ minHeight: "50%" }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                  const pct = (e.clientY - rect.top) / rect.height;
-                  if (pct < 0.2) rescueBack(); else rescueAdvance();
-                }}
-              >
-                <div className="transition-opacity duration-150 ease-out max-w-[300px] text-center" style={{ opacity: rescueOpacity }}>
-                  {rl?.type === "speak" && (
-                    <p className="text-[24px] font-semibold text-white leading-[1.5]">{rl.text}</p>
-                  )}
-                  {rl?.type === "listen" && (
-                    <div>
-                      <p className="text-[10px] uppercase tracking-widest text-amber-500/60 mb-2">LISTEN FOR</p>
-                      <p className="text-[16px] text-amber-400 leading-[1.5]">{rl.text}</p>
-                    </div>
-                  )}
-                  {rl?.type === "pause" && (
-                    <p className="text-[28px] text-white/15 tracking-[0.3em]">· · ·</p>
-                  )}
+              <button type="button" onClick={() => setRescueOpen(false)} className="px-5 pb-3 text-[12px] text-[#E8735A]">↩ Back to call</button>
+              <div className="flex-1 flex flex-col items-center justify-center px-7 cursor-pointer" style={{ minHeight: "50%" }}
+                onClick={(e) => { e.stopPropagation(); const rect = (e.currentTarget as HTMLElement).getBoundingClientRect(); const p = (e.clientY - rect.top) / rect.height;
+                  if (p < 0.2) { if (rescueIdx > 0) { setRescueOp(0); setTimeout(() => { setRescueIdx((i) => i - 1); setRescueOp(1); }, 80); } }
+                  else { if (rescueIdx < (tab?.lines.length ?? 1) - 1) { setRescueOp(0); setTimeout(() => { setRescueIdx((i) => i + 1); setRescueOp(1); }, 80); } }
+                }}>
+                <div className="transition-opacity duration-150 max-w-[300px] text-center" style={{ opacity: rescueOp }}>
+                  {rl?.type === "speak" && <p className="text-[24px] font-semibold text-white leading-[1.5]">{rl.text}</p>}
+                  {rl?.type === "listen" && <div><p className="text-[10px] uppercase tracking-widest text-amber-500/60 mb-2">LISTEN FOR</p><p className="text-[16px] text-amber-400">{rl.text}</p></div>}
+                  {rl?.type === "pause" && <p className="text-[28px] text-white/15 tracking-[0.3em]">· · ·</p>}
                 </div>
-
-                {/* Progress dots */}
-                <div className="flex gap-1 mt-6">
-                  {(tab?.lines ?? []).map((_, i) => (
-                    <div key={i} className={`rounded-full transition-all ${i === rescueIndex ? "w-4 h-1.5 bg-white/50" : "w-1.5 h-1.5 bg-white/15"}`} />
-                  ))}
-                </div>
+                <div className="flex gap-1 mt-6">{(tab?.lines ?? []).map((_, i) => (<div key={i} className={`rounded-full transition-all ${i === rescueIdx ? "w-4 h-1.5 bg-white/50" : "w-1.5 h-1.5 bg-white/15"}`} />))}</div>
               </div>
             </div>
           </div>
