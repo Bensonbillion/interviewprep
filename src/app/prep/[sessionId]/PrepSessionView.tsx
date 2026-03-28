@@ -766,63 +766,43 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
   const progressPct = unlockedCount > 0 ? Math.round((reviewedUnlockedCount / unlockedCount) * 100) : 0;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F7F6F3] dark:bg-[var(--bg-page)]">
-
-      {/* ── Center column ────────────────────────────────────────────────── */}
-      <main className="flex-1 min-w-0 overflow-hidden flex flex-col">
-
-        {/* Header — fixed, never scrolls */}
-        <header className="flex-shrink-0 border-b border-[#E8E4DF] dark:border-white/5 bg-[#F7F6F3] dark:bg-[var(--bg-page)] px-4 sm:px-6 lg:px-8 py-5">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0 mr-6">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Link href="/dashboard" className="text-[12px] text-[#9B8E82] hover:text-[#5C5347] transition-colors">Dashboard</Link>
-                <span className="text-[12px] text-[#C5BDB5]">/</span>
-                <span className="text-[12px] text-[#5C5347] dark:text-[var(--text-secondary)] font-medium">{session.companyName}</span>
-              </div>
-              <div className="flex items-baseline gap-3">
-                <h1 className="text-[20px] font-semibold text-[#1C1713] dark:text-[var(--text-primary)] leading-tight truncate">{session.companyName}</h1>
-                <span className="text-[13px] text-[#9B8E82] whitespace-nowrap flex-shrink-0">{session.targetRole} · {stageLabel}</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 flex-shrink-0">
-              {allGenerated && (
-                <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 text-[12px] font-medium text-emerald-700 dark:text-emerald-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  {unlockedCount === totalCount ? "Ready to prep" : `${unlockedCount}/${totalCount}`}
-                </span>
-              )}
-              <div className="flex items-center bg-[#EDE9E3] dark:bg-white/10 rounded-full p-1 gap-0.5">
-                {(["study", "live", "teleprompter"] as const).map((m) => (
-                  <button key={m} type="button" onClick={() => setViewMode(m)}
-                    className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-all duration-150 ${
-                      viewMode === m ? "bg-white dark:bg-white/15 text-[#1C1713] dark:text-white shadow-sm" : "text-[#7A6F65] dark:text-white/50 hover:text-[#1C1713] dark:hover:text-white"
-                    }`}>
-                    {m === "study" ? "Study" : m === "live" ? "Live" : "Call"}
-                  </button>
-                ))}
-              </div>
-            </div>
+    <>
+    {/* ── Sticky header ──────────────────────────────────────────────────── */}
+    <div className="sticky top-0 z-20 bg-[#F7F6F3] dark:bg-[var(--bg-page)] border-b border-[#E8E4DF] dark:border-white/5">
+      <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4">
+        <div className="flex flex-col gap-0.5 min-w-0 mr-8">
+          <div className="flex items-center gap-1.5">
+            <Link href="/dashboard" className="text-[12px] text-[#9B8E82] hover:text-[#5C5347] transition-colors">Dashboard</Link>
+            <span className="text-[12px] text-[#C5BDB5]">/</span>
+            <span className="text-[12px] text-[#5C5347] dark:text-[var(--text-secondary)] font-medium">{session.companyName}</span>
           </div>
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-[#E8E4DF] dark:border-white/5">
-            <div className="flex items-center gap-3">
-              <span className="text-[12px] text-[#9B8E82]">{reviewedUnlockedCount} of {unlockedCount} reviewed</span>
-              <div className="w-24 h-1 rounded-full bg-[#E8E4DF] dark:bg-white/10">
-                <div className="h-full rounded-full bg-[#E8735A] transition-all" style={{ width: `${progressPct}%` }} />
-              </div>
-            </div>
-            {unlockedCount > 0 && (
-              <button onClick={handleCopyAll} className="text-[12px] text-[#9B8E82] hover:text-[#5C5347] flex items-center gap-1.5 transition-colors">
-                {copiedAll ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-                {copiedAll ? "Copied!" : "Copy all"}
+          <div className="flex items-baseline gap-2">
+            <h1 className="text-[19px] font-semibold text-[#1C1713] dark:text-[var(--text-primary)] leading-tight">{session.companyName}</h1>
+            <span className="text-[13px] text-[#9B8E82] whitespace-nowrap flex-shrink-0">{session.targetRole} · {stageLabel}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="hidden sm:inline text-[12px] text-[#9B8E82]">{reviewedUnlockedCount}/{unlockedCount}</span>
+          <div className="flex items-center bg-[#EDE9E3] dark:bg-white/10 rounded-full p-1">
+            {(["study", "live", "teleprompter"] as const).map((m) => (
+              <button key={m} type="button" onClick={() => setViewMode(m)}
+                className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium transition-all duration-150 ${
+                  viewMode === m ? "bg-white dark:bg-white/15 text-[#1C1713] dark:text-white shadow-sm" : "text-[#7A6F65] dark:text-white/50 hover:text-[#1C1713] dark:hover:text-white"
+                }`}>
+                {m === "study" ? "Study" : m === "live" ? "Live" : "Call"}
               </button>
-            )}
+            ))}
           </div>
-        </header>
+        </div>
+      </div>
+    </div>
 
-        {/* Scrollable content */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="max-w-[680px] space-y-5 pb-24 md:pb-8">
+    {/* ── Two-column layout: center scrolls, right sticks ─────────────── */}
+    <div className="flex min-h-screen bg-[#F7F6F3] dark:bg-[var(--bg-page)]">
+
+      {/* Center — normal page flow, scrolls naturally */}
+      <div className="flex-1 min-w-0 py-6 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[680px] mx-auto space-y-5 pb-24 md:pb-8">
 
       {/* ── Round tabs — mobile only ──────────────────────────────────── */}
       <div className="lg:hidden">
@@ -1046,58 +1026,61 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
       </p>
 
       </div>{/* ── End max-w-[680px] ── */}
-      </div>{/* ── End scrollable area ── */}
-      </main>{/* ── End center column ── */}
+      </div>{/* ── End center column ── */}
 
-      {/* ── Desktop right panel (coach) ──────────────────────────────────── */}
-      <aside className="hidden lg:flex lg:flex-col w-80 flex-shrink-0 border-l border-[#E8E4DF] dark:border-white/5 overflow-y-auto bg-white dark:bg-[var(--bg-card)]">
-        <div className="px-6 py-6">
-          <CoachPanel
-            answerType={(activeBlock ?? slots[0]?.type ?? "tell_me_about_yourself") as AnswerType}
-            answerLabel={activeSlot?.label ?? slots[0]?.label ?? "Answer"}
-            stage={session.stage}
-            isDiscovery={isDiscovery}
-            onLiveMode={() => setViewMode("live")}
-            onTeleprompter={() => setViewMode("teleprompter")}
-          />
+      {/* ── Right panel — sticks as page scrolls ─────────────────────────── */}
+      <aside className="hidden lg:block w-[300px] flex-shrink-0">
+        <div className="sticky top-0 h-screen overflow-y-auto border-l border-[#E8E4DF] dark:border-white/5 bg-white dark:bg-[var(--bg-card)]">
+          <div className="px-5 py-6">
+            <CoachPanel
+              answerType={(activeBlock ?? slots[0]?.type ?? "tell_me_about_yourself") as AnswerType}
+              answerLabel={activeSlot?.label ?? slots[0]?.label ?? "Answer"}
+              stage={session.stage}
+              isDiscovery={isDiscovery}
+              onLiveMode={() => setViewMode("live")}
+              onTeleprompter={() => setViewMode("teleprompter")}
+            />
+          </div>
         </div>
       </aside>
 
-      {/* ── Modals and overlays (outside columns) ────────────────────────── */}
-      {showRoundModal && (
-        <QuickRoundModal
-          session={session}
-          completedStages={completedStages}
-          creditBalance={creditsLoading ? 0 : creditBalance}
-          initialRound={modalInitialRound}
-          onClose={() => setShowRoundModal(false)}
-        />
-      )}
+    </div>{/* ── End flex layout ── */}
 
-      {showConfidenceCheck && (
-        <ConfidenceCheck
-          sessionId={sessionId}
-          slots={slots}
-          isFirstSession={getSessionListForCount().length <= 1}
-          onDismiss={() => setShowConfidenceCheck(false)}
-        />
-      )}
+    {/* ── Modals and overlays (outside layout) ──────────────────────────── */}
+    {showRoundModal && (
+      <QuickRoundModal
+        session={session}
+        completedStages={completedStages}
+        creditBalance={creditsLoading ? 0 : creditBalance}
+        initialRound={modalInitialRound}
+        onClose={() => setShowRoundModal(false)}
+      />
+    )}
 
-      {viewMode === "live" && (
-        <LiveMode
-          session={session}
-          answerSlots={slots}
-          onExit={() => setViewMode("study")}
-        />
-      )}
+    {showConfidenceCheck && (
+      <ConfidenceCheck
+        sessionId={sessionId}
+        slots={slots}
+        isFirstSession={getSessionListForCount().length <= 1}
+        onDismiss={() => setShowConfidenceCheck(false)}
+      />
+    )}
 
-      {viewMode === "teleprompter" && (
-        <TeleprompterMode
-          session={session}
-          answerSlots={slots}
-          onExit={() => setViewMode("study")}
-        />
-      )}
-    </div>
+    {viewMode === "live" && (
+      <LiveMode
+        session={session}
+        answerSlots={slots}
+        onExit={() => setViewMode("study")}
+      />
+    )}
+
+    {viewMode === "teleprompter" && (
+      <TeleprompterMode
+        session={session}
+        answerSlots={slots}
+        onExit={() => setViewMode("study")}
+      />
+    )}
+    </>
   );
 }
