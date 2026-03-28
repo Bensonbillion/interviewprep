@@ -48,9 +48,9 @@ export function CoachPanel({ answerType, answerLabel, stage, isDiscovery, onLive
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div>
-        <p className="text-[11px] uppercase tracking-widest text-warm-400 mb-1">Coach</p>
-        <p className="text-[13px] text-warm-500">{answerLabel}</p>
+      <div className="mb-2">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-warm-400 mb-1">Coach</p>
+        <p className="text-[14px] font-medium text-warm-800 dark:text-warm-200">{answerLabel}</p>
       </div>
 
       {/* What's strong */}

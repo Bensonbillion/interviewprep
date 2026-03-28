@@ -764,110 +764,95 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
   const activeSlot = activeBlock ? slots.find((s) => s.type === activeBlock) : null;
 
   return (
-    <div className="lg:flex lg:gap-0">
+    <div className="lg:flex lg:h-screen lg:overflow-hidden">
 
       {/* ── Center column ────────────────────────────────────────────────── */}
-      <main className="flex-1 lg:overflow-y-auto space-y-5 pb-24 md:pb-8 lg:px-8 lg:py-6">
+      <main className="flex-1 min-w-0 overflow-y-auto">
+      <div className="max-w-[700px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-5 pb-24 md:pb-8">
 
       {/* ── Breadcrumb ──────────────────────────────────────────────────── */}
-      <nav className="flex items-center gap-1.5 text-sm text-[var(--text-tertiary)]">
+      <nav className="flex items-center gap-1.5 text-[12px] text-[var(--text-tertiary)]">
         <Link href="/dashboard" className="hover:text-[var(--text-primary)] transition-colors">
           Dashboard
         </Link>
-        <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
+        <span className="text-warm-300">›</span>
         <span className="text-[var(--text-primary)] font-medium truncate">{session.companyName}</span>
       </nav>
 
-      {/* ── Company header ─────────────────────────────────────────────── */}
-      <div className="mb-4">
-        <div className="bg-[var(--bg-card)] rounded-[var(--card-radius)] shadow-card border border-stone-200/50 dark:border-white/5 p-5">
-          <div className="flex justify-between items-start gap-3">
-            <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tracking-tight truncate">
-                {session.companyName}
-              </h1>
-              <p className="text-[14px] text-[var(--text-secondary)] mt-0.5">
-                {session.targetRole} · {stageLabel}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {session.interviewDate && (() => {
-                const d = new Date(session.interviewDate + "T12:00:00");
-                const diff = Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                if (diff < 0) return null;
-                const label = diff === 0 ? "Today!" : diff === 1 ? "Tomorrow" : `In ${diff} days`;
-                const urgent = diff <= 3;
-                return (
-                  <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-semibold border ${
-                      urgent
-                        ? "bg-[var(--coral-bg)] text-[var(--coral-text)] border-coral/15"
-                        : "bg-[var(--blue-bg)] text-[var(--blue-text)] border-[var(--blue-text)]/15"
+      {/* ── Page header ──────────────────────────────────────────────────── */}
+      <div className="mb-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-[22px] font-semibold text-[var(--text-primary)] leading-tight truncate">
+              {session.companyName}
+            </h1>
+            <p className="text-[13px] text-[var(--text-secondary)] mt-0.5 whitespace-nowrap">
+              {session.targetRole} · {stageLabel}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {session.interviewDate && (() => {
+              const d = new Date(session.interviewDate + "T12:00:00");
+              const diff = Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+              if (diff < 0) return null;
+              const label = diff === 0 ? "Today!" : diff === 1 ? "Tomorrow" : `In ${diff} days`;
+              const urgent = diff <= 3;
+              return (
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold ${urgent ? "bg-[var(--coral-bg)] text-[var(--coral-text)]" : "bg-[var(--blue-bg)] text-[var(--blue-text)]"}`}>
+                  <Calendar className="w-3 h-3" />
+                  {label}
+                </span>
+              );
+            })()}
+            {allGenerated && (
+              <div className="rounded-full bg-[#F5F2ED] dark:bg-white/5 inline-flex p-1">
+                {([
+                  { key: "study" as const, label: "Study" },
+                  { key: "live" as const, label: "Live" },
+                  { key: "teleprompter" as const, label: "Call" },
+                ]).map((m) => (
+                  <button
+                    key={m.key}
+                    type="button"
+                    onClick={() => setViewMode(m.key)}
+                    className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-all duration-150 ${
+                      viewMode === m.key
+                        ? "bg-white dark:bg-white/15 shadow-sm text-[var(--text-primary)]"
+                        : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
                     }`}
                   >
-                    <Calendar className="w-3 h-3" />
-                    {label}
-                  </span>
-                );
-              })()}
-              {session.stage === "role_play" && session.mockCallType === "discovery" && allGenerated && (
-                <div className="rounded-full border border-stone-200 dark:border-white/15 bg-stone-50 dark:bg-white/5 inline-flex p-0.5">
-                  {([
-                    { key: "study" as const, label: "📋 Study" },
-                    { key: "live" as const, label: "📱 Live" },
-                    { key: "teleprompter" as const, label: "📜 Call" },
-                  ]).map((m) => (
-                    <button
-                      key={m.key}
-                      type="button"
-                      onClick={() => setViewMode(m.key)}
-                      className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-all duration-150 ${
-                        viewMode === m.key
-                          ? "bg-white dark:bg-white/15 shadow-sm text-stone-900 dark:text-white"
-                          : "text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
-                      }`}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {allGenerated && (
-                <span className="text-[12px] font-semibold px-3 py-1.5 rounded-lg bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success)]/15">
-                  {unlockedCount === totalCount ? "Ready to prep" : `${unlockedCount}/${totalCount} unlocked`}
-                </span>
-              )}
-            </div>
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+        </div>
+
+        {/* Progress row */}
+        <div className="flex items-center justify-between mt-5 pt-5 border-t border-[#F0EDE8] dark:border-white/5">
+          <span className="text-[12px] text-[var(--text-tertiary)]">
+            {reviewedUnlockedCount} / {unlockedCount} reviewed
+          </span>
+          {unlockedCount > 0 && (
+            <button
+              onClick={handleCopyAll}
+              className="text-[12px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] flex items-center gap-1 transition-colors"
+            >
+              {copiedAll ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+              {copiedAll ? "Copied!" : "Copy all"}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* ── Round tabs — mobile/tablet only, desktop uses sidebar ────── */}
+      {/* ── Round tabs — mobile only ──────────────────────────────────── */}
       <div className="lg:hidden">
         <RoundTabs
           session={session}
           completedStages={completedStages}
           onPrepRound={(roundKey) => openRoundModal(roundKey)}
         />
-      </div>
-
-      {/* ── Progress bar + Copy all ──────────────────────────────────────── */}
-      <div className="flex items-center gap-3">
-        <PrepProgressBar reviewedCount={reviewedUnlockedCount} totalCount={unlockedCount} />
-        {unlockedCount > 0 && (
-          <button
-            onClick={handleCopyAll}
-            className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors flex-shrink-0 min-h-[36px]"
-            title="Copy all unlocked answers to clipboard"
-          >
-            {copiedAll ? (
-              <Check className="w-3.5 h-3.5 text-green-500" />
-            ) : (
-              <Copy className="w-3.5 h-3.5" />
-            )}
-            {copiedAll ? "Copied!" : "Copy all"}
-          </button>
-        )}
       </div>
 
       {/* ── Batch unlock banner — 2+ locked, enough credits ─────────────── */}
@@ -1082,11 +1067,12 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
         Answers personalized from your resume · Edits are free · First 3 refinements per answer are free
       </p>
 
+      </div>{/* ── End inner max-width container ── */}
       </main>{/* ── End center column ── */}
 
       {/* ── Desktop right panel (coach) ──────────────────────────────────── */}
-      <aside className="hidden lg:block lg:w-[300px] lg:shrink-0 lg:border-l lg:border-stone-200/50 dark:lg:border-white/5 lg:overflow-y-auto lg:sticky lg:top-0 lg:h-screen">
-        <div className="p-5">
+      <aside className="hidden lg:block w-[280px] flex-shrink-0 border-l border-[#F0EDE8] dark:border-white/5 overflow-y-auto bg-white dark:bg-[var(--bg-card)]">
+        <div className="px-6 py-8">
           <CoachPanel
             answerType={(activeBlock ?? slots[0]?.type ?? "tell_me_about_yourself") as AnswerType}
             answerLabel={activeSlot?.label ?? slots[0]?.label ?? "Answer"}
