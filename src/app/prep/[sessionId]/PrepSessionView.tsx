@@ -812,23 +812,14 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
             <span className="text-[13px] text-[#9B8E82] whitespace-nowrap flex-shrink-0">{session.targetRole} · {stageLabel}</span>
           </div>
         </div>
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <span className="hidden sm:inline text-[12px] text-[#9B8E82]">{reviewedUnlockedCount}/{unlockedCount} reviewed</span>
-          <div className="flex items-center bg-[#EDE9E3] dark:bg-white/10 rounded-full p-1">
-            {(["study", "live", "teleprompter"] as const).map((m) => (
-              <button key={m} type="button" onClick={() => setViewMode(m)}
-                className={`px-3.5 py-1.5 rounded-full text-[13px] font-medium transition-all duration-150 ${
-                  viewMode === m ? "bg-white dark:bg-white/15 text-[#1C1713] dark:text-white shadow-sm" : "text-[#7A6F65] dark:text-white/50 hover:text-[#1C1713] dark:hover:text-white"
-                }`}>
-                {m === "study" ? "Study" : m === "live" ? "Live" : "Call"}
-              </button>
-            ))}
-          </div>
-          {isDiscovery && (
-            <button type="button" onClick={() => setViewMode("live")} className="hidden lg:flex px-4 py-2 rounded-xl bg-[#1C1C1E] text-white text-[13px] font-medium hover:bg-[#2C2C2E] transition-colors">
-              📱 Live Mode
-            </button>
-          )}
+          <button type="button" onClick={() => setViewMode("live")} className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1C1C1E] text-white text-[13px] font-medium hover:bg-[#2C2C2E] transition-colors">
+            📱 Live Mode
+          </button>
+          <button type="button" onClick={() => setViewMode("teleprompter")} className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#F0EDE8] dark:bg-white/10 text-[#3D3530] dark:text-white/80 text-[13px] font-medium hover:bg-[#E8E4DF] dark:hover:bg-white/15 transition-colors">
+            📜 Teleprompter
+          </button>
         </div>
       </div>
     </div>
