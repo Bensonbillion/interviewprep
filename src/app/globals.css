@@ -433,6 +433,10 @@ html { scroll-behavior: smooth; }
 }
 
 /* ── Landing page v3 animations ────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 @keyframes shimmer {
   0%   { transform: translateX(-100%) skewX(-20deg); }
   100% { transform: translateX(300%) skewX(-20deg); }
