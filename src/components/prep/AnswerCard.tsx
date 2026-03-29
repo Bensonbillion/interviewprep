@@ -782,16 +782,17 @@ export function AnswerCard({
       style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 3px 8px rgba(0,0,0,0.03)" }}
     >
       {/* ═══ HEADER ═══════════════════════════════════════════════════════ */}
-      <div className="flex items-center justify-between px-6 pt-5 pb-4">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+      <div className="px-4 sm:px-6 pt-4 pb-3">
+        {/* Row 1: icon + title */}
+        <div className="flex items-start gap-3 mb-2">
           <div className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center text-[17px] bg-[#FEF0EB]">
             {EMOJIS[slot.type]}
           </div>
-          <div className="min-w-0">
-            <h3 className="font-semibold text-[15px] text-[#1C1713] leading-tight">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-[14px] text-[#1C1713] leading-snug">
               {slot.label}
             </h3>
-            <p className="text-[12px] text-[#9B8E82] mt-0.5 line-clamp-1">
+            <p className="text-[11px] text-[#9B8E82] mt-0.5 line-clamp-1">
               {slot.description}
             </p>
             {!isLocked && (isReference || isPrimaryForRound) && (
@@ -806,22 +807,19 @@ export function AnswerCard({
             )}
           </div>
         </div>
+        {/* Row 2: action buttons */}
 
-        {/* Action buttons (header) */}
         {!isLocked && (
-          <div
-            className="flex items-center gap-0.5 flex-shrink-0 ml-3"
+          <div className="flex items-center gap-2"
             style={{
               opacity: actionBarVisible ? 1 : 0,
-              transform: actionBarVisible ? "translateY(0)" : "translateY(6px)",
-              transition: "opacity 300ms ease-out, transform 300ms ease-out",
+              transition: "opacity 300ms ease-out",
             }}
           >
             {versionIndex === 0 && !isEditing && (
               <button
                 onClick={handleStartEdit}
-                className="flex items-center gap-1 px-2.5 py-1 text-[12px] text-warm-700 border border-cream-300 rounded-md hover:bg-cream-50 transition-colors"
-                title="Edit this answer"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] text-[#7A6F65] bg-[#F5F2ED] hover:bg-[#EDE9E3] transition-colors min-h-[36px]"
               >
                 <Edit3 className="w-3.5 h-3.5" />
                 Edit
@@ -830,8 +828,7 @@ export function AnswerCard({
             {SPOKEN_TYPES.has(slot.type) && displayContent && !isEditing && (
               <button
                 onClick={() => { setShowPractice(true); logEvent("practice_mode_open"); }}
-                className="flex items-center gap-1 px-2.5 py-1 text-[12px] text-warm-700 border border-cream-300 rounded-md hover:bg-cream-50 transition-colors"
-                title="Practice speaking this answer"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] text-[#7A6F65] bg-[#F5F2ED] hover:bg-[#EDE9E3] transition-colors min-h-[36px]"
               >
                 <Mic className="w-3.5 h-3.5" />
                 Practice
@@ -839,8 +836,7 @@ export function AnswerCard({
             )}
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1 px-2.5 py-1 text-[12px] text-warm-700 border border-cream-300 rounded-md hover:bg-cream-50 transition-colors"
-              title="Copy to clipboard"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] text-[#7A6F65] bg-[#F5F2ED] hover:bg-[#EDE9E3] transition-colors min-h-[36px]"
             >
               {copied ? (
                 <><Check className="w-3.5 h-3.5 text-green-600" />Copied</>
@@ -923,63 +919,29 @@ export function AnswerCard({
           tabIndex={0}
           onClick={canUnlock ? handleUnlockClick : undefined}
           onKeyDown={(e) => e.key === "Enter" && canUnlock && handleUnlockClick()}
-          className={`relative mx-4 my-4 rounded-xl overflow-hidden ${
-            canUnlock
-              ? "cursor-pointer group hover:ring-2 hover:ring-coral/30 transition-all duration-150"
-              : "cursor-default"
+          className={`px-5 py-6 flex flex-col items-center text-center gap-3 ${
+            canUnlock ? "cursor-pointer group" : "cursor-default"
           }`}
-          style={{ minHeight: 160 }}
           aria-label={canUnlock ? `Unlock ${slot.label} for 1 credit` : undefined}
         >
-          {/* Blurred real answer */}
-          <div
-            className="px-5 py-4 text-sm leading-relaxed select-none pointer-events-none"
-            style={{ filter: "blur(5px)", WebkitFilter: "blur(5px)" }}
-            aria-hidden="true"
-          >
-            {isJson ? (
-              <ContentRouter content={displayContent} answerType={slot.type} stage={session.stage} />
-            ) : (
-              <div className="text-left text-sm">{renderMarkdown(displayContent ?? "")}</div>
-            )}
-          </div>
-
-          {/* Overlay */}
-          <div className="absolute inset-0 bg-white/60 group-hover:bg-white/50 transition-colors duration-150 rounded-xl pointer-events-none" />
-
-          {/* Unlock CTA */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             {isUnlocking ? (
-              <div className="flex items-center gap-2 px-6 py-3 bg-white/95 backdrop-blur-sm rounded-xl shadow-sm">
-                <Loader2 className="w-4 h-4 animate-spin text-coral" />
-                <span className="text-sm font-medium text-warm-800">Unlocking…</span>
-              </div>
+              <>
+                <Loader2 className="w-5 h-5 animate-spin text-coral" />
+                <span className="text-[13px] font-medium text-[#7A6F65]">Generating…</span>
+              </>
             ) : creditBalance <= 0 ? (
-              <div className="flex flex-col items-center gap-2">
-                <div className="flex items-center gap-2 px-6 py-3 bg-white/95 backdrop-blur-sm rounded-xl shadow-sm">
-                  <Lock className="w-4 h-4 text-warm-500" />
-                  <span className="text-sm font-medium text-warm-500">1 credit to unlock</span>
-                </div>
-                <Link
-                  href="/dashboard/billing"
-                  className="text-xs font-semibold text-coral hover:text-coral-dark hover:underline pointer-events-auto"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Get more credits →
-                </Link>
-              </div>
+              <>
+                <div className="w-10 h-10 rounded-full bg-[#F5F2ED] flex items-center justify-center"><Lock className="w-4 h-4 text-[#9B8E82]" /></div>
+                <span className="text-[13px] text-[#9B8E82]">1 credit to unlock</span>
+                <Link href="/dashboard/billing" className="text-[12px] font-semibold text-[#E8735A] hover:underline pointer-events-auto" onClick={(e) => e.stopPropagation()}>Get more credits →</Link>
+              </>
             ) : (
-              <div className="flex flex-col items-center gap-2">
-                <div className="flex items-center gap-2 px-6 py-3 bg-white/95 backdrop-blur-sm rounded-xl shadow-sm group-hover:shadow-md group-hover:scale-[1.03] transition-all duration-150">
-                  <Lock className="w-4 h-4 text-warm-500 group-hover:text-coral transition-colors duration-150" />
-                  <span className="text-sm font-semibold text-warm-800">Unlock · 1 credit</span>
-                </div>
-                <p className="text-[11px] text-warm-500/70">
-                  {creditBalance} credit{creditBalance !== 1 ? "s" : ""} remaining
-                </p>
-              </div>
+              <>
+                <div className="w-10 h-10 rounded-full bg-[#F5F2ED] flex items-center justify-center group-hover:bg-[#FEF0EB] transition-colors"><Lock className="w-4 h-4 text-[#9B8E82] group-hover:text-[#E8735A] transition-colors" /></div>
+                <button type="button" className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1C1713] text-white text-[13px] font-medium group-hover:bg-[#2C2C2E] transition-colors pointer-events-auto">🔓 Unlock · 1 credit</button>
+                <p className="text-[11px] text-[#C5BDB5]">{creditBalance} credit{creditBalance !== 1 ? "s" : ""} remaining</p>
+              </>
             )}
-          </div>
         </div>
       )}
 
@@ -1004,6 +966,21 @@ export function AnswerCard({
             </div>
           )}
 
+          {/* ── Failed generation state ───────────────────────────────────── */}
+          {displayContent === "__GENERATION_FAILED__" ? (
+            <div className="px-5 py-8 flex flex-col items-center text-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-[#FEF0EB] flex items-center justify-center text-[22px]">⚠️</div>
+              <div>
+                <p className="text-[14px] font-semibold text-[#1C1713] mb-1">Didn&apos;t generate properly</p>
+                <p className="text-[13px] text-[#9B8E82] leading-relaxed max-w-[260px]">No credit was charged. Tap below to try again.</p>
+              </div>
+              {onUnlock && (
+                <button type="button" onClick={onUnlock} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#E8735A] text-white text-[13px] font-medium hover:bg-[#C85A42] transition-colors">↻ Try again — no credit needed</button>
+              )}
+              <p className="text-[11px] text-[#C5BDB5]">This retry won&apos;t use a credit</p>
+            </div>
+          ) : (
+          <>
           {/* ── Content zone ─────────────────────────────────────────────── */}
           <div className={`px-6 py-5 relative ${justUnlocked ? "animate-blur-reveal" : ""}`}>
             {isRegenerating && (
@@ -1388,6 +1365,7 @@ export function AnswerCard({
               )}
             </div>
           )}
+        </>)}
         </div>
       )}
 

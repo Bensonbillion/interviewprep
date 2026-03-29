@@ -654,13 +654,12 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
       }
 
       if (!generated) {
-        // Both attempts failed — revert to locked, NO credit spent
+        // Both attempts failed — set to unlocked with empty content + error marker
+        // Card shows inline retry state, NOT the locked/unlock button
         setSlots((prev) =>
-          prev.map((s) => (s.type === type ? { ...s, status: "locked" as const } : s))
+          prev.map((s) => (s.type === type ? { ...s, status: "unlocked" as const, content: "__GENERATION_FAILED__" } : s))
         );
-        // Show a visible error by briefly setting a custom status message
-        // The card will show as locked again — user can retry
-        alert("Generation failed. No credit was charged. Please try again.");
+        // No alert — inline error state on the card handles it
       }
     },
     [sessionId, session, slots, refreshCredits]
