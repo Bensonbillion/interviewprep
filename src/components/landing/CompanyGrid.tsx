@@ -1,107 +1,66 @@
-import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
+"use client";
+import { useEffect, useRef } from "react";
 
-const TOP_COMPANIES = [
-  { slug: "salesforce", name: "Salesforce" },
-  { slug: "hubspot", name: "HubSpot" },
-  { slug: "datadog", name: "Datadog" },
-  { slug: "gong", name: "Gong" },
-  { slug: "snowflake", name: "Snowflake" },
-  { slug: "crowdstrike", name: "CrowdStrike" },
-  { slug: "mongodb", name: "MongoDB" },
-  { slug: "cloudflare", name: "Cloudflare" },
+const ROWS = [
+  { cat: "Industry Pain", desc: "5/5: References 2+ specific pain points with data before the call. Common mistake: treating it like a generic sales call.", filled: 5, med: false },
+  { cat: "Persona Pain", desc: "5/5: Deep understanding of VP Sales daily reality — pipeline visibility, forecast accuracy, rep productivity.", filled: 4, med: false },
+  { cat: "Active Listening", desc: '5/5: Reflects back every answer before the next question. Uses mirroring. Says "tell me more" consistently.', filled: 5, med: false },
+  { cat: "Current State", desc: "5/5: Complete picture of team size, tools, CRM usage, call recording workflow, and coaching cadence.", filled: 3, med: true },
+  { cat: "Business Pain", desc: "5/5: Gets a dollar number on the table. Calculates cost of inaction. Common mistake: ending without a quantified pain.", filled: 4, med: false },
 ];
 
-interface CompanyLink {
-  company_slug: string;
-  company_name: string;
-  role_slug: string;
-  role_title: string;
-}
+export function CompanyGrid() {
+  const cardRef = useRef<HTMLDivElement>(null);
 
-export async function CompanyGrid() {
-  let links: CompanyLink[] = [];
-
-  try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.querySelectorAll(".sc-row").forEach((row, i) => { setTimeout(() => row.classList.add("in"), i * 140); });
+          observer.unobserve(el);
+        }
+      },
+      { threshold: 0.3 }
     );
-    const { data } = await supabase
-      .from("company_seo_pages")
-      .select("company_slug, company_name, role_slug, role_title")
-      .eq("is_published", true)
-      .in(
-        "company_slug",
-        TOP_COMPANIES.map((c) => c.slug),
-      )
-      .order("company_name")
-      .limit(24);
-    links = (data as CompanyLink[] | null) ?? [];
-  } catch {
-    // Fail silently — section just won't show links
-  }
-
-  if (links.length === 0) return null;
-
-  // Group by company
-  const grouped = new Map<string, { name: string; roles: { slug: string; title: string }[] }>();
-  for (const l of links) {
-    const existing = grouped.get(l.company_slug);
-    if (existing) {
-      existing.roles.push({ slug: l.role_slug, title: l.role_title });
-    } else {
-      grouped.set(l.company_slug, {
-        name: l.company_name,
-        roles: [{ slug: l.role_slug, title: l.role_title }],
-      });
-    }
-  }
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <section className="bg-[#FDFCFA] py-16 md:py-20 border-t border-[#E8E4DE]">
-      <div className="max-w-6xl mx-auto px-5">
-        <h2 className="font-serif text-2xl md:text-3xl text-[#1A1A1A] text-center">
-          Prep for top SaaS companies
-        </h2>
-        <p className="text-[#6B6560] text-center mt-3 max-w-lg mx-auto font-sans">
-          Company-specific interview questions, process breakdowns, and tips.
-        </p>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mt-10">
-          {Array.from(grouped.entries()).map(([slug, company]) => (
-            <div
-              key={slug}
-              className="bg-[#F7F5F0] rounded-2xl p-5 border border-[#E8E4DE] hover:shadow-md transition-all duration-300"
-            >
-              <h3 className="font-semibold text-[#1A1A1A] text-sm font-sans">
-                {company.name}
-              </h3>
-              <ul className="mt-2 space-y-1">
-                {company.roles.map((r) => (
-                  <li key={r.slug}>
-                    <Link
-                      href={`/companies/${slug}/${r.slug}`}
-                      className="text-[#E8735A] hover:text-[#D4614A] text-xs transition-colors font-sans"
-                    >
-                      {r.title} &rarr;
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+    <div className="bg-[#1C1713] px-6 sm:px-14 pb-16">
+      <p className="text-center text-[11px] font-medium tracking-[0.12em] uppercase text-[rgba(247,246,243,0.2)] mb-5">
+        Actual Gong AE scoring rubric — built into every prep kit
+      </p>
+      <div ref={cardRef} className="bg-[#201E1A] border border-[#3A3530] rounded-2xl p-5 sm:p-7 max-w-[760px] mx-auto relative overflow-hidden animate-glow-pulse">
+        <div className="absolute top-0 left-0 right-0 h-px overflow-hidden">
+          <div className="h-full w-[40%]" style={{ background: "linear-gradient(90deg,transparent,rgba(232,115,90,0.4),transparent)", animation: "shimmer 3s 0.8s ease infinite" }} />
+        </div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 pb-4 border-b border-[#3A3530] gap-2">
+          <span className="text-[13px] font-medium text-[rgba(247,246,243,0.85)]">Gong · Account Executive · Discovery Mock Call</span>
+          <span className="text-[10px] bg-[rgba(232,115,90,0.15)] text-[#E8735A] px-[10px] py-[3px] rounded-full font-medium tracking-[0.05em]">7 scoring categories</span>
+        </div>
+        <div className="flex flex-col gap-3">
+          {ROWS.map((row, i) => (
+            <div key={i} className="sc-row flex items-start gap-[14px]">
+              <div className={`w-[7px] h-[7px] rounded-full flex-shrink-0 mt-[5px] ${row.med ? "bg-[#5B8A6E]" : "bg-[#E8735A]"}`} />
+              <div className="text-[12px] font-medium text-[rgba(247,246,243,0.85)] min-w-[110px] flex-shrink-0">{row.cat}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] text-[rgba(247,246,243,0.4)] leading-[1.55] mb-2">{row.desc}</p>
+                <div className="flex gap-[3px]">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <div key={n} className={`h-[3px] flex-1 rounded-sm ${n <= row.filled ? (row.med ? "bg-[#5B8A6E]" : "bg-[#E8735A]") : "bg-[#3A3530]"}`} />
+                  ))}
+                </div>
+              </div>
             </div>
           ))}
         </div>
-
-        <div className="text-center mt-8">
-          <Link
-            href="/companies"
-            className="text-[#E8735A] hover:text-[#D4614A] text-sm font-medium transition-colors font-sans"
-          >
-            View all company guides &rarr;
-          </Link>
-        </div>
+        <p className="mt-4 pt-[14px] border-t border-[#3A3530] text-[11px] text-[rgba(247,246,243,0.2)] text-center">
+          Gong · Account Executive Interview · Commercial Sales · evaluates all 7 categories
+        </p>
       </div>
-    </section>
+    </div>
   );
 }

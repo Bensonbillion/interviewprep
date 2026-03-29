@@ -2,54 +2,41 @@ import Link from "next/link";
 
 export function Hero() {
   return (
-    <section className="bg-[#FDFCFA] pt-24 pb-16 md:pt-32 md:pb-20">
-      <div className="max-w-6xl mx-auto px-5 text-center">
-        {/* Eyebrow */}
-        <p className="text-xs font-medium uppercase tracking-[0.2em] text-[#9C9590] mb-6">
-          AI-POWERED INTERVIEW PREP
-        </p>
+    <section className="bg-[#1C1713] px-6 sm:px-14 pt-[88px] pb-20 text-center overflow-hidden relative">
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 800px 400px at 50% 100%,rgba(232,115,90,0.06) 0%,transparent 70%)" }} />
 
-        {/* Headline */}
-        <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl text-[#1A1A1A] leading-[1.1] tracking-tight">
-          Walk into your sales interview
-          <br />
-          feeling ready.
-        </h1>
+      <p className="text-[11px] font-medium tracking-[0.14em] uppercase text-[#E8735A] mb-6 relative z-10 opacity-0 [animation:fadeUp_0.6s_0.1s_ease_both]">
+        AI interview prep · Tech sales
+      </p>
 
-        {/* Subheadline */}
-        <p className="text-lg md:text-xl text-[#6B6560] mt-6 max-w-xl mx-auto leading-relaxed font-sans">
-          Personalized prep kits for SDR, BDR, and AE candidates.
-          Company-specific questions. Answers that sound like you.
-        </p>
+      <h1 className="font-[family-name:var(--font-serif)] text-[40px] sm:text-[56px] lg:text-[64px] leading-[1.06] tracking-[-1.5px] text-[#F7F6F3] max-w-[820px] mx-auto mb-3 relative z-10 opacity-0 [animation:fadeUp_0.7s_0.2s_ease_both]">
+        Your interviewer<br />has a scorecard.<br />
+        <em className="text-[#E8735A] not-italic">Now you do too.</em>
+      </h1>
 
-        {/* CTA */}
-        <div id="hero-cta" className="mt-10">
-          <Link
-            href="/get-started"
-            className="inline-flex items-center justify-center
-                       bg-[#E8735A] hover:bg-[#D4614A] text-white
-                       px-8 py-4 text-lg font-medium rounded-full
-                       shadow-md hover:shadow-lg transition-all duration-300 min-h-[52px]"
-          >
-            Start prepping &mdash; it&apos;s free &rarr;
-          </Link>
-        </div>
+      <p className="text-[15px] sm:text-[17px] leading-[1.65] text-[rgba(247,246,243,0.55)] max-w-[540px] mx-auto mb-11 font-light relative z-10 opacity-0 [animation:fadeUp_0.7s_0.35s_ease_both]">
+        SalesPrep reads your resume, researches how your{" "}
+        <span className="text-[rgba(247,246,243,0.85)]">specific company</span>{" "}
+        interviews, and builds a full prep kit around their exact scoring criteria.
+      </p>
 
-        {/* Micro-copy */}
-        <p className="text-sm text-[#9C9590] mt-4">
-          Free forever plan &middot; No credit card &middot; 2 minutes to your first kit
-        </p>
-
-        {/* Social proof company names */}
-        <div className="mt-12">
-          <p className="text-sm text-[#9C9590] mb-3">
-            Trusted by candidates interviewing at
-          </p>
-          <p className="text-sm text-[#9C9590]">
-            Salesforce &middot; HubSpot &middot; Datadog &middot; Gong &middot; Outreach &middot; CrowdStrike
-          </p>
-        </div>
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-[18px] relative z-10 opacity-0 [animation:fadeUp_0.7s_0.45s_ease_both]">
+        <Link href="/get-started">
+          <button type="button" className="relative overflow-hidden bg-[#E8735A] text-white text-[15px] font-medium px-8 py-[14px] rounded-full border-none cursor-pointer hover:bg-[#C85A42] hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(232,115,90,0.35)] transition-all duration-200 group">
+            <span className="relative z-10">Build my prep kit — it&apos;s free →</span>
+            <span className="absolute inset-0 w-[40%] bg-white/15 skew-x-[-20deg] -translate-x-full group-hover:[animation:shimmer_0.5s_ease_forwards]" />
+          </button>
+        </Link>
+        <a href="#how-it-works">
+          <button type="button" className="bg-transparent text-[rgba(247,246,243,0.5)] text-[13px] px-5 py-[14px] rounded-full cursor-pointer border border-[rgba(247,246,243,0.15)] hover:border-[rgba(247,246,243,0.35)] hover:text-[rgba(247,246,243,0.75)] transition-all duration-200">
+            See how it works
+          </button>
+        </a>
       </div>
+
+      <p className="text-[12px] text-[rgba(247,246,243,0.3)] tracking-[0.03em] relative z-10 opacity-0 [animation:fadeUp_0.7s_0.55s_ease_both]">
+        Free forever plan · No credit card · 5 minutes to your first kit
+      </p>
     </section>
   );
 }

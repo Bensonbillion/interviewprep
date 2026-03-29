@@ -1,117 +1,59 @@
-import { Building2, User, Target } from "lucide-react";
+"use client";
+import { useEffect, useRef } from "react";
+import { ScrollReveal } from "./ScrollReveal";
 
-const DIFFERENTIATOR_CARDS = [
-  {
-    icon: Building2,
-    title: "Researches the company for you",
-    description:
-      "We pull real data about their product, buyers, and competitors. Your answers show you did your homework.",
-  },
-  {
-    icon: User,
-    title: "Uses YOUR story",
-    description:
-      "Every answer uses your actual experience — your metrics, your deals, your career. Not a template with blanks.",
-  },
-  {
-    icon: Target,
-    title: "Built for sales interviews",
-    description:
-      "Cold calls, discovery demos, closing presentations. The rounds that decide who gets the offer.",
-  },
+const BAD = [
+  "Generic discovery questions not tied to any methodology",
+  "No awareness of the 7 scoring categories the grader is using",
+  "No trap questions — no knowledge of Gong's differentiators",
+  '"I recommend Gong\'s Revenue Intelligence platform" — the phrase that fails the interview',
+  "No live co-pilot. You're on your own when it goes off-script.",
+];
+const GOOD = [
+  { s: "Challenger framework", r: " built into every question and recommendation" },
+  { s: "All 7 scoring categories", r: " with what a 5/5 looks like for each" },
+  { s: "Trap questions", r: " that position your differentiators as buyer requirements — invisibly" },
+  { s: "Capability-based recommendations", r: " — describe what it does, never name the product" },
+  { s: "Live mode teleprompter", r: " — 9-phase GPS from opener to close on your phone" },
 ];
 
 export function WhySalesPrep() {
+  const gridRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        el.querySelectorAll("[data-bad]").forEach((item, i) => { setTimeout(() => item.classList.add("in"), i * 100); });
+        el.querySelectorAll("[data-good]").forEach((item, i) => { setTimeout(() => item.classList.add("in"), i * 100 + 50); });
+        observer.unobserve(el);
+      }
+    }, { threshold: 0.2 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <section className="bg-[#0B1120] py-16 md:py-24">
-      <div className="max-w-[1120px] mx-auto px-5">
-        <p className="text-xs font-semibold text-[#4A7AFF] uppercase tracking-widest text-center">
-          Why SalesPrep
-        </p>
-        <h2 className="text-3xl md:text-4xl font-bold text-white text-center mt-3 max-w-lg mx-auto leading-tight">
-          ChatGPT gives advice. We give answers.
-        </h2>
-
-        {/* Side-by-side comparison */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12 max-w-4xl mx-auto">
-          {/* ChatGPT — generic */}
-          <div className="bg-[#131C31] rounded-2xl border border-[#1E293B] p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">&#x1F916;</span>
-                <span className="text-sm font-semibold text-[#64748B]">
-                  ChatGPT
-                </span>
-              </div>
-              <span className="bg-[#1E293B] text-[#64748B] text-xs px-2 py-0.5 rounded-full">
-                Generic
-              </span>
+    <section className="px-6 sm:px-14 py-20 bg-[#1C1713] border-y border-[#2C2825]">
+      <ScrollReveal><p className="text-[11px] font-medium tracking-[0.12em] uppercase text-[#E8735A] mb-[14px]">Why not just use ChatGPT</p></ScrollReveal>
+      <ScrollReveal delay={1}><h2 className="font-[family-name:var(--font-serif)] text-[36px] sm:text-[46px] leading-[1.08] tracking-[-0.8px] text-[#F7F6F3] max-w-[560px] mb-2">Generic prep gets<br />generic results.</h2></ScrollReveal>
+      <ScrollReveal delay={2}><p className="text-[16px] leading-relaxed font-light mb-12 text-[rgba(247,246,243,0.45)] max-w-[480px]">ChatGPT doesn&apos;t know Gong&apos;s scoring rubric. It doesn&apos;t know they use Challenger. It doesn&apos;t know what the grader is specifically listening for.</p></ScrollReveal>
+      <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div className="bg-[#201E1A] border border-[#3A3530] rounded-[14px] p-6 hover:border-[#5A5550] transition-colors duration-300">
+          <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-[rgba(247,246,243,0.3)] mb-[14px]">ChatGPT gives you</p>
+          {BAD.map((text, i) => (
+            <div key={i} data-bad="" className="ins-item flex items-start gap-[10px] mb-3 last:mb-0">
+              <div className="w-4 h-4 rounded-full bg-[#3A3530] flex items-center justify-center text-[9px] text-[rgba(247,246,243,0.3)] flex-shrink-0 mt-[2px]">✕</div>
+              <p className="text-[13px] text-[rgba(247,246,243,0.5)] leading-[1.55]">{text}</p>
             </div>
-            <p className="text-xs text-[#64748B] italic mb-3">
-              &ldquo;Tell me about yourself&rdquo;
-            </p>
-            <p className="text-sm text-[#64748B] italic leading-relaxed">
-              &ldquo;When answering this question, focus on your relevant sales
-              experience and highlight key metrics. Start with your current role,
-              mention 2&ndash;3 achievements, and explain why you&rsquo;re
-              interested in the company. Keep it under 90 seconds&hellip;&rdquo;
-            </p>
-            <div className="mt-4 pt-4 border-t border-[#1E293B]">
-              <p className="text-xs text-[#475569]">
-                &#x274C; Generic advice &middot; Not personalized &middot; No
-                company research
-              </p>
-            </div>
-          </div>
-
-          {/* SalesPrep — personalized */}
-          <div className="bg-[#131C31] rounded-2xl border border-[#1E3A5F] p-6 shadow-[0_0_24px_rgba(74,122,255,0.1)]">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-base text-[#4A7AFF]">&#x2726;</span>
-                <span className="text-sm font-semibold text-[#60A5FA]">
-                  SalesPrep
-                </span>
-              </div>
-              <span className="bg-[#172554] text-[#60A5FA] text-xs px-2 py-0.5 rounded-full">
-                Personalized
-              </span>
-            </div>
-            <p className="text-sm text-[#E2E8F0] leading-relaxed">
-              &ldquo;Over the past two years at Toast, I&rsquo;ve managed a 200+
-              cover territory targeting restaurant groups going through
-              technology transitions. I consistently hit 118% of my outbound
-              quota by building a multi-threaded prospecting approach — cold
-              calls, personalized video, and strategic LinkedIn sequences.
-              I&rsquo;m particularly excited about Gong because your revenue
-              intelligence platform solves the exact coaching gap I saw managers
-              struggle with across my team&hellip;&rdquo;
-            </p>
-            <div className="mt-4 pt-4 border-t border-[#1E3A5F]">
-              <p className="text-xs text-[#60A5FA]">
-                &#x2713; Uses your resume &middot; &#x2713; Researched the
-                company &middot; &#x2713; Structured for the round
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
-
-        {/* Differentiator cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-          {DIFFERENTIATOR_CARDS.map(({ icon: Icon, title, description }) => (
-            <div
-              key={title}
-              className="bg-[#131C31] rounded-2xl p-6 border border-[#1E293B]"
-            >
-              <div className="w-10 h-10 rounded-xl bg-[#1E293B] flex items-center justify-center">
-                <Icon className="w-5 h-5 text-[#4A7AFF]" />
-              </div>
-              <h3 className="text-base font-semibold text-white mt-4">
-                {title}
-              </h3>
-              <p className="text-sm text-[#94A3B8] mt-2 leading-relaxed">
-                {description}
-              </p>
+        <div className="bg-[#201E1A] border border-[#3A3530] rounded-[14px] p-6 hover:border-[#5A5550] transition-colors duration-300">
+          <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-[#E8735A] mb-[14px]">SalesPrep gives you</p>
+          {GOOD.map((item, i) => (
+            <div key={i} data-good="" className="ins-item flex items-start gap-[10px] mb-3 last:mb-0">
+              <div className="w-4 h-4 rounded-full bg-[rgba(232,115,90,0.15)] flex items-center justify-center text-[9px] text-[#E8735A] flex-shrink-0 mt-[2px]">✓</div>
+              <p className="text-[13px] text-[rgba(247,246,243,0.5)] leading-[1.55]"><span className="text-[rgba(247,246,243,0.85)] font-normal">{item.s}</span>{item.r}</p>
             </div>
           ))}
         </div>
