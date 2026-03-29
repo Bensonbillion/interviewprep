@@ -797,10 +797,31 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
   const activeLabel = activeSlot?.label ?? slots[0]?.label ?? "Answer";
 
   return (
-    <>
+    <div className="overflow-x-hidden">
     {/* ── Sticky header ──────────────────────────────────────────────────── */}
     <div className="sticky top-0 z-20 bg-[#F7F6F3] dark:bg-[var(--bg-page)] border-b border-[#E8E4DF] dark:border-white/5">
-      <div className="flex items-center justify-between px-5 sm:px-8 lg:px-10 py-4">
+
+      {/* Mobile header */}
+      <div className="sm:hidden px-4 py-3">
+        <div className="flex items-baseline gap-2 mb-2">
+          <h1 className="text-[17px] font-semibold text-[#1C1713] dark:text-[var(--text-primary)] truncate">{session.companyName}</h1>
+          <span className="text-[12px] text-[#9B8E82] whitespace-nowrap flex-shrink-0">{stageLabel}</span>
+        </div>
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[11px] text-[#9B8E82]">{reviewedUnlockedCount}/{unlockedCount} reviewed</span>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setViewMode("live")} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#1C1C1E] text-white text-[13px] font-medium min-h-[44px]">
+            📱 Live Mode
+          </button>
+          <button type="button" onClick={() => setViewMode("teleprompter")} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#F0EDE8] dark:bg-white/10 text-[#3D3530] dark:text-white/80 text-[13px] font-medium min-h-[44px]">
+            📜 Teleprompter
+          </button>
+        </div>
+      </div>
+
+      {/* Desktop header */}
+      <div className="hidden sm:flex items-center justify-between px-8 lg:px-10 py-4">
         <div className="flex flex-col gap-0.5 min-w-0 mr-8">
           <div className="flex items-center gap-1.5">
             <Link href="/dashboard" className="text-[12px] text-[#9B8E82] hover:text-[#5C5347] transition-colors">Dashboard</Link>
@@ -813,11 +834,11 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="hidden sm:inline text-[12px] text-[#9B8E82]">{reviewedUnlockedCount}/{unlockedCount} reviewed</span>
-          <button type="button" onClick={() => setViewMode("live")} className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1C1C1E] text-white text-[13px] font-medium hover:bg-[#2C2C2E] transition-colors">
+          <span className="text-[12px] text-[#9B8E82]">{reviewedUnlockedCount}/{unlockedCount} reviewed</span>
+          <button type="button" onClick={() => setViewMode("live")} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1C1C1E] text-white text-[13px] font-medium hover:bg-[#2C2C2E] transition-colors">
             📱 Live Mode
           </button>
-          <button type="button" onClick={() => setViewMode("teleprompter")} className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#F0EDE8] dark:bg-white/10 text-[#3D3530] dark:text-white/80 text-[13px] font-medium hover:bg-[#E8E4DF] dark:hover:bg-white/15 transition-colors">
+          <button type="button" onClick={() => setViewMode("teleprompter")} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#F0EDE8] dark:bg-white/10 text-[#3D3530] dark:text-white/80 text-[13px] font-medium hover:bg-[#E8E4DF] dark:hover:bg-white/15 transition-colors">
             📜 Teleprompter
           </button>
         </div>
@@ -826,7 +847,7 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
 
     {/* ── Main content — full width, scrolls naturally ─────────────────── */}
     <div className="min-h-screen bg-[#F7F6F3] dark:bg-[var(--bg-page)]">
-      <div className="px-5 sm:px-8 lg:px-10 py-8 space-y-5 pb-24 md:pb-8">
+      <div className="px-4 sm:px-8 lg:px-10 py-6 sm:py-8 space-y-5 pb-24 md:pb-8">
 
       {/* ── Coach summary bar — no card, just sections ─────────────────── */}
       <div className="hidden lg:flex items-start gap-8 pb-6 mb-6 border-b border-[#E8E4DF] dark:border-white/5">
@@ -1119,6 +1140,6 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
         onExit={() => setViewMode("study")}
       />
     )}
-    </>
+    </div>
   );
 }
