@@ -33,6 +33,30 @@ function renderBrackets(text: string): React.ReactNode {
   );
 }
 
+function formatForTeleprompter(raw: string): string {
+  if (!raw) return "";
+  return raw
+    .replace(/^#{1,6}\s+(.+)$/gm, "$1")
+    .replace(/^---+$/gm, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function splitIntoSections(content: string): string[] {
+  return formatForTeleprompter(content).split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
+}
+
+const SECTION_LABELS = ["quick take", "30-second", "30 second", "full answer", "key points", "coaching tip", "coaching note"];
+
+function isLabel(text: string): boolean {
+  const lower = text.toLowerCase();
+  return SECTION_LABELS.some((l) => lower.startsWith(l));
+}
+
 // ─── Card labels + colors ────────────────────────────────────────────────────
 
 const CARD_META: Record<string, { label: string; color: string }> = {
@@ -242,7 +266,7 @@ export function TeleprompterMode({ session, answerSlots, onExit }: Props) {
   // Completion
   if (!card || idx >= cards.length) {
     return (
-      <div className="fixed inset-0 z-50 bg-[#1A1A1E] flex flex-col items-center justify-center text-center px-6">
+      <div className="fixed inset-0 z-50 bg-[#0A0A0F] flex flex-col items-center justify-center text-center px-6">
         <span className="text-[64px] text-emerald-400">✓</span>
         <p className="text-[18px] text-white/50 mt-4">{cards.length > 0 ? "All cards reviewed" : "No content available"}</p>
         <button type="button" onClick={onExit} className="bg-[#E8735A] text-white font-semibold rounded-full px-8 py-3 text-[15px] mt-8">Exit</button>
@@ -251,7 +275,7 @@ export function TeleprompterMode({ session, answerSlots, onExit }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#1A1A1E] flex flex-col select-none">
+    <div className="fixed inset-0 z-50 bg-[#0A0A0F] flex flex-col select-none">
 
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-4 shrink-0">
@@ -274,10 +298,21 @@ export function TeleprompterMode({ session, answerSlots, onExit }: Props) {
         onTouchStart={(e) => { touchRef.current = e.touches[0].clientY; }}
         onTouchEnd={(e) => { const dy = touchRef.current - e.changedTouches[0].clientY; if (dy > 50) advance(); else if (dy < -50) goBack(); }}
       >
-        <div className="max-w-[600px] mx-auto transition-opacity duration-150" style={{ opacity }}>
-          <p className="text-[20px] sm:text-[24px] font-normal text-white leading-[1.7] whitespace-pre-wrap">
-            {renderBrackets(card.content)}
-          </p>
+        <div className="max-w-[600px] mx-auto space-y-8 transition-opacity duration-150" style={{ opacity }}>
+          {splitIntoSections(card.content).map((section, i) => {
+            const firstLine = section.split("\n")[0];
+            const rest = section.split("\n").slice(1).join("\n").trim();
+            const looksLikeLabel = isLabel(firstLine) && rest.length > 0;
+
+            return looksLikeLabel ? (
+              <div key={i} className="space-y-2">
+                <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[rgba(255,255,255,0.3)]">{firstLine}</p>
+                <p className="text-[22px] leading-[1.65] text-[#E8E8E8] font-[family-name:var(--font-serif)]">{renderBrackets(rest)}</p>
+              </div>
+            ) : (
+              <p key={i} className="text-[22px] leading-[1.65] text-[#E8E8E8] font-[family-name:var(--font-serif)]">{renderBrackets(section)}</p>
+            );
+          })}
         </div>
       </div>
 
