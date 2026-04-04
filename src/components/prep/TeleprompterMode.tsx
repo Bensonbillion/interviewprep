@@ -31,29 +31,43 @@ function renderBrackets(text: string): React.ReactNode {
 interface Version { label: string; content: string }
 
 function parseVersions(raw: string): Version[] {
-  if (!raw || raw.includes("__GENERATION_FAILED__") || raw.trim().length < 10) return [];
+  if (!raw || raw.trim().length < 10) return [{ label: "Full Answer", content: cleanContent(raw ?? "") }];
+  if (raw.includes("__GENERATION_FAILED__")) return [];
 
-  // Check if content has markdown headers that indicate versions
-  const hasHeaders = /^#{1,3}\s/m.test(raw);
-  if (!hasHeaders) {
-    return [{ label: "Full Answer", content: cleanContent(raw) }];
+  // Normalize line endings
+  const text = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  // Find all ## heading positions using exec loop
+  const headingRegex = /^(#{1,3})\s+(.+)$/gm;
+  const headings: Array<{ index: number; label: string }> = [];
+  let match;
+  while ((match = headingRegex.exec(text)) !== null) {
+    const label = match[2].replace(/\(~?\d+\s*seconds?\)/gi, "").replace(/[()~]/g, "").trim();
+    headings.push({ index: match.index, label });
   }
 
-  // Split on lines that start with # (keeping the header with its content)
-  return raw
-    .split(/(?=^#{1,3}\s)/m)
-    .filter(Boolean)
-    .map((part) => {
-      const lines = part.split("\n");
-      const label = lines[0]
-        .replace(/^#{1,3}\s+/, "")
-        .replace(/\(~?\d+\s*seconds?\)/gi, "")
-        .replace(/[()~]/g, "")
-        .trim();
-      const content = cleanContent(lines.slice(1).join("\n"));
-      return { label, content };
-    })
-    .filter((v) => v.content.length > 10);
+  // No headings found — return single version
+  if (headings.length === 0) {
+    return [{ label: "Full Answer", content: cleanContent(text) }];
+  }
+
+  // Extract content between headings
+  const versions: Version[] = [];
+
+  // Content before first heading
+  if (headings[0].index > 10) {
+    const prefix = cleanContent(text.slice(0, headings[0].index));
+    if (prefix.length > 10) versions.push({ label: "Quick Take", content: prefix });
+  }
+
+  for (let i = 0; i < headings.length; i++) {
+    const start = text.indexOf("\n", headings[i].index);
+    const end = i + 1 < headings.length ? headings[i + 1].index : text.length;
+    const content = cleanContent(text.slice(start === -1 ? headings[i].index : start + 1, end));
+    if (content.length > 10) versions.push({ label: headings[i].label, content });
+  }
+
+  return versions.length > 0 ? versions : [{ label: "Full Answer", content: cleanContent(text) }];
 }
 
 // ─── Card labels + colors ────────────────────────────────────────────────────
