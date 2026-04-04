@@ -41,7 +41,7 @@ export function FormattedTextContent({ content, isSpoken }: { content: string; i
   const blocks = content.split(/\n\n+/).filter((b) => b.trim());
 
   return (
-    <div className="space-y-3 max-w-prose">
+    <div className="space-y-3 w-full">
       {blocks.map((block, i) => {
         const trimmed = block.trim();
 

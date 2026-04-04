@@ -66,11 +66,11 @@ export function SpeakingTime({ text, answerType }: SpeakingTimeProps) {
   }
 
   return (
-    <div className="flex items-center flex-wrap gap-x-1 text-[12px] font-medium mt-3" style={{ color }}>
+    <div className="flex items-center flex-wrap gap-x-1 text-[12px] text-[#9B8E82] mt-3">
       <span>{words} words</span>
-      <span className="text-[var(--text-tertiary)]">·</span>
+      <span>·</span>
       <span>~{timeDisplay} spoken</span>
-      <span className="text-[var(--text-tertiary)]">·</span>
+      <span>·</span>
       <span>{label}</span>
     </div>
   );

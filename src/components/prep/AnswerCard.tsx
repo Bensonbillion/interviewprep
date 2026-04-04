@@ -1084,12 +1084,12 @@ export function AnswerCard({
                         </div>
 
                         {/* Active content ONLY — not both */}
-                        <div className="text-left text-[15px] leading-relaxed text-warm-800 max-w-[65ch]">
+                        <div className="text-left text-[15px] leading-relaxed text-warm-800 w-full">
                           {renderMarkdown(validVersions[clampedTab].content) || renderMarkdown(displayContent ?? "")}
                         </div>
                       </div>
                     ) : (
-                      <div className="text-left text-[15px] leading-relaxed text-warm-800 max-w-[65ch]">
+                      <div className="text-left text-[15px] leading-relaxed text-warm-800 w-full">
                         {renderMarkdown(validVersions[0]?.content || displayContent)}
                       </div>
                     )}
