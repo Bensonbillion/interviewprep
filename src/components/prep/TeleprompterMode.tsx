@@ -31,25 +31,29 @@ function renderBrackets(text: string): React.ReactNode {
 interface Version { label: string; content: string }
 
 function parseVersions(raw: string): Version[] {
-  if (!raw || raw.includes("__GENERATION_FAILED__")) return [];
+  if (!raw || raw.includes("__GENERATION_FAILED__") || raw.trim().length < 10) return [];
 
-  const parts = raw.split(/\n(?=#{1,3}\s)/m);
-
-  if (parts.length <= 1) {
+  // Check if content has markdown headers that indicate versions
+  const hasHeaders = /^#{1,3}\s/m.test(raw);
+  if (!hasHeaders) {
     return [{ label: "Full Answer", content: cleanContent(raw) }];
   }
 
-  return parts
+  // Split on lines that start with # (keeping the header with its content)
+  return raw
+    .split(/(?=^#{1,3}\s)/m)
+    .filter(Boolean)
     .map((part) => {
       const lines = part.split("\n");
-      const heading = lines[0].replace(/^#{1,3}\s+/, "").trim();
-      const body = lines.slice(1).join("\n");
-      return {
-        label: heading.replace(/\(~?\d+\s*seconds?\)/i, "").replace(/[()~]/g, "").trim(),
-        content: cleanContent(body),
-      };
+      const label = lines[0]
+        .replace(/^#{1,3}\s+/, "")
+        .replace(/\(~?\d+\s*seconds?\)/gi, "")
+        .replace(/[()~]/g, "")
+        .trim();
+      const content = cleanContent(lines.slice(1).join("\n"));
+      return { label, content };
     })
-    .filter((v) => v.content.length > 20);
+    .filter((v) => v.content.length > 10);
 }
 
 // ─── Card labels + colors ────────────────────────────────────────────────────
