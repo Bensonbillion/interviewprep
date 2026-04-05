@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import type { PrepSession, AnswerSlot } from "@/types";
+import type { PrepSession, AnswerSlot, AnswerType } from "@/types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -166,15 +166,34 @@ function buildCards(slots: AnswerSlot[]): TpCard[] {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-interface Props { session: PrepSession; answerSlots: AnswerSlot[]; onExit: () => void }
+interface Props {
+  session: PrepSession;
+  answerSlots: AnswerSlot[];
+  onExit: () => void;
+  onUnlock?: (answerType: AnswerType) => Promise<void>;
+  creditsRemaining?: number;
+}
 
-export function TeleprompterMode({ session, answerSlots, onExit }: Props) {
+export function TeleprompterMode({ session, answerSlots, onExit, onUnlock, creditsRemaining }: Props) {
   const cards = buildCards(answerSlots);
   const [idx, setIdx] = useState(0);
   const [versionIdx, setVersionIdx] = useState(0);
   const [opacity, setOpacity] = useState(1);
+  const [isUnlocking, setIsUnlocking] = useState(false);
   const touchRef = useRef(0);
   const storageKey = `salesprep_tp3_${session.id}`;
+
+  const handleUnlockInTeleprompter = async (answerType: AnswerType) => {
+    if (isUnlocking) return;
+    setIsUnlocking(true);
+    try {
+      await onUnlock?.(answerType);
+    } catch (err) {
+      console.error("Unlock failed in teleprompter:", err);
+    } finally {
+      setIsUnlocking(false);
+    }
+  };
 
   // Reset version tab when card changes
   useEffect(() => { setVersionIdx(0); }, [idx]);
@@ -260,8 +279,32 @@ export function TeleprompterMode({ session, answerSlots, onExit }: Props) {
             <p className="text-[18px] font-medium text-[#E8E8E8] mb-2">{isLocked ? "This answer is locked" : "This answer didn\u2019t generate"}</p>
             <p className="text-[14px] leading-relaxed text-[rgba(255,255,255,0.4)]">{isLocked ? "Unlock to add it to your teleprompter" : "Tap below to try again — no credit charged"}</p>
           </div>
-          <div className="flex gap-3">
-            <button type="button" onClick={advance} className="px-5 py-2.5 rounded-xl bg-[rgba(255,255,255,0.1)] text-white/60 text-[13px] font-medium hover:bg-[rgba(255,255,255,0.15)] transition-colors">Skip →</button>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginTop: 8 }}>
+            {isLocked && (
+              <button
+                type="button"
+                onClick={() => handleUnlockInTeleprompter(card.id as AnswerType)}
+                disabled={isUnlocking}
+                style={{
+                  padding: "13px 28px", borderRadius: 12, border: "none",
+                  cursor: isUnlocking ? "not-allowed" : "pointer",
+                  fontSize: 14, fontWeight: 500, minWidth: 180, justifyContent: "center",
+                  background: isUnlocking ? "rgba(232,115,90,0.5)" : "#E8735A",
+                  color: "#fff", display: "flex", alignItems: "center", gap: 8,
+                  opacity: isUnlocking ? 0.7 : 1, transition: "all 0.2s",
+                }}>
+                {isUnlocking ? (<><span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⟳</span> Generating...</>) : "🔓 Unlock · 1 credit"}
+              </button>
+            )}
+            <button type="button" onClick={advance}
+              style={{ padding: "8px 20px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, color: "rgba(255,255,255,0.4)", background: "transparent", transition: "color 0.2s" }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.7)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.4)"; }}>
+              Skip →
+            </button>
+            {isLocked && creditsRemaining !== undefined && (
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>{creditsRemaining} credits remaining</p>
+            )}
           </div>
         </div>
 

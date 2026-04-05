@@ -469,3 +469,8 @@ html { scroll-behavior: smooth; }
 .sc-row.in { opacity: 1; transform: translateX(0); }
 .ins-item { opacity: 0; transform: translateX(-8px); transition: opacity 0.4s ease, transform 0.4s ease; }
 .ins-item.in { opacity: 1; transform: translateX(0); }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

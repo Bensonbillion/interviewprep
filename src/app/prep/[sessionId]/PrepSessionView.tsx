@@ -1137,6 +1137,8 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
         session={session}
         answerSlots={slots}
         onExit={() => setViewMode("study")}
+        onUnlock={handleUnlock}
+        creditsRemaining={creditBalance}
       />
     )}
     </div>
