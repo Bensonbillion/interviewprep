@@ -29,11 +29,8 @@ function renderBrackets(text: string): React.ReactNode {
 
 interface Version { label: string; content: string }
 
-const ANSWER_PATTERNS = ["30-second", "30 second", "thirty second", "full answer", "full version", "long answer"];
-const EXCLUDE_PATTERNS = ["key proof", "proof point", "dig deeper", "if they", "make it yours", "quick take", "coaching", "tip"];
-
 function parseVersions(raw: string): Version[] {
-  if (!raw || raw.trim().length < 10) return [];
+  if (!raw || raw.trim().length < 10) return [{ label: "Full Answer", content: cleanText(raw ?? "") }];
   if (raw.includes("__GENERATION_FAILED__")) return [];
 
   // Split on " --- ## " — the actual inline separator in generated content
@@ -43,15 +40,13 @@ function parseVersions(raw: string): Version[] {
     return [{ label: "Full Answer", content: cleanText(raw) }];
   }
 
-  const all = parts
+  return parts
     .map((part, i) => {
       const trimmed = part.trim();
       if (i === 0) {
         return { label: "Quick Take", content: cleanText(trimmed) };
       }
-      // First line is the heading label (## was consumed by split)
       const lines = trimmed.split("\n");
-      // Skip heading line if it starts with #
       const bodyStart = lines[0].match(/^#{1,3}\s/) ? 1 : 0;
       const label = lines[0]
         .replace(/^#{1,3}\s+/, "")
@@ -59,23 +54,9 @@ function parseVersions(raw: string): Version[] {
         .replace(/[()~]/g, "")
         .trim();
       const content = cleanText(lines.slice(Math.max(bodyStart, 1)).join("\n"));
-      return { label, content };
+      return { label: label || `Section ${i}`, content };
     })
     .filter((v) => v.content.length > 10);
-
-  // Filter to only answer version tabs
-  const answerVersions = all.filter((v) => {
-    const lower = v.label.toLowerCase();
-    const isAnswer = ANSWER_PATTERNS.some((p) => lower.includes(p));
-    const isExcluded = EXCLUDE_PATTERNS.some((p) => lower.includes(p));
-    return isAnswer && !isExcluded;
-  });
-
-  // If filtering removed everything, return all non-excluded versions
-  return answerVersions.length > 0 ? answerVersions : all.filter((v) => {
-    const lower = v.label.toLowerCase();
-    return !EXCLUDE_PATTERNS.some((p) => lower.includes(p));
-  });
 }
 
 // ─── Card labels + colors ────────────────────────────────────────────────────
