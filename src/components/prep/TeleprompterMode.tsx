@@ -5,14 +5,13 @@ import type { PrepSession, AnswerSlot } from "@/types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function cleanContent(raw: string): string {
+function cleanText(raw: string): string {
   return raw
-    .replace(/^---+$/gm, "")
     .replace(/^#{1,6}\s+(.+)$/gm, "$1")
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/^---+\s*$/gm, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
     .replace(/`([^`]+)`/g, "$1")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
@@ -31,43 +30,37 @@ function renderBrackets(text: string): React.ReactNode {
 interface Version { label: string; content: string }
 
 function parseVersions(raw: string): Version[] {
-  if (!raw || raw.trim().length < 10) return [{ label: "Full Answer", content: cleanContent(raw ?? "") }];
+  if (!raw || raw.trim().length < 10) return [];
   if (raw.includes("__GENERATION_FAILED__")) return [];
 
-  // Normalize line endings
-  const text = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  // Split on " --- ## " — the actual inline separator in generated content
+  const parts = raw.split(/\s*---\s*##\s*/);
 
-  // Find all ## heading positions using exec loop
-  const headingRegex = /^(#{1,3})\s+(.+)$/gm;
-  const headings: Array<{ index: number; label: string }> = [];
-  let match;
-  while ((match = headingRegex.exec(text)) !== null) {
-    const label = match[2].replace(/\(~?\d+\s*seconds?\)/gi, "").replace(/[()~]/g, "").trim();
-    headings.push({ index: match.index, label });
+  if (parts.length <= 1) {
+    return [{ label: "Full Answer", content: cleanText(raw) }];
   }
 
-  // No headings found — return single version
-  if (headings.length === 0) {
-    return [{ label: "Full Answer", content: cleanContent(text) }];
-  }
-
-  // Extract content between headings
-  const versions: Version[] = [];
-
-  // Content before first heading
-  if (headings[0].index > 10) {
-    const prefix = cleanContent(text.slice(0, headings[0].index));
-    if (prefix.length > 10) versions.push({ label: "Quick Take", content: prefix });
-  }
-
-  for (let i = 0; i < headings.length; i++) {
-    const start = text.indexOf("\n", headings[i].index);
-    const end = i + 1 < headings.length ? headings[i + 1].index : text.length;
-    const content = cleanContent(text.slice(start === -1 ? headings[i].index : start + 1, end));
-    if (content.length > 10) versions.push({ label: headings[i].label, content });
-  }
-
-  return versions.length > 0 ? versions : [{ label: "Full Answer", content: cleanContent(text) }];
+  return parts
+    .map((part, i) => {
+      const trimmed = part.trim();
+      if (i === 0) {
+        // First section has no heading — it's the quick take
+        return { label: "Quick Take", content: cleanText(trimmed) };
+      }
+      // The ## was consumed by split — first line is the heading label
+      const nl = trimmed.indexOf("\n");
+      if (nl === -1) {
+        return { label: trimmed || `Section ${i}`, content: "" };
+      }
+      const label = trimmed
+        .slice(0, nl)
+        .replace(/\(~?\d+\s*seconds?\)/gi, "")
+        .replace(/[()~]/g, "")
+        .trim();
+      const content = cleanText(trimmed.slice(nl + 1));
+      return { label, content };
+    })
+    .filter((v) => v.content.length > 10);
 }
 
 // ─── Card labels + colors ────────────────────────────────────────────────────
