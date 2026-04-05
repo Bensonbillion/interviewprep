@@ -29,45 +29,50 @@ function renderBrackets(text: string): React.ReactNode {
 
 interface Version { label: string; content: string }
 
-function parseVersions(raw: string): Version[] {
+function parseAnswerVersions(raw: string): Version[] {
   if (!raw || raw.trim().length < 10) return [{ label: "Full Answer", content: cleanText(raw ?? "") }];
   if (raw.includes("__GENERATION_FAILED__")) return [];
 
-  // Split on " --- ## " — the actual inline separator in generated content
-  const parts = raw.split(/\s*---\s*##\s*/);
+  const results: Version[] = [];
 
-  if (parts.length <= 1) {
-    return [{ label: "Full Answer", content: cleanText(raw) }];
+  // The content uses " --- ## Heading" as inline separators.
+  const parts = raw.split(/\s*---\s*#{2,3}\s*/g);
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i].trim();
+    if (!part) continue;
+
+    const lower = part.toLowerCase();
+    let label = "";
+    let content = "";
+
+    if (lower.startsWith("30-second") || lower.startsWith("30 second")) {
+      label = "30-second";
+      content = part.replace(/^30.second\s+version\s*/i, "").trim();
+    } else if (lower.startsWith("full answer") || lower.startsWith("full version")) {
+      label = "Full answer";
+      content = part.replace(/^full\s+answer\s*\([^)]*\)\s*/i, "").trim();
+      content = content.replace(/^full\s+version\s*/i, "").trim();
+    } else {
+      // Not a recognized answer version — skip (Quick Take, Key Proof Points, etc.)
+      continue;
+    }
+
+    // Clean the content
+    content = content
+      .replace(/^"+/, "")
+      .replace(/"+$/, "")
+      .replace(/^---+\s*/gm, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
+    if (content.length > 20) {
+      results.push({ label, content });
+    }
   }
 
-  const KEEP_PATTERNS = ["30-second", "30 second", "thirty second", "full answer", "full version"];
-
-  const all = parts
-    .map((part, i) => {
-      const trimmed = part.trim();
-      if (i === 0) {
-        return { label: "Quick Take", content: cleanText(trimmed) };
-      }
-      const lines = trimmed.split("\n");
-      const bodyStart = lines[0].match(/^#{1,3}\s/) ? 1 : 0;
-      const label = lines[0]
-        .replace(/^#{1,3}\s+/, "")
-        .replace(/\(~?\d+\s*seconds?\)/gi, "")
-        .replace(/[()~]/g, "")
-        .trim();
-      const content = cleanText(lines.slice(Math.max(bodyStart, 1)).join("\n"));
-      return { label: label || `Section ${i}`, content };
-    })
-    .filter((v) => v.content.length > 10);
-
-  // Keep only answer versions (30-second, Full Answer) — exclude prep material
-  const answerOnly = all.filter((v) => {
-    const lower = v.label.toLowerCase();
-    return KEEP_PATTERNS.some((p) => lower.includes(p));
-  });
-
-  // If we found answer versions, use those. Otherwise show everything (non-versioned cards).
-  return answerOnly.length > 0 ? answerOnly : [{ label: "Full Answer", content: cleanText(raw) }];
+  // If no recognized versions found, return single full answer with all content cleaned
+  return results.length > 0 ? results : [{ label: "Full Answer", content: cleanText(raw) }];
 }
 
 // ─── Card labels + colors ────────────────────────────────────────────────────
@@ -266,8 +271,8 @@ export function TeleprompterMode({ session, answerSlots, onExit }: Props) {
   }
 
   // Parse versions
-  const versions = parseVersions(card.content);
-  const current = versions[versionIdx] ?? versions[0];
+  const versions = parseAnswerVersions(card.content);
+  const current = versions[Math.min(versionIdx, Math.max(0, versions.length - 1))];
 
   return (
     <div className="fixed inset-0 z-50 bg-[#0A0A0F] flex flex-col select-none">
