@@ -40,7 +40,9 @@ function parseVersions(raw: string): Version[] {
     return [{ label: "Full Answer", content: cleanText(raw) }];
   }
 
-  return parts
+  const KEEP_PATTERNS = ["30-second", "30 second", "thirty second", "full answer", "full version"];
+
+  const all = parts
     .map((part, i) => {
       const trimmed = part.trim();
       if (i === 0) {
@@ -57,6 +59,15 @@ function parseVersions(raw: string): Version[] {
       return { label: label || `Section ${i}`, content };
     })
     .filter((v) => v.content.length > 10);
+
+  // Keep only answer versions (30-second, Full Answer) — exclude prep material
+  const answerOnly = all.filter((v) => {
+    const lower = v.label.toLowerCase();
+    return KEEP_PATTERNS.some((p) => lower.includes(p));
+  });
+
+  // If we found answer versions, use those. Otherwise show everything (non-versioned cards).
+  return answerOnly.length > 0 ? answerOnly : [{ label: "Full Answer", content: cleanText(raw) }];
 }
 
 // ─── Card labels + colors ────────────────────────────────────────────────────
