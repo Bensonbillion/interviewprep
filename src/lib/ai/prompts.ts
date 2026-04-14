@@ -71,34 +71,34 @@ function buildGroundedResumeContext(er: ExtractedResume, resume: ParsedResume): 
   if (er.candidate.years_experience_estimate != null) {
     parts.push(`Experience: ~${er.candidate.years_experience_estimate} years`);
   }
-  if (er.candidate.industries.length) parts.push(`Industries: ${er.candidate.industries.join(", ")}`);
+  if (er.candidate.industries?.length) parts.push(`Industries: ${er.candidate.industries.join(", ")}`);
   if (er.candidate.sales_motion) parts.push(`Sales motion experience: ${er.candidate.sales_motion}`);
-  if (er.candidate.tools_used.length) parts.push(`Tools: ${er.candidate.tools_used.join(", ")}`);
+  if (er.candidate.tools_used?.length) parts.push(`Tools: ${er.candidate.tools_used.join(", ")}`);
 
   // Roles with grounded facts
   parts.push("\nRoles:");
-  for (const role of er.roles) {
+  for (const role of er.roles ?? []) {
     const duration = role.duration_months != null ? `, ${role.duration_months} months` : "";
     parts.push(`${role.title ?? "Unknown"} at ${role.company ?? "Unknown"} (${role.start ?? "?"}–${role.end ?? "present"}${duration})`);
-    if (role.wins.length) parts.push(`  Wins: ${role.wins.join("; ")}`);
-    if (role.metrics.length) parts.push(`  Metrics: ${role.metrics.join("; ")}`);
-    if (role.responsibilities.length) parts.push(`  Responsibilities: ${role.responsibilities.slice(0, 4).join("; ")}`);
-    if (role.tools.length) parts.push(`  Tools: ${role.tools.join(", ")}`);
+    if (role.wins?.length) parts.push(`  Wins: ${role.wins.join("; ")}`);
+    if (role.metrics?.length) parts.push(`  Metrics: ${role.metrics.join("; ")}`);
+    if (role.responsibilities?.length) parts.push(`  Responsibilities: ${role.responsibilities.slice(0, 4).join("; ")}`);
+    if (role.tools?.length) parts.push(`  Tools: ${role.tools.join(", ")}`);
     if (role.promotion) parts.push(`  ↑ Promoted`);
 
     // Story categorization
-    const storyTypes = Object.entries(role.stories).filter(([, v]) => v.length > 0);
+    const storyTypes = Object.entries(role.stories ?? {}).filter(([, v]) => (v as string[])?.length > 0);
     for (const [type, stories] of storyTypes) {
       parts.push(`  Stories (${type}): ${(stories as string[]).join("; ")}`);
     }
   }
 
   // Education & certifications
-  if (er.education.length) parts.push(`\nEducation: ${er.education.join("; ")}`);
-  if (er.certifications.length) parts.push(`Certifications: ${er.certifications.join(", ")}`);
+  if (er.education?.length) parts.push(`\nEducation: ${er.education.join("; ")}`);
+  if (er.certifications?.length) parts.push(`Certifications: ${er.certifications.join(", ")}`);
 
   // Explicit missing-data markers
-  if (er.missing_but_important.length) {
+  if (er.missing_but_important?.length) {
     parts.push(
       `\n⚠ MISSING FROM RESUME (use [INSERT YOUR …] placeholders): ${er.missing_but_important.join("; ")}`
     );
@@ -111,21 +111,21 @@ function buildGroundedResumeContext(er: ExtractedResume, resume: ParsedResume): 
 function buildLegacyResumeContext(resume: ParsedResume): string {
   const topBullets = resume.roles
     .flatMap((r) =>
-      r.bullets.map((b) => ({
+      (r.bullets ?? []).map((b) => ({
         ...b,
-        role: `${r.title} at ${r.company} (${r.startDate}–${r.endDate})`,
+        role: `${r.title} at ${r.company} (${r.startDate}–${r.endDate ?? "present"})`,
       }))
     )
-    .sort((a, b) => b.salesRelevanceScore - a.salesRelevanceScore)
+    .sort((a, b) => (b.salesRelevanceScore ?? 0) - (a.salesRelevanceScore ?? 0))
     .slice(0, 10)
     .map(
       (b) =>
-        `• [${b.role}] ${b.originalText}${b.extractedMetrics.length ? ` [metrics: ${b.extractedMetrics.join(", ")}]` : ""}`
+        `• [${b.role}] ${b.originalText}${b.extractedMetrics?.length ? ` [metrics: ${b.extractedMetrics.join(", ")}]` : ""}`
     )
     .join("\n");
 
   const roles = resume.roles
-    .map((r) => `${r.title} at ${r.company} (${r.startDate}–${r.endDate}, ${r.durationMonths} months)`)
+    .map((r) => `${r.title} at ${r.company} (${r.startDate}–${r.endDate ?? "present"}${r.durationMonths != null ? `, ${r.durationMonths} months` : ""})`)
     .join("\n");
 
   return `Name: ${resume.personalInfo.name ?? "Candidate"}
@@ -145,16 +145,16 @@ Product: ${company.productDescription}
 ICP: ${JSON.stringify(company.icp)}
 Sales motion: ${company.salesMotion}
 Stage: ${company.stage}
-Competitors: ${company.competitors.join(", ") || "unknown"}
-Recent news: ${company.recentNews.join("; ") || "none"}
-Culture signals: ${company.cultureSignals.join("; ") || "none"}`;
+Competitors: ${(company.competitors ?? []).join(", ") || "unknown"}
+Recent news: ${(company.recentNews ?? []).join("; ") || "none"}
+Culture signals: ${(company.cultureSignals ?? []).join("; ") || "none"}`;
 }
 
 function buildRelevanceContext(relevanceMap: RelevanceMap): string {
   const lines = [
-    `Strong matches: ${relevanceMap.strongMatches.map((m) => `${m.resumeItem} → ${m.relevance}`).join("; ")}`,
-    `Gaps: ${relevanceMap.gaps.map((g) => `${g.gap} (bridge: ${g.bridgingStrategy})`).join("; ")}`,
-    `Lead stories: ${relevanceMap.leadStories.join("; ")}`,
+    `Strong matches: ${(relevanceMap.strongMatches ?? []).map((m) => `${m.resumeItem} → ${m.relevance}`).join("; ")}`,
+    `Gaps: ${(relevanceMap.gaps ?? []).map((g) => `${g.gap}${g.bridgingStrategy ? ` (bridge: ${g.bridgingStrategy})` : ""}`).join("; ")}`,
+    `Lead stories: ${(relevanceMap.leadStories ?? []).join("; ")}`,
   ];
   if (relevanceMap.careerSwitcherBridges?.length) {
     lines.push(

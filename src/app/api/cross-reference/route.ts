@@ -31,11 +31,11 @@ export async function POST(req: NextRequest) {
     const { jobDescription, targetRole } = parsed.data;
 
     // Build a condensed resume summary for the cross-reference prompt
-    const topBullets = resume.roles
-      .flatMap((r) => r.bullets.map((b) => ({ ...b, role: `${r.title} at ${r.company}` })))
-      .sort((a, b) => b.salesRelevanceScore - a.salesRelevanceScore)
+    const topBullets = (resume.roles ?? [])
+      .flatMap((r) => (r.bullets ?? []).map((b) => ({ ...b, role: `${r.title} at ${r.company}` })))
+      .sort((a, b) => (b.salesRelevanceScore ?? 0) - (a.salesRelevanceScore ?? 0))
       .slice(0, 12)
-      .map((b) => `[${b.role}] ${b.originalText} (relevance: ${b.salesRelevanceScore}/10)`)
+      .map((b) => `[${b.role}] ${b.originalText} (relevance: ${b.salesRelevanceScore ?? 0}/10)`)
       .join("\n");
 
     const response = await anthropic.messages.create({

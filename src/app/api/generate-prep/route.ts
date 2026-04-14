@@ -190,18 +190,18 @@ export async function POST(req: NextRequest) {
     const knowledgeBase = getKnowledgeForStage(stage, resume.backgroundType);
 
     // Build resume context — top bullets by sales relevance
-    const topBullets = resume.roles
+    const topBullets = (resume.roles ?? [])
       .flatMap((r) =>
-        r.bullets.map((b) => ({
+        (r.bullets ?? []).map((b) => ({
           ...b,
-          role: `${r.title} at ${r.company} (${r.startDate}–${r.endDate})`,
+          role: `${r.title} at ${r.company} (${r.startDate}–${r.endDate ?? "present"})`,
         }))
       )
-      .sort((a, b) => b.salesRelevanceScore - a.salesRelevanceScore)
+      .sort((a, b) => (b.salesRelevanceScore ?? 0) - (a.salesRelevanceScore ?? 0))
       .slice(0, 10)
       .map(
         (b) =>
-          `• [${b.role}] ${b.originalText}${b.extractedMetrics.length ? ` [metrics: ${b.extractedMetrics.join(", ")}]` : ""}`
+          `• [${b.role}] ${b.originalText}${b.extractedMetrics?.length ? ` [metrics: ${b.extractedMetrics.join(", ")}]` : ""}`
       )
       .join("\n");
 

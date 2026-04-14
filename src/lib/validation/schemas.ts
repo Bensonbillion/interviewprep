@@ -234,3 +234,11 @@ export const metaCapiSchema = z.object({
   email: z.string().email().max(320).optional(),
   customData: z.record(z.string(), z.unknown()).optional(),
 });
+
+// ─── Transcript analysis schemas ────────────────────────────────────────────
+
+export const analyzeTranscriptSchema = z.object({
+  transcript: safeString(50000),
+  roleType: z.string().max(50).optional(),
+  interviewStage: z.string().max(50).optional(),
+});

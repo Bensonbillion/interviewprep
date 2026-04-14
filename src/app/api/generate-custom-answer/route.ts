@@ -73,8 +73,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Build context from session
-    const topBullets = session.resume.roles
-      .flatMap((r) => r.bullets.map((b) => `[${r.title} at ${r.company}] ${b.originalText}`))
+    const topBullets = (session.resume?.roles ?? [])
+      .flatMap((r) => (r.bullets ?? []).map((b) => `[${r.title} at ${r.company}] ${b.originalText}`))
       .slice(0, 10)
       .join("\n");
 
