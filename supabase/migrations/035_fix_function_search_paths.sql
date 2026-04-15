@@ -1,5 +1,8 @@
 -- 035: Fix mutable search_path on all public functions
--- Prevents search_path injection attacks by pinning search_path to ''
+-- Prevents search_path injection attacks by pinning search_path.
+-- Functions using the vector <=> operator need search_path = 'public'
+-- because the operator is registered in the public schema via the vector extension.
+-- Non-vector functions use search_path = '' for maximum isolation.
 -- See: https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable
 
 -- ── spend_credit ─────────────────────────────────────────────────────────────
@@ -56,7 +59,7 @@ BEGIN
 END;
 $$;
 
--- ── search_knowledge ─────────────────────────────────────────────────────────
+-- ── search_knowledge (uses vector <=> operator) ──────────────────────────────
 
 CREATE OR REPLACE FUNCTION public.search_knowledge(
   query_embedding vector(1536),
@@ -69,7 +72,7 @@ CREATE OR REPLACE FUNCTION public.search_knowledge(
   similarity float
 )
 LANGUAGE plpgsql
-SET search_path = ''
+SET search_path = 'public'
 AS $$
 BEGIN
   RETURN QUERY
@@ -116,7 +119,7 @@ BEGIN
 END;
 $$;
 
--- ── match_knowledge_chunks ───────────────────────────────────────────────────
+-- ── match_knowledge_chunks (uses vector <=> operator) ────────────────────────
 
 CREATE OR REPLACE FUNCTION public.match_knowledge_chunks(
   query_embedding VECTOR(1536),
@@ -133,7 +136,7 @@ RETURNS TABLE (
   metadata JSONB
 )
 LANGUAGE plpgsql
-SET search_path = ''
+SET search_path = 'public'
 AS $$
 BEGIN
   RETURN QUERY
@@ -155,9 +158,24 @@ BEGIN
 END;
 $$;
 
--- ── match_golden_examples ────────────────────────────────────────────────────
+-- ── match_golden_examples (uses vector <=> operator) ─────────────────────────
 
-CREATE OR REPLACE FUNCTION public.match_golden_examples(
+-- Drop all overloads first to avoid return-type conflicts
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT oid::regprocedure::text AS sig
+    FROM pg_proc
+    WHERE proname = 'match_golden_examples' AND pronamespace = 'public'::regnamespace
+  LOOP
+    EXECUTE 'DROP FUNCTION ' || r.sig || ' CASCADE';
+  END LOOP;
+END
+$$;
+
+CREATE FUNCTION public.match_golden_examples(
   query_embedding VECTOR(1536),
   match_count INTEGER DEFAULT 3,
   filter_question_key TEXT DEFAULT NULL,
@@ -168,58 +186,40 @@ RETURNS TABLE (
   question_text TEXT,
   answer_text TEXT,
   framework TEXT,
-  quality_score DECIMAL,
+  quality_score INTEGER,
   authenticity_markers TEXT[],
   red_flag_version TEXT,
   red_flag_why TEXT,
   similarity FLOAT
 )
 LANGUAGE plpgsql
-SET search_path = ''
+SET search_path = 'public'
 AS $$
 BEGIN
   RETURN QUERY
-  (
-    SELECT
-      ge.id,
-      ge.question_text,
-      ge.answer_text,
-      ge.framework,
-      ge.quality_score,
-      ge.authenticity_markers,
-      ge.red_flag_version,
-      ge.red_flag_why,
-      1 - (ge.embedding <=> query_embedding) AS similarity
-    FROM public.golden_examples ge
-    WHERE ge.is_active = TRUE
-      AND ge.quality_score >= 8
-      AND ge.embedding IS NOT NULL
-      AND (filter_question_key IS NULL OR ge.question_key = filter_question_key)
-      AND (filter_role IS NULL OR ge.role_type = filter_role OR ge.role_type IS NULL)
-    ORDER BY ge.embedding <=> query_embedding
-    LIMIT match_count
-  )
-  UNION ALL
-  (
-    SELECT
-      ge.id,
-      ge.question_text,
-      ge.answer_text,
-      ge.framework,
-      ge.quality_score,
-      ge.authenticity_markers,
-      ge.red_flag_version,
-      ge.red_flag_why,
-      0.75::FLOAT AS similarity
-    FROM public.golden_examples ge
-    WHERE ge.is_active = TRUE
-      AND ge.quality_score >= 8
-      AND ge.embedding IS NULL
-      AND filter_question_key IS NOT NULL
-      AND ge.question_key = filter_question_key
-      AND (filter_role IS NULL OR ge.role_type = filter_role OR ge.role_type IS NULL)
-    LIMIT match_count
-  )
+  SELECT
+    ge.id,
+    ge.question_text,
+    ge.answer_text,
+    ge.framework,
+    ge.quality_score,
+    ge.authenticity_markers,
+    ge.red_flag_version,
+    ge.red_flag_why,
+    (CASE WHEN ge.embedding IS NOT NULL
+      THEN (1 - (ge.embedding <=> query_embedding))::FLOAT
+      ELSE 0.75::FLOAT
+    END) AS similarity
+  FROM public.golden_examples ge
+  WHERE ge.is_active = TRUE
+    AND ge.quality_score >= 8
+    AND (filter_question_key IS NULL OR ge.question_key = filter_question_key)
+    AND (filter_role IS NULL OR ge.role_type = filter_role OR ge.role_type IS NULL)
+  ORDER BY
+    CASE WHEN ge.embedding IS NOT NULL
+      THEN ge.embedding <=> query_embedding
+      ELSE 999
+    END
   LIMIT match_count;
 END;
 $$;
