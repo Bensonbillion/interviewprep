@@ -599,10 +599,11 @@ THREE-LAYER STRUCTURE (every stage, every depth level):
 
 If company values are in the profile: EMBODY them in the tone — don't name them. If the value is 'audacity,' the answer should sound bold. If it's 'honesty,' it should feel direct and unpolished.
 
-NESTED DETAILS REQUIRED (all three must be present):
+NESTED DETAILS REQUIRED (all four must be present):
 1. The PROBLEM the company solves in plain language — not marketing copy, but how a customer would describe it: "basically their [buyers/teams/companies] are dealing with [specific friction] and there's no good solution that doesn't require..." Not: "they provide an innovative platform that enables..."
 2. ONE specific product feature, approach, or differentiator mentioned by name — not "your platform" or "your solution." A named feature, tier, methodology, or market position from the company profile.
 3. HOW the candidate discovered or researched this company — shows authentic investigation, not job-board spray. Use the resume/background to make it plausible: "came across it while researching [industry/problem]", "a former colleague who works in this space mentioned it", "found the job posting and then went deep on the product before applying."
+4. ONE SWAP-PROOF DETAIL — include at least one specific fact from the company's recent news or culture signals that ONLY applies to this company. Quote it directly: a funding amount, a team stat, a specific product launch, a named partnership, a growth metric. If you replaced the company name with a competitor, this detail must break the answer. This is the most critical requirement — without it, the answer is generic.
 
 PROBE-READINESS — this answer must survive:
 - "What do you know about our competitors?" — the answer should reference the competitive landscape naturally or create an obvious setup for this probe
