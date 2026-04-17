@@ -109,26 +109,55 @@ function PanelSetupInner() {
     setExtracting(false);
   };
 
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setSubmitError(null);
 
-    // Store setup data and redirect to building/generation
     const validInterviewers = interviewers.filter((iv) => iv.name.trim());
 
-    localStorage.setItem(
-      "sp_new_prep",
-      JSON.stringify({
-        stageType: "presentation_defense",
-        parentSessionId,
-        stageName: stageName || "Panel Interview",
-        interviewDate: interviewDate || null,
-        interviewers: validInterviewers,
-        companyName,
-      })
-    );
+    try {
+      const res = await fetch("/api/sessions/create-defense", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          parent_session_id: parentSessionId,
+          stage_name: stageName || "Panel Interview",
+          interview_date: interviewDate || undefined,
+          interviewers: validInterviewers.length > 0 ? validInterviewers : undefined,
+        }),
+      });
 
-    router.push("/get-started/building");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Unknown error" }));
+        setSubmitError(data.error ?? "Failed to create session");
+        setSubmitting(false);
+        return;
+      }
+
+      const { session_id, has_interviewers } = await res.json();
+
+      // Store for the building screen to pick up
+      localStorage.setItem(
+        "sp_new_prep",
+        JSON.stringify({
+          stageType: "presentation_defense",
+          parentSessionId,
+          sessionId: session_id,
+          hasInterviewers: has_interviewers,
+          stageName: stageName || "Panel Interview",
+          companyName,
+        })
+      );
+
+      // Route to the defense session's prep page — kit generation happens there
+      router.push(`/prep/${session_id}`);
+    } catch {
+      setSubmitError("Something went wrong. Please try again.");
+      setSubmitting(false);
+    }
   };
 
   if (!parentSessionId) return null;
@@ -402,6 +431,24 @@ function PanelSetupInner() {
               </button>
             )}
           </div>
+
+          {/* Error */}
+          {submitError && (
+            <div
+              style={{
+                padding: "10px 14px",
+                background: "rgba(239,68,68,0.06)",
+                border: "1px solid rgba(239,68,68,0.15)",
+                borderRadius: 8,
+                fontSize: 12,
+                color: "#dc2626",
+                lineHeight: 1.5,
+                marginBottom: 12,
+              }}
+            >
+              {submitError}
+            </div>
+          )}
 
           {/* Submit */}
           <button
