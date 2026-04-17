@@ -18,6 +18,7 @@ import { CustomQuestionSection } from "@/components/prep/CustomQuestionSection";
 import { getSessionList as getSessionListForCount } from "@/lib/session/session-list";
 import { useCredits } from "@/hooks/useCredits";
 import { tracker } from "@/lib/feedback/implicit-tracker";
+import PanelTriggerBanner from "@/components/defense/PanelTriggerBanner";
 import {
   Loader2,
   Phone,
@@ -1069,6 +1070,14 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
         <ClosingCoachCard
           stage={session.stage}
           roleType={session.roleType}
+          companyName={session.companyName}
+        />
+      )}
+
+      {/* ── Panel trigger banner (take-home sessions only) ────────────── */}
+      {allGenerated && (session.stage === "take_home" || session.stageType === "take_home") && (
+        <PanelTriggerBanner
+          sessionId={sessionId}
           companyName={session.companyName}
         />
       )}
