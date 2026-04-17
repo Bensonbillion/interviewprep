@@ -242,3 +242,84 @@ export const analyzeTranscriptSchema = z.object({
   roleType: z.string().max(50).optional(),
   interviewStage: z.string().max(50).optional(),
 });
+
+// ─── Stage architecture schemas ─────────────────────────────────────────────
+
+export const stageTypeValues = [
+  "conversational",
+  "deep_dive",
+  "skills_demo",
+  "take_home",
+  "presentation_defense",
+  "panel_executive",
+] as const;
+
+export const stageTypeSchema = z.enum(stageTypeValues);
+
+export const stageConfigSchema = z.object({
+  stage_name: safeString(200),
+  stage_type: stageTypeSchema,
+  stage_order: z.number().int().min(1).max(20),
+  parent_session_id: z.string().uuid().optional(),
+});
+
+export const voiceProfileSampleSchema = z.object({
+  type: z.enum(["email", "linkedin", "story"]),
+  text: safeString(5000),
+});
+
+export const voiceProfileSchema = z.object({
+  samples: z.array(voiceProfileSampleSchema).min(1).max(10),
+  style_notes: z.object({
+    sentence_avg_words: z.number().optional(),
+    uses_contractions: z.boolean().optional(),
+    formality_score: z.number().int().min(1).max(5).optional(),
+    hedging_phrases: z.array(z.string().max(100)).optional(),
+    common_openers: z.array(z.string().max(200)).optional(),
+  }).optional(),
+  voice_summary: safeString(2000).optional(),
+});
+
+export const takeHomeContentSchema = z.object({
+  icp: z.object({
+    org_types: z.array(z.string().max(200)),
+    pain_points: z.array(z.string().max(500)),
+    decision_makers: z.array(z.string().max(200)),
+    anti_icp: z.array(z.string().max(500)),
+    raw_content: safeString(5000),
+  }).optional(),
+  prospects: z.array(z.object({
+    company_name: z.string().max(200),
+    why_they_fit: z.string().max(1000),
+    trigger_signal: z.string().max(500),
+    target_title: z.string().max(200),
+    research_note: z.string().max(1000),
+  })).optional(),
+  cold_email: z.object({
+    subject: z.string().max(200),
+    body: safeString(3000),
+    personalization_rationale: safeString(1000),
+    alternative_subjects: z.array(z.string().max(200)),
+  }).optional(),
+  discovery_questions: z.array(z.object({
+    question: z.string().max(500),
+    category: z.string().max(100),
+    what_it_uncovers: z.string().max(500),
+  })).optional(),
+  presentation_structure: z.object({
+    slides: z.array(z.object({
+      title: z.string().max(200),
+      content: safeString(2000),
+    })),
+    timing_notes: safeString(1000),
+    evaluation_criteria: z.array(z.string().max(300)),
+  }).optional(),
+  video_script: z.object({
+    scenes: z.array(z.object({
+      title: z.string().max(200),
+      script: safeString(3000),
+      duration_sec: z.number().int().min(1).max(600),
+    })),
+    total_duration_sec: z.number().int().min(1).max(3600),
+  }).optional(),
+});

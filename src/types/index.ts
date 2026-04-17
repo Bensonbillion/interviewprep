@@ -150,12 +150,16 @@ export interface RelevanceMap {
 
 // ─── Interview Stage ──────────────────────────────────────────────────────────
 
+/** Legacy stage enum — kept for backward compatibility with existing sessions. */
 export type InterviewStage =
   | "recruiter"
   | "hiring_manager"
   | "role_play"
   | "panel"
   | "take_home";
+
+/** New flexible stage type — drives answer slot mapping and content contracts. */
+export type { StageType, StageConfig } from "@/lib/types/stages";
 
 // ─── Mock Call Sub-Types ─────────────────────────────────────────────────────
 
@@ -317,6 +321,14 @@ export interface PrepSession {
   mockAccountContext?: string;
   previousRoundContext?: string;
   isFirstRound?: boolean;
+  // ─── New stage architecture (null for legacy sessions) ─────────────────
+  stageType?: import("@/lib/types/stages").StageType;
+  stageName?: string;
+  stageOrder?: number;
+  parentSessionId?: string;
+  takeHomeContent?: import("@/lib/types/stages").TakeHomeContent;
+  takeHomeSubmissionText?: string;
+  intelCollected?: boolean;
 }
 
 // ─── Interviewer Research ─────────────────────────────────────────────────────
