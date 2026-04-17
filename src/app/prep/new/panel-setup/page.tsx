@@ -152,8 +152,8 @@ function PanelSetupInner() {
         })
       );
 
-      // Route to the defense session's prep page — kit generation happens there
-      router.push(`/prep/${session_id}`);
+      // Route to generating screen — runs interviewer research + kit generation
+      router.push(`/prep/${session_id}/generating`);
     } catch {
       setSubmitError("Something went wrong. Please try again.");
       setSubmitting(false);
