@@ -144,7 +144,28 @@ export function Sidebar({ className = "" }: { className?: string }) {
   const [sessionList, setSessionList] = useState<SessionSummary[]>([]);
 
   useEffect(() => {
-    setSessionList(getSessionList());
+    const local = getSessionList();
+    setSessionList(local);
+
+    // Validate sessions against Supabase — remove ghosts
+    if (local.length > 0) {
+      fetch("/api/session/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionIds: local.map((s) => s.id) }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (!data?.validIds) return;
+          const validSet = new Set(data.validIds as string[]);
+          const cleaned = local.filter((s) => validSet.has(s.id));
+          if (cleaned.length < local.length) {
+            localStorage.setItem("sp_session_list", JSON.stringify(cleaned));
+            setSessionList(cleaned);
+          }
+        })
+        .catch(() => {/* non-blocking */});
+    }
   }, []);
 
   const activeSessionId = pathname.startsWith("/prep/")

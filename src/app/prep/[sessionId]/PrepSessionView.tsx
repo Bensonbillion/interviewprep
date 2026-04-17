@@ -755,11 +755,33 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
   // ─── Not found / loading states ───────────────────────────────────────────────
   if (notFound) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center gap-4">
-        <p className="text-[var(--text-tertiary)]">Session not found.</p>
-        <Link href="/dashboard" className="text-sm font-medium text-coral hover:text-coral-dark dark:text-[var(--coral-text)]">
-          Back to dashboard
-        </Link>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center gap-5 px-6">
+        <div className="w-14 h-14 rounded-full bg-[rgba(232,115,90,0.1)] flex items-center justify-center text-2xl">
+          &#x26A0;&#xFE0F;
+        </div>
+        <div>
+          <p className="text-lg font-medium text-[var(--text-primary)] mb-2">
+            This prep session is no longer available
+          </p>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed max-w-[360px] mx-auto">
+            It may have been deleted or didn&apos;t finish generating.
+            You can start a fresh prep kit for the same company and round.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/get-started"
+            className="px-5 py-2.5 rounded-xl bg-[#E8735A] text-white text-sm font-medium hover:bg-[#C85A42] transition-colors"
+          >
+            + New prep kit
+          </Link>
+          <Link
+            href="/dashboard"
+            className="px-5 py-2.5 rounded-xl border border-[var(--color-border-secondary)] text-sm text-[var(--text-secondary)] hover:bg-stone-50 dark:hover:bg-white/5 transition-colors"
+          >
+            Back to dashboard
+          </Link>
+        </div>
       </div>
     );
   }
