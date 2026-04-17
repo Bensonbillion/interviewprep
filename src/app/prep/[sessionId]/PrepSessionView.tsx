@@ -824,11 +824,17 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
 
       {/* Mobile header */}
       <div className="sm:hidden px-4 py-3">
-        <div className="flex items-baseline gap-2 mb-2">
-          <h1 className="text-[17px] font-semibold text-[#1C1713] dark:text-[var(--text-primary)] truncate">{session.companyName}</h1>
-          <span className="text-[12px] text-[#9B8E82] whitespace-nowrap flex-shrink-0">{stageLabel}</span>
+        <div className="flex items-center gap-2 mb-2">
+          <h1 className="text-[17px] font-semibold text-[#1C1713] dark:text-[var(--text-primary)] truncate flex-1">{session.companyName}</h1>
+          <Link
+            href={`/prep/${sessionId}/live`}
+            className="px-3.5 py-1.5 bg-[#E8735A] text-white text-[12px] font-medium rounded-lg flex-shrink-0"
+          >
+            Open live mode
+          </Link>
         </div>
         <div className="flex items-center justify-between mb-3">
+          <span className="text-[12px] text-[#9B8E82] whitespace-nowrap">{stageLabel}</span>
           <span className="text-[11px] text-[#9B8E82]">{reviewedUnlockedCount}/{unlockedCount} reviewed</span>
         </div>
         <div className="flex gap-2">
@@ -839,6 +845,7 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
             📜 Teleprompter
           </button>
         </div>
+        <p className="text-[11px] text-[#C5BDB5] mt-2">Live mode: phone-sized cheat sheet you can reference during the interview. Tap to advance. Filter by category.</p>
       </div>
 
       {/* Desktop header */}
@@ -849,10 +856,19 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
             <span className="text-[12px] text-[#C5BDB5]">/</span>
             <span className="text-[12px] text-[#5C5347] dark:text-[var(--text-secondary)] font-medium">{session.companyName}</span>
           </div>
-          <div className="flex items-baseline gap-2">
-            <h1 className="text-[20px] font-semibold text-[#1C1713] dark:text-[var(--text-primary)] leading-tight">{session.companyName}</h1>
-            <span className="text-[13px] text-[#9B8E82] whitespace-nowrap flex-shrink-0">{session.targetRole} · {stageLabel}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-baseline gap-2">
+              <h1 className="text-[20px] font-semibold text-[#1C1713] dark:text-[var(--text-primary)] leading-tight">{session.companyName}</h1>
+              <span className="text-[13px] text-[#9B8E82] whitespace-nowrap flex-shrink-0">{session.targetRole} · {stageLabel}</span>
+            </div>
+            <Link
+              href={`/prep/${sessionId}/live`}
+              className="px-4 py-1.5 bg-[#E8735A] text-white text-[13px] font-medium rounded-[10px] hover:bg-[#C85A42] transition-colors no-underline"
+            >
+              Open live mode
+            </Link>
           </div>
+          <p className="text-[11px] text-[#C5BDB5] mt-0.5">Live mode: phone-sized cheat sheet you can reference during the interview. Tap to advance. Filter by category.</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className="text-[12px] text-[#9B8E82]">{reviewedUnlockedCount}/{unlockedCount} reviewed</span>
