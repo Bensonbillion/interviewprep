@@ -22,60 +22,44 @@ export default async function LiveModePage({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(`/auth/login?redirectTo=/prep/${sessionId}/live`);
+    redirect("/auth/login");
   }
 
   const db = createAdminClient();
 
-  // Fetch session + generated answers + interviewers in parallel
-  const [sessionResult, answersResult, interviewersResult] = await Promise.all([
-    db.from("prep_sessions")
-      .select("id, session_data")
-      .eq("id", sessionId)
-      .eq("user_id", user.id)
-      .single(),
+  // Fetch generated answers + interviewers in parallel
+  const [answersResult, interviewersResult] = await Promise.all([
     db.from("generated_answers")
       .select("answer_type, content, metadata")
       .eq("session_id", sessionId)
-      .in("answer_type", [
-        "weakness_audit",
-        "defense_questions",
-        "presentation_structure",
-        "role_play_script",
-        "cheat_sheet",
-      ]),
+      .eq("status", "completed"),
     db.from("session_interviewers")
-      .select("name, title, profile_data")
+      .select("*")
       .eq("session_id", sessionId),
   ]);
 
-  if (!sessionResult.data) {
-    redirect("/dashboard");
-  }
-
-  // Build the kit from generated_answers
-  const answerMap = new Map<string, unknown>();
-  for (const a of answersResult.data ?? []) {
+  // Helper to extract parsed content by answer_type
+  const getContent = (type: string): unknown => {
+    const answer = (answersResult.data ?? []).find((a) => a.answer_type === type);
+    if (!answer) return null;
     try {
-      answerMap.set(a.answer_type, typeof a.content === "string" ? JSON.parse(a.content) : a.content);
+      return typeof answer.content === "string" ? JSON.parse(answer.content) : answer.content;
     } catch {
-      answerMap.set(a.answer_type, a.content);
+      return answer.content;
     }
-  }
-
-  const interviewers = (interviewersResult.data ?? []).map((i) => ({
-    name: i.name ?? "",
-    title: (i.title as string) ?? "",
-    profile: (i.profile_data ?? {}) as Record<string, unknown>,
-  }));
+  };
 
   const kit = {
-    weakness_audit: normalizeToArray(answerMap.get("weakness_audit")),
-    hard_questions: normalizeToArray(answerMap.get("defense_questions")),
-    timing_guide: normalizeToArray(answerMap.get("presentation_structure")),
-    roleplay_script: answerMap.get("role_play_script") ?? {},
-    cheat_sheet: answerMap.get("cheat_sheet") ?? {},
-    interviewers,
+    weakness_audit: normalizeToArray(getContent("weakness_audit")),
+    hard_questions: normalizeToArray(getContent("defense_questions")),
+    timing_guide: normalizeToArray(getContent("presentation_structure")),
+    roleplay_script: getContent("role_play_script") ?? {},
+    cheat_sheet: getContent("cheat_sheet") ?? {},
+    interviewers: (interviewersResult.data ?? []).map((i) => ({
+      name: i.name ?? "",
+      title: (i.title as string) ?? "",
+      profile: (i.profile_data ?? {}) as Record<string, unknown>,
+    })),
   };
 
   const hasContent =
@@ -84,7 +68,6 @@ export default async function LiveModePage({
     kit.interviewers.length > 0;
 
   if (!hasContent) {
-    // No defense kit generated yet — redirect to normal prep view
     redirect(`/prep/${sessionId}`);
   }
 
@@ -93,8 +76,7 @@ export default async function LiveModePage({
 
 function normalizeToArray(val: unknown): unknown[] {
   if (Array.isArray(val)) return val;
-  if (val && typeof val === "object" && !Array.isArray(val)) {
-    // Try common wrapper keys
+  if (val && typeof val === "object") {
     const obj = val as Record<string, unknown>;
     for (const key of ["items", "points", "questions", "weak_spots", "slides", "lines"]) {
       if (Array.isArray(obj[key])) return obj[key] as unknown[];
