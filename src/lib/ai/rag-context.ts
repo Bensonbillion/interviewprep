@@ -93,10 +93,27 @@ export function assembleSystemPrompt(
   rag: RagContext,
   ctx: {
     seniorityText?: string | null;     // item 2
-    jobListingContext?: string | null; // item 3
+    jobListingContext?: string | null;  // item 3
+    userVoiceSummary?: string | null;  // user's personal voice profile
+    stageContext?: string | null;       // stage-type framing
   } = {}
 ): string {
   const parts: string[] = [baseSystem];
+
+  // 0. User voice profile — write in their natural style
+  if (ctx.userVoiceSummary) {
+    parts.push(`VOICE PROFILE — write in this person's natural style:
+${ctx.userVoiceSummary}
+
+ANTI-AI CONSTRAINTS (non-negotiable):
+- Vary sentence length aggressively — at least one sentence under 6 words per paragraph
+- No em-dashes anywhere
+- No "leverage", "streamline", "unlock", "journey", "robust", "seamless", "utilize", "cutting-edge", "game-changer"
+- Use contractions: "I've" not "I have", "they're" not "they are"
+- Active voice throughout
+- If a number is approximate, say "roughly" or "around" — never "approximately"
+- The answer must sound like a person talking to another person in a professional context, not a written document`);
+  }
 
   // 1 (extension). DB voice profile + style rules
   if (rag.sectionVoiceRules) parts.push(rag.sectionVoiceRules);
@@ -126,6 +143,9 @@ export function assembleSystemPrompt(
 
   // Company-specific intelligence
   if (rag.sectionCompanyIntel) parts.push(rag.sectionCompanyIntel);
+
+  // Stage-type context — framing for what this round is actually evaluating
+  if (ctx.stageContext) parts.push(`STAGE CONTEXT:\n${ctx.stageContext}`);
 
   return parts.join("\n\n---\n\n");
 }

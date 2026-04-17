@@ -11,6 +11,7 @@ import { checkAnswerQuality, logQualityCheck } from "@/lib/ai/quality-check";
 import { shouldHumanize } from "@/lib/ai/humanize-answer";
 import { styleLint } from "@/lib/ai/style-lint";
 import type { AnswerType, PrepSession } from "@/types";
+import { STAGE_TYPE_METADATA, type StageType } from "@/lib/types/stages";
 import { auditLog } from "@/lib/security/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -100,21 +101,41 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    // Fetch RAG context (non-blocking fallback if it fails)
+    // Fetch RAG context + user voice profile in parallel (non-blocking fallback if either fails)
+    const db = createAdminClient();
     const queryText = `${answerType} ${session.targetRole} ${session.company?.name ?? ""} ${session.roleType ?? ""}`;
-    const rag = await fetchRagContext(
-      answerType as AnswerType,
-      queryText,
-      session.roleType,
-      session.stage,
-      session.company?.name
-    );
+    const [rag, voiceProfileResult] = await Promise.all([
+      fetchRagContext(
+        answerType as AnswerType,
+        queryText,
+        session.roleType,
+        session.stage,
+        session.company?.name
+      ),
+      Promise.resolve(
+        db.from("user_voice_profiles")
+          .select("voice_summary")
+          .eq("user_id", auth.userId)
+          .maybeSingle()
+      ).then((r) => r.data?.voice_summary as string | null ?? null)
+        .catch(() => null),
+    ]);
 
-    // Assemble system prompt in correct order (items 1–6, 8)
+    // Build stage context from new StageType metadata or legacy stage
+    const stageContext = session.stageType
+      ? STAGE_TYPE_METADATA[session.stageType as StageType]?.cheat_sheet_framing ?? null
+      : null;
+
+    // Assemble system prompt in correct order (items 1–6, 8) + voice profile + stage context
     const system = assembleSystemPrompt(
       rag.activePromptText ?? baseSystem,
       rag,
-      { seniorityText, jobListingContext: jobListingContext || null }
+      {
+        seniorityText,
+        jobListingContext: jobListingContext || null,
+        userVoiceSummary: voiceProfileResult,
+        stageContext,
+      }
     );
 
     const userContent = customInstructions
@@ -231,7 +252,6 @@ export async function POST(req: NextRequest) {
 
     // Persist generated answer to Supabase (fire-and-forget)
     if (sessionId !== "anon") {
-      const db = createAdminClient();
       db.from("generated_answers")
         .upsert(
           {
