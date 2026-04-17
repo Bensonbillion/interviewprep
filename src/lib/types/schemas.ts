@@ -65,6 +65,15 @@ export const ResearchCompanyInputSchema = z.object({
 });
 
 // POST /api/create-session
+export const StageTypeSchema = z.enum([
+  "conversational",
+  "deep_dive",
+  "skills_demo",
+  "take_home",
+  "presentation_defense",
+  "panel_executive",
+]);
+
 export const CreateSessionInputSchema = z.object({
   resumeId: z.string().uuid(),
   companyId: z.string().uuid(),
@@ -72,6 +81,11 @@ export const CreateSessionInputSchema = z.object({
   targetRole: z.string().min(1).max(200),
   roleType: RoleTypeSchema,
   stage: InterviewStageSchema,
+  // ─── New flexible stage fields (optional — legacy sessions omit these) ────
+  stageName: z.string().max(200).optional(),
+  stageType: StageTypeSchema.optional(),
+  stageOrder: z.number().int().min(1).max(20).optional(),
+  parentSessionId: z.string().uuid().optional(),
 });
 
 // POST /api/generate-answer

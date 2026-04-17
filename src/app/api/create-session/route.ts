@@ -3,9 +3,11 @@ import { anthropic, HAIKU } from "@/lib/ai";
 import { verifyApiAuth } from "@/lib/auth/verify";
 import { aiLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 import { CreateSessionInputSchema } from "@/lib/types/schemas";
-import { buildAnswerSlots } from "@/lib/session/answer-slots";
+import { buildAnswerSlots, buildAnswerSlotsFromStageType } from "@/lib/session/answer-slots";
 import { extractResumeForPrep } from "@/lib/ai/extract-resume";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { ParsedResume, CompanyProfile, RelevanceMap, PrepSession } from "@/types";
+import type { StageType } from "@/lib/types/stages";
 import { auditLog } from "@/lib/security/audit";
 
 // Inline cross-reference (was /api/cross-reference)
@@ -97,6 +99,11 @@ export async function POST(req: NextRequest) {
       stage,
       companyName,
       companyUrl,
+      // New flexible stage fields
+      stageName,
+      stageType,
+      stageOrder,
+      parentSessionId,
     } = body as {
       resume: ParsedResume;
       company: CompanyProfile;
@@ -106,6 +113,10 @@ export async function POST(req: NextRequest) {
       stage: string;
       companyName: string;
       companyUrl?: string;
+      stageName?: string;
+      stageType?: StageType;
+      stageOrder?: number;
+      parentSessionId?: string;
     };
 
     // Validate key fields
@@ -116,6 +127,10 @@ export async function POST(req: NextRequest) {
       targetRole,
       roleType,
       stage,
+      ...(stageName && { stageName }),
+      ...(stageType && { stageType }),
+      ...(stageOrder != null && { stageOrder }),
+      ...(parentSessionId && { parentSessionId }),
     });
 
     if (!inputValidation.success) {
@@ -134,11 +149,10 @@ export async function POST(req: NextRequest) {
       }),
     ]);
 
-    // Build answer slots for this stage + background type
-    const answerSlots = buildAnswerSlots(
-      stage as PrepSession["stage"],
-      resume.backgroundType
-    );
+    // Build answer slots — use new StageType mapping when provided, else legacy
+    const answerSlots = stageType
+      ? buildAnswerSlotsFromStageType(stageType, resume.backgroundType)
+      : buildAnswerSlots(stage as PrepSession["stage"], resume.backgroundType);
 
     const session: PrepSession = {
       id: crypto.randomUUID(),
@@ -154,14 +168,43 @@ export async function POST(req: NextRequest) {
       relevanceMap,
       answerSlots,
       createdAt: Date.now(),
+      // New stage fields (undefined for legacy sessions)
+      ...(stageType && { stageType }),
+      ...(stageName && { stageName }),
+      ...(stageOrder != null && { stageOrder }),
+      ...(parentSessionId && { parentSessionId }),
     };
+
+    // Persist to Supabase (fire-and-forget — session also stored client-side)
+    const db = createAdminClient();
+    db.from("prep_sessions")
+      .upsert(
+        {
+          id: session.id,
+          user_id: auth.userId,
+          session_data: session,
+          job_description: jobDescription,
+          target_role: targetRole,
+          role_type: roleType,
+          stage,
+          relevance_map: relevanceMap,
+          ...(stageType && { stage_type: stageType }),
+          ...(stageName && { stage_name: stageName }),
+          ...(stageOrder != null && { stage_order: stageOrder }),
+          ...(parentSessionId && { parent_session_id: parentSessionId }),
+        },
+        { onConflict: "id" }
+      )
+      .then(({ error: dbErr }) => {
+        if (dbErr) console.error("[create-session] DB upsert error:", dbErr.message);
+      });
 
     auditLog({
       eventType: "generation_requested",
       userId: auth.userId,
       resourceType: "session",
       resourceId: session.id,
-      details: { company: companyName, targetRole, stage },
+      details: { company: companyName, targetRole, stage, stageType: stageType ?? null },
     });
 
     return NextResponse.json({ session });

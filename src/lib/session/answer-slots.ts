@@ -4,6 +4,7 @@
  */
 
 import type { AnswerSlot, AnswerType, InterviewStage, BackgroundType, RoleType, MockCallType } from "@/types";
+import { STAGE_SLOT_MAP, type StageType } from "@/lib/types/stages";
 
 // ─── Answer type metadata (base — may be overridden per roleType) ─────────────
 
@@ -253,6 +254,44 @@ export function buildAnswerSlots(
       status: "loading" as const,
     };
   });
+}
+
+/**
+ * Build answer slots from the new StageType system.
+ * Uses STAGE_SLOT_MAP from stages.ts instead of the legacy STAGE_SLOTS.
+ * Falls back to legacy buildAnswerSlots when stageType is not provided.
+ */
+export function buildAnswerSlotsFromStageType(
+  stageType: StageType,
+  backgroundType: BackgroundType,
+): AnswerSlot[] {
+  const slotDefs = STAGE_SLOT_MAP[stageType] ?? [];
+  const extraTypes = BACKGROUND_ADDITIONS[backgroundType] ?? [];
+
+  const slots: AnswerSlot[] = slotDefs.map((def) => ({
+    type: def.answer_type as AnswerType,
+    label: def.label,
+    description: def.description,
+    status: "locked" as const,
+    ...(def.metadata ? { metadata: def.metadata } : {}),
+  }));
+
+  // Add background-specific extras (e.g., career_switcher_bridge)
+  for (const type of extraTypes) {
+    if (!slots.some((s) => s.type === type)) {
+      const base = ANSWER_LABELS[type];
+      if (base) {
+        slots.push({
+          type,
+          label: base.label,
+          description: base.description,
+          status: "locked" as const,
+        });
+      }
+    }
+  }
+
+  return slots;
 }
 
 export { ANSWER_LABELS };
