@@ -1,9 +1,14 @@
 /**
  * Builds the ordered list of AnswerSlots for a session.
- * Maps stage + backgroundType + roleType → which answer types to include.
+ *
+ * Two paths:
+ *  1. NEW — when session.stageType is set, uses STAGE_SLOT_MAP from stages.ts
+ *  2. LEGACY — when stageType is absent, uses the fixed STAGE_SLOTS mapping
+ *
+ * Legacy sessions (stageType undefined) continue working unchanged.
  */
 
-import type { AnswerSlot, AnswerType, InterviewStage, BackgroundType, RoleType, MockCallType } from "@/types";
+import type { AnswerSlot, AnswerType, InterviewStage, BackgroundType, RoleType, MockCallType, PrepSession } from "@/types";
 import { STAGE_SLOT_MAP, type StageType } from "@/lib/types/stages";
 
 // ─── Answer type metadata (base — may be overridden per roleType) ─────────────
@@ -156,7 +161,9 @@ const AE_LABEL_OVERRIDES: Partial<Record<AnswerType, { label: string; descriptio
   },
 };
 
-// ─── Stage → answer type mapping ──────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// LEGACY — fixed 4-stage mapping (unchanged, used when stageType is absent)
+// ═══════════════════════════════════════════════════════════════════════════════
 
 const STAGE_SLOTS: Record<InterviewStage, AnswerType[]> = {
   recruiter: [
@@ -164,46 +171,44 @@ const STAGE_SLOTS: Record<InterviewStage, AnswerType[]> = {
     "why_sales",
     "why_this_company",
     "comp_expectations",
-    "questions_to_ask",   // A1: recruiters always ask "any questions for me?"
+    "questions_to_ask",
     "company_brief",
     "cheat_sheet",
   ],
   hiring_manager: [
-    "tell_me_about_yourself", // A3: HM "walk me through your resume" variant
-    "resume_walkthrough",     // B1: decision-arc career narrative (distinct from TMAY)
+    "tell_me_about_yourself",
+    "resume_walkthrough",
     "behavioral_star",
-    "constructive_feedback",  // B2: coachability test — #1 HM evaluation trait
-    "why_this_company",       // A3: HMs probe company motivation deeper than recruiters
-    "competitor_battle_card", // E2: HMs test competitive awareness
+    "constructive_feedback",
+    "why_this_company",
+    "competitor_battle_card",
     "questions_to_ask",
     "company_brief",
     "cheat_sheet",
   ],
   role_play: [
-    "coachability_game_plan",  // Game plan first — candidate reads this before the call
+    "coachability_game_plan",
     "role_play_script",
     "objection_response",
-    "competitor_battle_card",  // E2: prospect will name a competitor mid-call
+    "competitor_battle_card",
     "coachability_coaching",
     "cheat_sheet",
   ],
   panel: [
     "tell_me_about_yourself",
-    "behavioral_star",        // A2: panel always includes behavioral STAR questions
+    "behavioral_star",
     "questions_to_ask",
     "company_brief",
     "cheat_sheet",
   ],
   take_home: [
-    "cold_email",             // D2: primary deliverable — personalized cold email
-    "pain_point_analysis",    // D2: ICP pain point research to anchor the assignment
-    "assignment_guide",       // D2: how to complete and stand out on the assignment
+    "cold_email",
+    "pain_point_analysis",
+    "assignment_guide",
     "company_brief",
     "cheat_sheet",
   ],
 };
-
-// ─── Discovery call slot override (when mockCallType === 'discovery') ─────────
 
 const DISCOVERY_ROLE_PLAY_SLOTS: AnswerType[] = [
   "discovery_opener",
@@ -218,19 +223,15 @@ const DISCOVERY_ROLE_PLAY_SLOTS: AnswerType[] = [
   "discovery_scoring_guide",
 ];
 
-// ─── Background-type additions ────────────────────────────────────────────────
-
 const BACKGROUND_ADDITIONS: Partial<Record<BackgroundType, AnswerType[]>> = {
   career_switcher: ["career_switcher_bridge"],
 };
 
-// ─── Builder ──────────────────────────────────────────────────────────────────
-
-export function buildAnswerSlots(
+function buildLegacyAnswerSlots(
   stage: InterviewStage,
   backgroundType: BackgroundType,
   roleType?: RoleType,
-  mockCallType?: MockCallType
+  mockCallType?: MockCallType,
 ): AnswerSlot[] {
   const baseTypes =
     stage === "role_play" && mockCallType === "discovery"
@@ -238,7 +239,6 @@ export function buildAnswerSlots(
       : STAGE_SLOTS[stage] ?? [];
   const extraTypes = BACKGROUND_ADDITIONS[backgroundType] ?? [];
 
-  // Deduplicate (extras added after base list)
   const allTypes = [...new Set([...baseTypes, ...extraTypes])];
 
   const isAE = roleType === "account_executive";
@@ -256,23 +256,24 @@ export function buildAnswerSlots(
   });
 }
 
-/**
- * Build answer slots from the new StageType system.
- * Uses STAGE_SLOT_MAP from stages.ts instead of the legacy STAGE_SLOTS.
- * Falls back to legacy buildAnswerSlots when stageType is not provided.
- */
-export function buildAnswerSlotsFromStageType(
+// ═══════════════════════════════════════════════════════════════════════════════
+// NEW — flexible stage system driven by STAGE_SLOT_MAP
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function buildFlexibleAnswerSlots(
+  sessionId: string,
   stageType: StageType,
   backgroundType: BackgroundType,
 ): AnswerSlot[] {
   const slotDefs = STAGE_SLOT_MAP[stageType] ?? [];
   const extraTypes = BACKGROUND_ADDITIONS[backgroundType] ?? [];
 
-  const slots: AnswerSlot[] = slotDefs.map((def) => ({
+  const slots: AnswerSlot[] = slotDefs.map((def, index) => ({
     type: def.answer_type as AnswerType,
     label: def.label,
     description: def.description,
     status: "locked" as const,
+    ...(def.is_free != null ? { isFree: def.is_free } : { isFree: index === 0 }),
     ...(def.metadata ? { metadata: def.metadata } : {}),
   }));
 
@@ -292,6 +293,57 @@ export function buildAnswerSlotsFromStageType(
   }
 
   return slots;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PUBLIC API — single entry point that branches on stageType
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Build answer slots for a PrepSession.
+ * Branches on session.stageType:
+ *   - If stageType is set → new flexible system (STAGE_SLOT_MAP)
+ *   - If stageType is absent → legacy fixed system (STAGE_SLOTS)
+ */
+export function buildAnswerSlotsForSession(session: PrepSession): AnswerSlot[] {
+  if (session.stageType) {
+    return buildFlexibleAnswerSlots(
+      session.id,
+      session.stageType,
+      session.resume?.backgroundType ?? "other",
+    );
+  }
+
+  return buildLegacyAnswerSlots(
+    session.stage,
+    session.resume?.backgroundType ?? "other",
+    session.roleType,
+    session.mockCallType,
+  );
+}
+
+/**
+ * Legacy signature — kept for backward compatibility with existing call sites.
+ * Delegates to buildLegacyAnswerSlots internally.
+ */
+export function buildAnswerSlots(
+  stage: InterviewStage,
+  backgroundType: BackgroundType,
+  roleType?: RoleType,
+  mockCallType?: MockCallType,
+): AnswerSlot[] {
+  return buildLegacyAnswerSlots(stage, backgroundType, roleType, mockCallType);
+}
+
+/**
+ * Build answer slots from a StageType directly (without a full session object).
+ * Used by create-session route before the session object is fully constructed.
+ */
+export function buildAnswerSlotsFromStageType(
+  stageType: StageType,
+  backgroundType: BackgroundType,
+): AnswerSlot[] {
+  return buildFlexibleAnswerSlots("pending", stageType, backgroundType);
 }
 
 export { ANSWER_LABELS };
