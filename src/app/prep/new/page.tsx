@@ -71,9 +71,12 @@ function NewPrepInner() {
   const [takehomeSessions, setTakehomeSessions] = useState<TakehomeSession[]>([]);
   const [loadingTakehomes, setLoadingTakehomes] = useState(false);
 
-  // If type=presentation_defense&parent=xxx, skip everything
+  // If type=presentation_defense&parent=xxx, go straight to panel setup
   useEffect(() => {
-    if (preselectedType && parentSessionId) {
+    if (preselectedType === "presentation_defense" && parentSessionId) {
+      const params = new URLSearchParams({ parent: parentSessionId });
+      router.replace(`/prep/new/panel-setup?${params.toString()}`);
+    } else if (preselectedType && parentSessionId) {
       localStorage.setItem(
         "sp_new_prep",
         JSON.stringify({ stageType: preselectedType, parentSessionId })
@@ -116,20 +119,20 @@ function NewPrepInner() {
   };
 
   const handleTakehomeSelect = (parentId: string) => {
-    localStorage.setItem(
-      "sp_new_prep",
-      JSON.stringify({ stageType: "presentation_defense", parentSessionId: parentId })
-    );
-    router.push("/get-started/details");
+    // Find the selected session for company name
+    const selected = takehomeSessions.find((s) => s.id === parentId);
+    const params = new URLSearchParams({
+      parent: parentId,
+      company: selected?.companyName ?? "",
+      stageName: selected?.stageName ?? "Take-home assignment",
+      ...(selected?.createdAt ? { date: formatDate(selected.createdAt) } : {}),
+    });
+    router.push(`/prep/new/panel-setup?${params.toString()}`);
   };
 
   const handleTakehomeSkip = () => {
     // No parent — user will paste submission manually
-    localStorage.setItem(
-      "sp_new_prep",
-      JSON.stringify({ stageType: "presentation_defense", parentSessionId: null })
-    );
-    router.push("/get-started/details");
+    router.push("/prep/new/panel-setup?parent=&company=");
   };
 
   // If we're redirecting from URL params, show loading
@@ -251,6 +254,15 @@ function NewPrepInner() {
       </div>
     </main>
   );
+}
+
+function formatDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  } catch {
+    return "";
+  }
 }
 
 // ─── Page wrapper (Suspense for useSearchParams) ─────────────────────────────
