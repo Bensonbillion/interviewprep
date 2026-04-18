@@ -3,62 +3,78 @@
 import { useState, useEffect, useCallback } from "react";
 import type { LiveCard } from "@/lib/live-mode/build-cards";
 
-interface LiveInterviewModeProps {
-  sessionId: string;
-  cards: LiveCard[];
-}
+type Phase = "all" | "people" | "timing" | "weak" | "question" | "roleplay" | "cheat";
 
-const FILTERS = [
-  { key: "all", label: "All" },
-  { key: "people", label: "People" },
-  { key: "timing", label: "Timing" },
-  { key: "weak", label: "Weak spots" },
-  { key: "question", label: "Questions" },
-  { key: "roleplay", label: "Roleplay" },
-  { key: "cheat", label: "Cheat sheet" },
-] as const;
+const PHASE_LABELS: Record<Phase, string> = {
+  all: "All",
+  people: "People",
+  timing: "Timing",
+  weak: "Weak spots",
+  question: "Questions",
+  roleplay: "Roleplay",
+  cheat: "Cheat sheet",
+};
 
-export default function LiveInterviewMode({ cards }: LiveInterviewModeProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [filter, setFilter] = useState<string>("all");
+export default function LiveInterviewMode({ cards }: { cards: LiveCard[] }) {
+  const [phase, setPhase] = useState<Phase>("all");
+  const [index, setIndex] = useState(0);
 
-  const filtered = filter === "all" ? cards : cards.filter((c) => c.phase === filter);
-  const current = filtered[currentIndex];
-  const progress = filtered.length > 0 ? Math.round(((currentIndex + 1) / filtered.length) * 100) : 0;
+  const filtered = phase === "all" ? cards : cards.filter((c) => c.phase === phase);
 
-  const next = useCallback(
-    () => setCurrentIndex((i) => Math.min(i + 1, filtered.length - 1)),
-    [filtered.length]
-  );
-  const prev = useCallback(() => setCurrentIndex((i) => Math.max(i - 1, 0)), []);
+  const current = filtered[index];
+  const isFirst = index === 0;
+  const isLast = index === filtered.length - 1;
+
+  const next = useCallback(() => {
+    if (!isLast) setIndex((i) => i + 1);
+  }, [isLast]);
+
+  const prev = useCallback(() => {
+    if (!isFirst) setIndex((i) => i - 1);
+  }, [isFirst]);
+
+  // Reset index when phase changes
+  useEffect(() => {
+    setIndex(0);
+  }, [phase]);
 
   // Keyboard navigation
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight" || e.key === " ") {
-        e.preventDefault();
-        next();
-      }
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        prev();
-      }
+      if (e.key === "ArrowRight" || e.key === " ") next();
+      if (e.key === "ArrowLeft") prev();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
+  }, [next, prev]);
+
+  // Swipe support (mobile)
+  useEffect(() => {
+    let startX = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX;
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const dx = e.changedTouches[0].clientX - startX;
+      if (dx < -50) next();
+      if (dx > 50) prev();
+    };
+    window.addEventListener("touchstart", onTouchStart);
+    window.addEventListener("touchend", onTouchEnd);
+    return () => {
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchend", onTouchEnd);
+    };
   }, [next, prev]);
 
   return (
     <div
       style={{
         background: "#0A0A0F",
-        minHeight: "100dvh",
+        minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
-        userSelect: "none",
-        WebkitUserSelect: "none",
-        color: "#fff",
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        fontFamily: "var(--font-sans)",
       }}
     >
       {/* Filter strip */}
@@ -66,77 +82,88 @@ export default function LiveInterviewMode({ cards }: LiveInterviewModeProps) {
         style={{
           display: "flex",
           gap: 6,
-          padding: "12px 16px",
+          padding: "12px 14px",
           borderBottom: "0.5px solid rgba(255,255,255,0.08)",
           overflowX: "auto",
-          flexShrink: 0,
           WebkitOverflowScrolling: "touch",
           scrollbarWidth: "none",
+          flexShrink: 0,
         }}
       >
-        {FILTERS.map((f) => (
+        {(Object.keys(PHASE_LABELS) as Phase[]).map((p) => (
           <button
-            key={f.key}
-            onClick={() => {
-              setFilter(f.key);
-              setCurrentIndex(0);
-            }}
+            key={p}
+            onClick={() => setPhase(p)}
             style={{
-              padding: "4px 12px",
+              padding: "5px 13px",
               borderRadius: 100,
-              border: `0.5px solid ${filter === f.key ? "#E8735A" : "rgba(255,255,255,0.15)"}`,
-              background: filter === f.key ? "rgba(232,115,90,0.15)" : "transparent",
-              color: filter === f.key ? "#E8735A" : "rgba(255,255,255,0.5)",
+              border: `0.5px solid ${phase === p ? "#E8735A" : "rgba(255,255,255,0.15)"}`,
+              background: phase === p ? "rgba(232,115,90,0.12)" : "transparent",
+              color: phase === p ? "#E8735A" : "rgba(255,255,255,0.45)",
               fontSize: 11,
               cursor: "pointer",
               whiteSpace: "nowrap",
               fontFamily: "inherit",
-              WebkitTapHighlightColor: "transparent",
+              flexShrink: 0,
             }}
           >
-            {f.label}
+            {PHASE_LABELS[p]}
           </button>
         ))}
       </div>
 
       {/* Progress bar */}
-      <div style={{ height: 2, background: "rgba(255,255,255,0.08)", flexShrink: 0 }}>
+      <div
+        style={{
+          height: 2,
+          background: "rgba(255,255,255,0.06)",
+          flexShrink: 0,
+        }}
+      >
         <div
           style={{
             height: "100%",
-            width: `${progress}%`,
             background: "#E8735A",
-            transition: "width 0.2s ease-out",
+            width:
+              filtered.length > 0
+                ? `${Math.round(((index + 1) / filtered.length) * 100)}%`
+                : "0%",
+            transition: "width 0.2s",
           }}
         />
       </div>
 
-      {/* Main card area — tap to advance */}
+      {/* Card area — tap to advance */}
       <div
+        onClick={next}
         style={{
           flex: 1,
-          padding: "28px 20px",
+          padding: "28px 20px 20px",
           display: "flex",
           flexDirection: "column",
-          overflow: "auto",
-          WebkitOverflowScrolling: "touch",
+          cursor: isLast ? "default" : "pointer",
+          userSelect: "none",
         }}
-        onClick={next}
       >
         {current ? (
           <>
             {/* Counter + badge */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 20,
+              }}
+            >
               <span
                 style={{
-                  fontSize: 10,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                  color: "rgba(255,255,255,0.3)",
-                  fontWeight: 500,
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.25)",
+                  letterSpacing: "0.05em",
                 }}
               >
-                {currentIndex + 1} of {filtered.length}
+                {index + 1} / {filtered.length}
               </span>
               {current.badge && (
                 <span
@@ -144,9 +171,11 @@ export default function LiveInterviewMode({ cards }: LiveInterviewModeProps) {
                     fontSize: 10,
                     padding: "2px 8px",
                     borderRadius: 100,
-                    background: current.badgeColor ? `${current.badgeColor}22` : "rgba(255,255,255,0.08)",
+                    border: `0.5px solid ${current.badgeColor ?? "rgba(255,255,255,0.12)"}`,
+                    background: current.badgeColor
+                      ? `${current.badgeColor}18`
+                      : "rgba(255,255,255,0.06)",
                     color: current.badgeColor ?? "rgba(255,255,255,0.4)",
-                    border: `0.5px solid ${current.badgeColor ?? "rgba(255,255,255,0.1)"}`,
                   }}
                 >
                   {current.badge}
@@ -155,43 +184,43 @@ export default function LiveInterviewMode({ cards }: LiveInterviewModeProps) {
             </div>
 
             {/* Title */}
-            <div
+            <p
               style={{
-                fontSize: 20,
+                fontSize: 19,
                 fontWeight: 500,
-                color: "#fff",
+                color: "#ffffff",
                 lineHeight: 1.35,
-                marginBottom: 20,
+                marginBottom: 18,
               }}
             >
               {current.title}
-            </div>
+            </p>
 
             {/* Body */}
-            <div
+            <p
               style={{
                 fontSize: 15,
-                color: "rgba(255,255,255,0.8)",
-                lineHeight: 1.75,
-                fontFamily: "Georgia, 'Times New Roman', serif",
+                color: "rgba(255,255,255,0.78)",
+                lineHeight: 1.78,
+                fontFamily: "Georgia, serif",
                 flex: 1,
               }}
             >
               {current.body}
-            </div>
+            </p>
 
             {/* Sub — trap / tip */}
             {current.sub && (
               <div
                 style={{
                   marginTop: 20,
-                  padding: "10px 14px",
+                  padding: "11px 14px",
                   background: "rgba(255,255,255,0.04)",
                   borderRadius: 10,
-                  borderLeft: "2px solid rgba(232,115,90,0.4)",
+                  borderLeft: "2px solid rgba(232,115,90,0.35)",
                   fontSize: 12,
-                  color: "rgba(255,255,255,0.45)",
-                  lineHeight: 1.5,
+                  color: "rgba(255,255,255,0.42)",
+                  lineHeight: 1.55,
                 }}
               >
                 {current.sub}
@@ -199,17 +228,16 @@ export default function LiveInterviewMode({ cards }: LiveInterviewModeProps) {
             )}
           </>
         ) : (
-          <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}>No cards in this category</div>
+          <p style={{ color: "rgba(255,255,255,0.25)", fontSize: 14 }}>No cards in this section</p>
         )}
       </div>
 
-      {/* Navigation */}
+      {/* Bottom nav */}
       <div
         style={{
           display: "flex",
           borderTop: "0.5px solid rgba(255,255,255,0.08)",
           flexShrink: 0,
-          paddingBottom: "env(safe-area-inset-bottom, 0)",
         }}
       >
         <button
@@ -217,41 +245,39 @@ export default function LiveInterviewMode({ cards }: LiveInterviewModeProps) {
             e.stopPropagation();
             prev();
           }}
-          disabled={currentIndex === 0}
+          disabled={isFirst}
           style={{
             flex: 1,
             padding: "16px",
             background: "transparent",
             border: "none",
             borderRight: "0.5px solid rgba(255,255,255,0.08)",
-            color: currentIndex === 0 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.5)",
+            color: isFirst ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.4)",
             fontSize: 13,
-            cursor: currentIndex === 0 ? "default" : "pointer",
+            cursor: isFirst ? "default" : "pointer",
             fontFamily: "inherit",
-            WebkitTapHighlightColor: "transparent",
           }}
         >
-          Previous
+          ← Previous
         </button>
         <button
           onClick={(e) => {
             e.stopPropagation();
             next();
           }}
-          disabled={currentIndex === filtered.length - 1}
+          disabled={isLast}
           style={{
             flex: 1,
             padding: "16px",
             background: "transparent",
             border: "none",
-            color: currentIndex === filtered.length - 1 ? "rgba(255,255,255,0.15)" : "#E8735A",
+            color: isLast ? "rgba(255,255,255,0.12)" : "#E8735A",
             fontSize: 13,
-            cursor: currentIndex === filtered.length - 1 ? "default" : "pointer",
+            cursor: isLast ? "default" : "pointer",
             fontFamily: "inherit",
-            WebkitTapHighlightColor: "transparent",
           }}
         >
-          Next
+          Next →
         </button>
       </div>
     </div>
