@@ -33,7 +33,7 @@
     "@sentry/nextjs": "^10.42.0",
     "@stripe/stripe-js": "^8.9.0",
     "@supabase/ssr": "^0.8.0",
-    "@supabase/supabase-js": "^2.97.0",
+    "@supabase/supabase-js": "^2.99.3",
     "@tailwindcss/typography": "^0.5.19",
     "@types/pdf-parse": "^1.1.5",
     "@upstash/ratelimit": "^2.0.8",
