@@ -19,6 +19,11 @@ function LoginForm() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
 
+  // Password login state
+  const [passwordEmail, setPasswordEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
   const supabase = createClient();
 
   const handleMagicLink = async (e: React.FormEvent) => {
@@ -39,6 +44,25 @@ function LoginForm() {
       setError(err instanceof Error ? err.message : "Failed to send login link");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordEmail || !password) return;
+    setPasswordLoading(true);
+    setError("");
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: passwordEmail,
+        password,
+      });
+      if (error) throw error;
+      window.location.href = redirectTo;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid email or password");
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -129,6 +153,47 @@ function LoginForm() {
                   <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Sending...</>
                 ) : (
                   "Send login link"
+                )}
+              </Button>
+            </form>
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-[#DBEAFE]" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-[#F0F7FF] px-3 text-[#94A3B8]">or sign in with password</span>
+              </div>
+            </div>
+
+            {/* Password login */}
+            <form onSubmit={handlePasswordLogin} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-[#475569]">Email</Label>
+                <Input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={passwordEmail}
+                  onChange={(e) => setPasswordEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-[#475569]">Password</Label>
+                <Input
+                  type="password"
+                  placeholder="Your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" variant="outline" className="w-full" disabled={passwordLoading}>
+                {passwordLoading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Signing in...</>
+                ) : (
+                  "Sign in with password"
                 )}
               </Button>
             </form>
