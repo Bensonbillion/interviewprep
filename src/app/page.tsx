@@ -12,7 +12,7 @@ import { Footer } from "@/components/landing/Footer";
 export const metadata: Metadata = {
   title: "SalesPrep AI — Your interviewer has a scorecard. Now you do too.",
   description:
-    "AI-powered interview prep for tech sales candidates. Company-specific scoring criteria, discovery scripts, trap questions, and a live teleprompter. Built from your resume.",
+    "AI-powered interview prep for sales candidates. Company-specific scoring criteria, discovery scripts, trap questions, and a live teleprompter.",
   alternates: {
     canonical: "/",
   },
