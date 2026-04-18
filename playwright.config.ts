@@ -5,30 +5,42 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 2 : undefined,
   reporter: [
     ["html"],
-    ["list"],
-    process.env.CI ? ["github"] as const : ["line"] as const,
+    ["line"],
+    ["json", { outputFile: "test-results/results.json" }],
   ],
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000",
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL ?? "http://localhost:3000",
     trace: "on-first-retry",
-    screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    screenshot: "on-first-failure",
+    video: "on-first-retry",
   },
   projects: [
+    // Auth setup — runs first
     {
-      name: "Mobile Chrome",
-      use: { ...devices["Pixel 7"] },
+      name: "setup",
+      testMatch: "**/auth.setup.ts",
     },
+    // Main test suite
     {
-      name: "Mobile Safari",
-      use: { ...devices["iPhone 14"] },
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: "tests/.auth/user.json",
+      },
+      dependencies: ["setup"],
     },
+    // Mobile — smoke tests only
     {
-      name: "Desktop Chrome",
-      use: { ...devices["Desktop Chrome"] },
+      name: "mobile-chrome",
+      use: {
+        ...devices["Pixel 7"],
+        storageState: "tests/.auth/user.json",
+      },
+      dependencies: ["setup"],
+      grep: /@smoke/,
     },
   ],
   webServer: process.env.CI
@@ -36,7 +48,7 @@ export default defineConfig({
     : {
         command: "npm run dev",
         url: "http://localhost:3000",
-        reuseExistingServer: true,
+        reuseExistingServer: !process.env.CI,
         timeout: 120000,
       },
 });
