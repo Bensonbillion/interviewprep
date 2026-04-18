@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Live Mode — SalesPrep",
+  title: "Live Interview Mode — SalesPrep AI",
   robots: "noindex",
 };
 
