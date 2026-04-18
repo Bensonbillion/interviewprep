@@ -7,6 +7,7 @@ import { apiLimiter, checkRateLimit } from "@/lib/security/rate-limit";
  * GET /api/session/[id]
  * Returns the full PrepSession from Supabase.
  * Merges any generated_answers rows back into answerSlots.
+ * Includes interviewers and parent session info for defense flow.
  */
 export async function GET(
   _req: NextRequest,
@@ -31,21 +32,26 @@ export async function GET(
   }
 
   try {
-    const supabase = createAdminClient();
+    const db = createAdminClient();
 
-    // Fetch session row
-    const { data: row, error } = await supabase
-      .from("prep_sessions")
-      .select("*")
-      .eq("id", id)
-      .eq("user_id", auth.userId)
-      .single();
+    // Fetch session + interviewers in parallel
+    const [sessionResult, interviewersResult] = await Promise.all([
+      db.from("prep_sessions")
+        .select("*")
+        .eq("id", id)
+        .eq("user_id", auth.userId)
+        .single(),
+      db.from("session_interviewers")
+        .select("*")
+        .eq("session_id", id),
+    ]);
+
+    const { data: row, error } = sessionResult;
 
     if (error || !row) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
-    // If we have the full session_data blob, use it directly
     if (!row.session_data) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
@@ -53,7 +59,7 @@ export async function GET(
     const session = row.session_data as Record<string, unknown>;
 
     // Fetch generated_answers for this session to merge latest content into slots
-    const { data: answers } = await supabase
+    const { data: answers } = await db
       .from("generated_answers")
       .select("id, answer_type, content, rating, status")
       .eq("session_id", id)
@@ -78,7 +84,26 @@ export async function GET(
       });
     }
 
-    return NextResponse.json({ session });
+    // Add interviewers and parent info for defense flow
+    const interviewers = (interviewersResult.data ?? []).map((iv) => ({
+      name: iv.name,
+      title: iv.title,
+      company: iv.company,
+      profile_data: iv.profile_data,
+      researched_at: iv.researched_at,
+    }));
+
+    return NextResponse.json({
+      session: {
+        ...session,
+        // Ensure these are accessible at the top level
+        parent_session_id: row.parent_session_id ?? session.parentSessionId ?? null,
+        stage_type: row.stage_type ?? session.stageType ?? null,
+        stage_name: row.stage_name ?? session.stageName ?? null,
+        company_name: session.companyName ?? null,
+      },
+      interviewers,
+    });
   } catch (err) {
     console.error("[session/[id]] Unexpected error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
