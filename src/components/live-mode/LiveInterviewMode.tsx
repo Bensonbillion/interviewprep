@@ -1,128 +1,28 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-
-interface LiveCard {
-  id: string;
-  category: string;
-  title: string;
-  content: string;
-  sub?: string;
-  badge?: string;
-  badgeColor?: string;
-}
+import type { LiveCard } from "@/lib/live-mode/build-cards";
 
 interface LiveInterviewModeProps {
   sessionId: string;
-  kit: {
-    weakness_audit: unknown[];
-    hard_questions: unknown[];
-    timing_guide: unknown[];
-    roleplay_script: unknown;
-    cheat_sheet: unknown;
-    interviewers: Array<{
-      name: string;
-      title: string;
-      profile: Record<string, unknown>;
-    }>;
-  };
+  cards: LiveCard[];
 }
 
-export default function LiveInterviewMode({ sessionId: _sessionId, kit }: LiveInterviewModeProps) {
-  const [cards, setCards] = useState<LiveCard[]>([]);
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "people", label: "People" },
+  { key: "timing", label: "Timing" },
+  { key: "weak", label: "Weak spots" },
+  { key: "question", label: "Questions" },
+  { key: "roleplay", label: "Roleplay" },
+  { key: "cheat", label: "Cheat sheet" },
+] as const;
+
+export default function LiveInterviewMode({ cards }: LiveInterviewModeProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [filter, setFilter] = useState<string>("all");
 
-  // Build flat card list from kit
-  useEffect(() => {
-    const allCards: LiveCard[] = [];
-
-    // Interviewer cards
-    kit.interviewers.forEach((i) => {
-      allCards.push({
-        id: `person-${i.name}`,
-        category: "person",
-        title: i.name,
-        content: (i.profile.how_to_talk_to_them as string) ?? "",
-        sub: (i.profile.watch_outs as string) ?? "",
-        badge: i.title,
-      });
-    });
-
-    // Weak spots
-    const weakSpots = Array.isArray(kit.weakness_audit)
-      ? kit.weakness_audit
-      : ((kit.weakness_audit as Record<string, unknown>)?.weak_spots as unknown[]) ?? [];
-
-    weakSpots.forEach((w: unknown, i) => {
-      const ws = w as Record<string, unknown>;
-      allCards.push({
-        id: `weak-${i}`,
-        category: "weak",
-        title: (ws.likely_question as string) ?? "",
-        content: (ws.model_answer as string) ?? "",
-        sub: `Avoid: ${(ws.trap_to_avoid as string) ?? ""}`,
-        badge: (ws.severity as string) ?? "medium",
-        badgeColor: ws.severity === "high" ? "#E24B4A" : "#EF9F27",
-      });
-    });
-
-    // Hard questions
-    const questions = Array.isArray(kit.hard_questions) ? kit.hard_questions : [];
-    questions.forEach((q: unknown, i) => {
-      const qu = q as Record<string, unknown>;
-      allCards.push({
-        id: `q-${i}`,
-        category: "question",
-        title: (qu.question as string) ?? "",
-        content: (qu.model_answer as string) ?? "",
-        sub: `Trap: ${(qu.trap_to_avoid as string) ?? ""}`,
-        badge: (qu.asked_by as string) ?? "",
-      });
-    });
-
-    // Timing cards
-    const timing = Array.isArray(kit.timing_guide) ? kit.timing_guide : [];
-    timing.forEach((t: unknown, i) => {
-      const ti = t as Record<string, unknown>;
-      allCards.push({
-        id: `timing-${i}`,
-        category: "timing",
-        title: `${ti.time_range} — ${ti.slide}`,
-        content: (ti.key_move as string) ?? "",
-        sub: (ti.tip as string) ?? "",
-        badge: (ti.risk as string) ?? "",
-      });
-    });
-
-    // Cheat sheet
-    const cheatData = kit.cheat_sheet as Record<string, unknown>;
-    const points = (cheatData?.points as Array<Record<string, unknown>>) ?? [];
-    points.forEach((p, i) => {
-      allCards.push({
-        id: `cheat-${i}`,
-        category: "cheat",
-        title: (p.point as string) ?? "",
-        content: (p.detail as string) ?? "",
-        badge: (p.who_its_for as string) ?? "both",
-      });
-    });
-
-    // Permission to stop — always last
-    if (cheatData?.permission_to_stop) {
-      allCards.push({
-        id: "permission",
-        category: "cheat",
-        title: "You\u2019re ready.",
-        content: cheatData.permission_to_stop as string,
-      });
-    }
-
-    setCards(allCards);
-  }, [kit]);
-
-  const filtered = filter === "all" ? cards : cards.filter((c) => c.category === filter);
-
+  const filtered = filter === "all" ? cards : cards.filter((c) => c.phase === filter);
   const current = filtered[currentIndex];
   const progress = filtered.length > 0 ? Math.round(((currentIndex + 1) / filtered.length) * 100) : 0;
 
@@ -130,10 +30,7 @@ export default function LiveInterviewMode({ sessionId: _sessionId, kit }: LiveIn
     () => setCurrentIndex((i) => Math.min(i + 1, filtered.length - 1)),
     [filtered.length]
   );
-  const prev = useCallback(
-    () => setCurrentIndex((i) => Math.max(i - 1, 0)),
-    []
-  );
+  const prev = useCallback(() => setCurrentIndex((i) => Math.max(i - 1, 0)), []);
 
   // Keyboard navigation
   useEffect(() => {
@@ -150,15 +47,6 @@ export default function LiveInterviewMode({ sessionId: _sessionId, kit }: LiveIn
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [next, prev]);
-
-  const FILTERS = [
-    { key: "all", label: "All" },
-    { key: "person", label: "People" },
-    { key: "weak", label: "Weak spots" },
-    { key: "question", label: "Questions" },
-    { key: "timing", label: "Timing" },
-    { key: "cheat", label: "Cheat sheet" },
-  ] as const;
 
   return (
     <div
@@ -237,7 +125,7 @@ export default function LiveInterviewMode({ sessionId: _sessionId, kit }: LiveIn
       >
         {current ? (
           <>
-            {/* Category + badge */}
+            {/* Counter + badge */}
             <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
               <span
                 style={{
@@ -266,7 +154,7 @@ export default function LiveInterviewMode({ sessionId: _sessionId, kit }: LiveIn
               )}
             </div>
 
-            {/* Title — the question or heading */}
+            {/* Title */}
             <div
               style={{
                 fontSize: 20,
@@ -279,7 +167,7 @@ export default function LiveInterviewMode({ sessionId: _sessionId, kit }: LiveIn
               {current.title}
             </div>
 
-            {/* Content — the answer */}
+            {/* Body */}
             <div
               style={{
                 fontSize: 15,
@@ -289,7 +177,7 @@ export default function LiveInterviewMode({ sessionId: _sessionId, kit }: LiveIn
                 flex: 1,
               }}
             >
-              {current.content}
+              {current.body}
             </div>
 
             {/* Sub — trap / tip */}
@@ -315,7 +203,7 @@ export default function LiveInterviewMode({ sessionId: _sessionId, kit }: LiveIn
         )}
       </div>
 
-      {/* Navigation — tap zones */}
+      {/* Navigation */}
       <div
         style={{
           display: "flex",

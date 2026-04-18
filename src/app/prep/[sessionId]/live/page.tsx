@@ -1,7 +1,12 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { buildLiveCards } from "@/lib/live-mode/build-cards";
 import LiveInterviewMode from "@/components/live-mode/LiveInterviewMode";
+
+export const metadata = {
+  title: "Live Interview Mode — SalesPrep AI",
+};
 
 /**
  * /prep/[sessionId]/live
@@ -15,7 +20,6 @@ export default async function LiveModePage({
 }) {
   const { sessionId } = await params;
 
-  // Auth
   const supabase = await createClient();
   const {
     data: { user },
@@ -27,60 +31,32 @@ export default async function LiveModePage({
 
   const db = createAdminClient();
 
-  // Fetch generated answers + interviewers in parallel
   const [answersResult, interviewersResult] = await Promise.all([
     db.from("generated_answers")
-      .select("answer_type, content, metadata")
+      .select("answer_type, content")
       .eq("session_id", sessionId)
       .eq("status", "completed"),
     db.from("session_interviewers")
-      .select("*")
+      .select("name, title, profile_data")
       .eq("session_id", sessionId),
   ]);
 
-  // Helper to extract parsed content by answer_type
-  const getContent = (type: string): unknown => {
-    const answer = (answersResult.data ?? []).find((a) => a.answer_type === type);
-    if (!answer) return null;
-    try {
-      return typeof answer.content === "string" ? JSON.parse(answer.content) : answer.content;
-    } catch {
-      return answer.content;
-    }
-  };
+  const answers = (answersResult.data ?? []).map((a) => ({
+    answer_type: a.answer_type as string,
+    content: a.content as string,
+  }));
 
-  const kit = {
-    weakness_audit: normalizeToArray(getContent("weakness_audit")),
-    hard_questions: normalizeToArray(getContent("defense_questions")),
-    timing_guide: normalizeToArray(getContent("presentation_structure")),
-    roleplay_script: getContent("role_play_script") ?? {},
-    cheat_sheet: getContent("cheat_sheet") ?? {},
-    interviewers: (interviewersResult.data ?? []).map((i) => ({
-      name: i.name ?? "",
-      title: (i.title as string) ?? "",
-      profile: (i.profile_data ?? {}) as Record<string, unknown>,
-    })),
-  };
+  const interviewers = (interviewersResult.data ?? []).map((i) => ({
+    name: (i.name as string) ?? "",
+    title: (i.title as string) ?? null,
+    profile_data: (i.profile_data ?? null) as Record<string, unknown> | null,
+  }));
 
-  const hasContent =
-    kit.weakness_audit.length > 0 ||
-    kit.hard_questions.length > 0 ||
-    kit.interviewers.length > 0;
+  const cards = buildLiveCards(answers, interviewers);
 
-  if (!hasContent) {
+  if (cards.length === 0) {
     redirect(`/prep/${sessionId}`);
   }
 
-  return <LiveInterviewMode sessionId={sessionId} kit={kit} />;
-}
-
-function normalizeToArray(val: unknown): unknown[] {
-  if (Array.isArray(val)) return val;
-  if (val && typeof val === "object") {
-    const obj = val as Record<string, unknown>;
-    for (const key of ["items", "points", "questions", "weak_spots", "slides", "lines"]) {
-      if (Array.isArray(obj[key])) return obj[key] as unknown[];
-    }
-  }
-  return [];
+  return <LiveInterviewMode sessionId={sessionId} cards={cards} />;
 }
