@@ -18,11 +18,27 @@ export default defineConfig({
     ],
     coverage: {
       provider: "v8",
-      reporter: ["text", "html", "lcov"],
+      reporter: ["text", "json", "html"],
       include: ["src/**/*.ts", "src/**/*.tsx"],
-      exclude: ["src/**/*.d.ts", "src/**/types.ts"],
+      exclude: [
+        "src/**/*.d.ts",
+        "src/**/types.ts",
+        "node_modules/**",
+        "tests/**",
+        "**/*.config.*",
+        ".next/**",
+      ],
+      thresholds: {
+        lines: 70,
+        functions: 70,
+        branches: 60,
+      },
     },
     testTimeout: 30000,
+    pool: "forks",
+    poolOptions: {
+      forks: { singleFork: true },
+    },
   },
   resolve: {
     alias: {
