@@ -189,36 +189,101 @@ function PeopleTab({ interviewers }: { interviewers: SessionInterviewer[] }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {interviewers.map((iv) => {
         const pd = iv.profile_data ?? {};
+        const initials = iv.name
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .slice(0, 2)
+          .toUpperCase();
+        const priorities = Array.isArray(pd.likely_priorities)
+          ? (pd.likely_priorities as string[]).slice(0, 3)
+          : [];
+
         return (
-          <Card key={iv.name}>
-            <div className="flex items-start gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-[#F5F2ED] flex items-center justify-center text-[#9B8E82] text-sm font-semibold flex-shrink-0">
-                {iv.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-              </div>
-              <div>
-                <p className="text-[15px] font-semibold text-[#1C1713] dark:text-white">{iv.name}</p>
-                <p className="text-[12px] text-[#9B8E82]">{iv.title ?? ""}</p>
-              </div>
+          <div
+            key={iv.name}
+            style={{
+              display: "flex",
+              gap: 14,
+              padding: 16,
+              background: "var(--bg-card, #fff)",
+              border: "1px solid var(--color-border, #E8E4DF)",
+              borderRadius: 12,
+            }}
+          >
+            {/* Avatar */}
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                background: "#EBF5FF",
+                color: "#3B82F6",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 14,
+                fontWeight: 500,
+                flexShrink: 0,
+              }}
+            >
+              {initials}
             </div>
-            {typeof pd.career_summary === "string" && (
-              <Section label="Background" content={pd.career_summary} />
-            )}
-            {typeof pd.how_to_talk_to_them === "string" && (
-              <Section label="How to talk to them" content={pd.how_to_talk_to_them} accent />
-            )}
-            {Array.isArray(pd.likely_priorities) && (
-              <Section label="Likely priorities" content={(pd.likely_priorities as string[]).join(" · ")} />
-            )}
-            {typeof pd.watch_outs === "string" && (
-              <Section label="Watch out" content={pd.watch_outs} warn />
-            )}
-            {typeof pd.great_question_to_ask_them === "string" && (
-              <Section label="Great question to ask" content={pd.great_question_to_ask_them} accent />
-            )}
-          </Card>
+
+            <div style={{ flex: 1 }}>
+              <p style={{ fontWeight: 500, fontSize: 14, color: "#1C1713", marginBottom: 2 }}>
+                {iv.name}
+              </p>
+              <p style={{ fontSize: 12, color: "#9B8E82", marginBottom: 8 }}>
+                {iv.title ?? ""}
+              </p>
+
+              {/* Priority tags */}
+              {priorities.length > 0 && (
+                <div style={{ marginBottom: 8 }}>
+                  {priorities.map((tag) => (
+                    <span
+                      key={tag}
+                      style={{
+                        display: "inline-block",
+                        padding: "2px 8px",
+                        borderRadius: 100,
+                        background: "#F7F6F3",
+                        border: "0.5px solid #E8E4DF",
+                        fontSize: 10,
+                        color: "#5C5347",
+                        marginRight: 4,
+                        marginBottom: 4,
+                      }}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {typeof pd.how_to_talk_to_them === "string" && (
+                <p style={{ fontSize: 13, color: "#1C1713", lineHeight: 1.6, marginBottom: 6 }}>
+                  {pd.how_to_talk_to_them}
+                </p>
+              )}
+
+              {typeof pd.watch_outs === "string" && (
+                <p style={{ fontSize: 12, color: "#D97706", marginTop: 8 }}>
+                  Watch: {pd.watch_outs}
+                </p>
+              )}
+
+              {typeof pd.great_question_to_ask_them === "string" && (
+                <p style={{ fontSize: 12, color: "#9B8E82", marginTop: 6, fontStyle: "italic" }}>
+                  Great question to ask them: &ldquo;{pd.great_question_to_ask_them}&rdquo;
+                </p>
+              )}
+            </div>
+          </div>
         );
       })}
     </div>
