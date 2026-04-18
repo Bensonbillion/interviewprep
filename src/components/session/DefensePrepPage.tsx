@@ -166,16 +166,44 @@ export default function DefensePrepPage({
       </div>
 
       {/* Sticky live mode bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-[#1C1713] border-t border-white/10 z-30 sm:hidden">
-        <div className="flex items-center justify-between px-4 py-3">
-          <span className="text-[12px] text-white/50">Ready for the interview?</span>
-          <Link
-            href={`/prep/${sessionId}/live`}
-            className="px-4 py-2 bg-[#E8735A] text-white text-[13px] font-medium rounded-lg no-underline"
-          >
-            Open live mode
-          </Link>
+      <div
+        style={{
+          position: "sticky",
+          bottom: 0,
+          background: "var(--bg-card, #fff)",
+          borderTop: "0.5px solid var(--color-border-tertiary, #E8E4DF)",
+          padding: "12px 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          zIndex: 30,
+        }}
+      >
+        <div>
+          <p style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary, #1C1713)" }}>
+            Ready to practice?
+          </p>
+          <p style={{ fontSize: 11, color: "var(--text-secondary, #5C5347)" }}>
+            Open on your phone during the interview
+          </p>
         </div>
+        <a
+          href={`/prep/${sessionId}/live`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            padding: "10px 22px",
+            background: "#E8735A",
+            color: "#fff",
+            borderRadius: 10,
+            fontSize: 13,
+            fontWeight: 500,
+            textDecoration: "none",
+            flexShrink: 0,
+          }}
+        >
+          Open live mode →
+        </a>
       </div>
     </div>
   );
