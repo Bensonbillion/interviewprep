@@ -30,12 +30,11 @@ export function renderInlineFormatting(text: string): React.ReactNode {
 export function FormattedTextContent({ content, isSpoken }: { content: string; isSpoken?: boolean }) {
   const trimmedContent = typeof content === "string" ? content.trim() : "";
   if (trimmedContent.startsWith("{") || trimmedContent.startsWith("[")) {
-    try {
-      const parsed = JSON.parse(trimmedContent);
-      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-        return <GenericStructuredContent data={parsed as Record<string, unknown>} />;
-      }
-    } catch { /* not JSON — render as text */ }
+    // Try standard parse first, then lenient repair
+    const parsed = tryParseJSON(trimmedContent);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return <GenericStructuredContent data={parsed as Record<string, unknown>} />;
+    }
   }
 
   const blocks = content.split(/\n\n+/).filter((b) => b.trim());
@@ -145,7 +144,7 @@ export function GenericStructuredContent({ data }: { data: Record<string, unknow
                 <GenericStructuredContent data={value as Record<string, unknown>} />
               </div>
             ) : (
-              <p className="text-[15px] text-stone-700 dark:text-[var(--text-primary)] leading-relaxed">{String(value)}</p>
+              <p className="text-[15px] text-stone-700 dark:text-[var(--text-primary)] leading-relaxed">{typeof value === "string" ? renderInlineFormatting(value) : String(value)}</p>
             )}
           </div>
         );

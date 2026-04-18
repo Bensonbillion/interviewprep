@@ -49,7 +49,69 @@ export function tryParseJSON(raw: string | unknown): unknown | null {
     try { return JSON.parse(candidate); } catch { /* ignore */ }
   }
 
+  // Lenient repair: try to fix common AI JSON issues
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    const candidate = cleaned.slice(firstBrace, lastBrace + 1);
+    const repaired = repairJson(candidate);
+    if (repaired) return repaired;
+  }
+
   return null;
+}
+
+/**
+ * Attempt to repair common malformed JSON from AI responses:
+ * - Unterminated strings (add closing quote)
+ * - Trailing commas before } or ]
+ * - Unescaped newlines inside strings
+ */
+function repairJson(raw: string): unknown | null {
+  let s = raw;
+
+  // Fix unescaped newlines inside string values
+  s = s.replace(/(?<=: "(?:[^"\\]|\\.)*)(\n)(?=[^"]*")/g, "\\n");
+
+  // Remove trailing commas before } or ]
+  s = s.replace(/,\s*([}\]])/g, "$1");
+
+  // Try parsing after basic repairs
+  try { return JSON.parse(s); } catch { /* continue */ }
+
+  // If string is unterminated, try closing it
+  // Find the last unclosed quote and close it + close remaining braces
+  try {
+    // Count open braces/brackets
+    let openBraces = 0;
+    let openBrackets = 0;
+    let inString = false;
+    let escaped = false;
+
+    for (const ch of s) {
+      if (escaped) { escaped = false; continue; }
+      if (ch === "\\") { escaped = true; continue; }
+      if (ch === '"') { inString = !inString; continue; }
+      if (inString) continue;
+      if (ch === "{") openBraces++;
+      if (ch === "}") openBraces--;
+      if (ch === "[") openBrackets++;
+      if (ch === "]") openBrackets--;
+    }
+
+    // If we're still in a string, close it
+    let repaired = s;
+    if (inString) repaired += '"';
+
+    // Remove trailing commas
+    repaired = repaired.replace(/,\s*$/, "");
+
+    // Close remaining braces/brackets
+    for (let i = 0; i < openBrackets; i++) repaired += "]";
+    for (let i = 0; i < openBraces; i++) repaired += "}";
+
+    return JSON.parse(repaired);
+  } catch {
+    return null;
+  }
 }
 
 /** Convert camelCase/snake_case keys to readable labels. */
