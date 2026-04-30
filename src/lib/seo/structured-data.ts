@@ -29,8 +29,8 @@ export function organizationSchema() {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "SalesPrep AI",
-    url: "https://interviewprep.roadmapengine.ai",
-    logo: "https://interviewprep.roadmapengine.ai/logo.png",
+    url: "https://salesprep.roadmapengine.ai",
+    logo: "https://salesprep.roadmapengine.ai/logo.png",
     sameAs: [
       "https://twitter.com/SalesPrepAI",
       "https://linkedin.com/company/salesprep-ai",

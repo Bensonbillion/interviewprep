@@ -50,11 +50,11 @@ describe("Structured Data Schemas", () => {
     });
 
     it("has correct URL", () => {
-      expect(schema.url).toBe("https://interviewprep.roadmapengine.ai");
+      expect(schema.url).toBe("https://salesprep.roadmapengine.ai");
     });
 
     it("has logo URL", () => {
-      expect(schema.logo).toContain("interviewprep.roadmapengine.ai");
+      expect(schema.logo).toContain("salesprep.roadmapengine.ai");
     });
 
     it("has social media links", () => {
@@ -110,11 +110,11 @@ describe("Structured Data Schemas", () => {
 
   describe("breadcrumbSchema", () => {
     const items = [
-      { name: "Home", url: "https://interviewprep.roadmapengine.ai" },
-      { name: "Companies", url: "https://interviewprep.roadmapengine.ai/companies" },
+      { name: "Home", url: "https://salesprep.roadmapengine.ai" },
+      { name: "Companies", url: "https://salesprep.roadmapengine.ai/companies" },
       {
         name: "Salesforce SDR",
-        url: "https://interviewprep.roadmapengine.ai/companies/salesforce/sdr",
+        url: "https://salesprep.roadmapengine.ai/companies/salesforce/sdr",
       },
     ];
     const schema = breadcrumbSchema(items);
@@ -192,10 +192,10 @@ describe("robots.ts Configuration", () => {
     expect(typeof robotsFn).toBe("function");
   });
 
-  it("returns sitemap URL pointing to interviewprep.roadmapengine.ai", async () => {
+  it("returns sitemap URL pointing to salesprep.roadmapengine.ai", async () => {
     const mod = await import("@/app/robots");
     const config = mod.default();
-    expect(config.sitemap).toBe("https://interviewprep.roadmapengine.ai/sitemap.xml");
+    expect(config.sitemap).toBe("https://salesprep.roadmapengine.ai/sitemap.xml");
   });
 
   it("allows root path", async () => {
@@ -325,8 +325,8 @@ describe("SEO Metadata Requirements", () => {
       expect(layoutSource).toContain("follow: true");
     });
 
-    it("has metadataBase set to interviewprep.roadmapengine.ai", () => {
-      expect(layoutSource).toContain("interviewprep.roadmapengine.ai");
+    it("has metadataBase set to salesprep.roadmapengine.ai", () => {
+      expect(layoutSource).toContain("salesprep.roadmapengine.ai");
       expect(layoutSource).toContain("metadataBase");
     });
   });

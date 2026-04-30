@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { createClient } from "@supabase/supabase-js";
 import { getAllPosts } from "@/lib/blog";
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://interviewprep.roadmapengine.ai";
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://salesprep.roadmapengine.ai";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Static pages

@@ -15,6 +15,6 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: "https://interviewprep.roadmapengine.ai/sitemap.xml",
+    sitemap: "https://salesprep.roadmapengine.ai/sitemap.xml",
   };
 }

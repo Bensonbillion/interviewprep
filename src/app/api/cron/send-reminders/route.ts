@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
         const sessionData = (session.session_data ?? {}) as Record<string, unknown>;
         const companyName = (sessionData.companyName as string) ?? "your interview";
         const stageName = session.stage_name ?? "Interview";
-        const liveUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://interviewprep.roadmapengine.ai"}/prep/${session.id}/live`;
+        const liveUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://salesprep.roadmapengine.ai"}/prep/${session.id}/live`;
 
         // Send email via Supabase edge function or direct SMTP
         // For now, log and mark as sent (email provider integration TBD)

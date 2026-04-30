@@ -35,7 +35,7 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://interviewprep.roadmapengine.ai";
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://salesprep.roadmapengine.ai";
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
