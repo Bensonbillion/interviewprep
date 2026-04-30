@@ -1,0 +1,12 @@
+{
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [
+        { "type": "host", "value": "interviewprep.roadmapengine.ai" }
+      ],
+      "destination": "https://salesprep.roadmapengine.ai/:1",
+      "permanent": true
+    }
+  ]
+}
