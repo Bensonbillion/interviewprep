@@ -5,7 +5,11 @@ ALTER TABLE golden_examples
   ADD COLUMN IF NOT EXISTS red_flag_version TEXT,
   ADD COLUMN IF NOT EXISTS red_flag_why TEXT;
 
--- Update match_golden_examples to return new columns
+-- Update match_golden_examples to return new columns.
+-- Drop first because the RETURNS TABLE shape changes vs migration 003,
+-- and Postgres rejects CREATE OR REPLACE when the return type differs.
+DROP FUNCTION IF EXISTS match_golden_examples(VECTOR(1536), INTEGER, TEXT, TEXT);
+
 CREATE OR REPLACE FUNCTION match_golden_examples(
   query_embedding VECTOR(1536),
   match_count INTEGER DEFAULT 3,
