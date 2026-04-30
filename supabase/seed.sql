@@ -1,3 +1,8 @@
+-- pgTAP must exist before the test helpers below — several helper bodies
+-- (e.g. tests.rls_enabled) call pgTAP's unqualified is(int, int, text) at
+-- CREATE FUNCTION parse time.
+CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA public;
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Vendored from usebasejump/supabase-test-helpers v0.0.6
 -- https://github.com/usebasejump/supabase-test-helpers
