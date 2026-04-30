@@ -1,19 +1,12 @@
--- Create answer_versions table (from 003) + humanization columns
-CREATE TABLE IF NOT EXISTS answer_versions (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  session_id TEXT NOT NULL,
-  answer_type TEXT NOT NULL,
-  content TEXT NOT NULL,
-  generation_type TEXT DEFAULT 'initial' CHECK (generation_type IN ('initial', 'regen', 'edit')),
-  quick_action TEXT,
-  prompt_version_id UUID,
-  knowledge_chunk_ids UUID[],
-  golden_example_ids UUID[],
-  answer_raw TEXT,
-  answer_humanized TEXT,
-  was_humanized BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- answer_versions is created in migration 003 without humanization columns.
+-- The previous CREATE TABLE IF NOT EXISTS was a no-op (table already exists),
+-- so the new columns were never added and the COMMENT statements failed.
+-- Use ALTER TABLE with IF NOT EXISTS for true idempotence.
+
+ALTER TABLE answer_versions
+  ADD COLUMN IF NOT EXISTS answer_raw TEXT,
+  ADD COLUMN IF NOT EXISTS answer_humanized TEXT,
+  ADD COLUMN IF NOT EXISTS was_humanized BOOLEAN DEFAULT false;
 
 ALTER TABLE answer_versions ENABLE ROW LEVEL SECURITY;
 
