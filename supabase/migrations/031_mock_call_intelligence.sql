@@ -105,6 +105,26 @@ CREATE TABLE IF NOT EXISTS mock_call_accounts (
 -- SECTION D — Enrich Samsara in company_interview_intel
 -- ═══════════════════════════════════════════════════════════════════════════════
 
+-- Migrations 021 and 023 both seed the same ~30 companies into
+-- company_interview_intel without ON CONFLICT, so any fresh DB ends up
+-- with duplicate rows. Before adding the UNIQUE index that the upsert
+-- below depends on, drop older duplicates and keep the most recently
+-- updated row per normalized name.
+DELETE FROM company_interview_intel
+WHERE id IN (
+  SELECT id FROM (
+    SELECT id, ROW_NUMBER() OVER (
+      PARTITION BY company_name_normalized
+      ORDER BY last_updated DESC NULLS LAST, id DESC
+    ) AS rn
+    FROM company_interview_intel
+  ) ranked
+  WHERE rn > 1
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_company_interview_intel_normalized
+  ON company_interview_intel (company_name_normalized);
+
 INSERT INTO company_interview_intel (
   company_name,
   company_name_normalized,
