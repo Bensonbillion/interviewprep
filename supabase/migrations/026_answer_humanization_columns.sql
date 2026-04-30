@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS answer_versions (
 
 ALTER TABLE answer_versions ENABLE ROW LEVEL SECURITY;
 
+-- Policy already created in migration 003; drop-and-recreate is idempotent.
+DROP POLICY IF EXISTS "Service role only" ON answer_versions;
 CREATE POLICY "Service role only" ON answer_versions
   FOR ALL USING (FALSE);
 
