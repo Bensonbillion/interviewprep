@@ -39,11 +39,14 @@ export function StepRoleAuth({ onRoleChange }: StepRoleAuthProps) {
   useEffect(() => {
     const saved = localStorage.getItem(SP_ROLE_KEY) as RoleType | null;
     if (saved) {
+      // localStorage read deferred to effect for SSR-safety.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRole(saved);
       onRoleChange?.(saved);
     }
 
     const callbackError = searchParams.get("error");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (callbackError) setError(callbackError);
 
     const supabase = createClient();

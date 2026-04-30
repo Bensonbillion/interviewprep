@@ -35,6 +35,8 @@ export default function LiveInterviewMode({ cards }: { cards: LiveCard[] }) {
 
   // Reset index when phase changes
   useEffect(() => {
+    // Resetting child state on parent prop change is a documented React pattern.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIndex(0);
   }, [phase]);
 

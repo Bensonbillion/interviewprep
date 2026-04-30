@@ -17,6 +17,8 @@ export function MobileSamplePreview({ selectedRole }: MobileSamplePreviewProps) 
 
   // Collapse back to truncated when role changes
   useEffect(() => {
+    // Resetting child state on parent prop change is a documented React pattern.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setExpanded(false);
   }, [selectedRole]);
 

@@ -18,6 +18,9 @@ export default function PanelTriggerBanner({ sessionId, companyName }: PanelTrig
 
   useEffect(() => {
     const stored = localStorage.getItem(getDismissKey(sessionId));
+    // localStorage is unavailable during SSR; deferring the read to an effect is
+    // the canonical hydration-safe pattern, so the setState here is intentional.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDismissed(stored === "true");
   }, [sessionId]);
 

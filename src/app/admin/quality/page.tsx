@@ -78,7 +78,12 @@ export default function QualityDashboardPage() {
     setLoading(false);
   }
 
-  useEffect(() => { fetchData(days); }, [days]);
+  useEffect(() => {
+    // fetchData calls setLoading(true) synchronously to show the spinner
+    // while days-filter changes propagate; intentional sync from external.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchData(days);
+  }, [days]);
 
   const totalFeedback = (summary?.thumbsUp ?? 0) + (summary?.thumbsDown ?? 0);
   const overallSatisfaction = totalFeedback > 0

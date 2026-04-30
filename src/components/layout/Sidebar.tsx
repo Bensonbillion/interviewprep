@@ -145,6 +145,8 @@ export function Sidebar({ className = "" }: { className?: string }) {
 
   useEffect(() => {
     const local = getSessionList();
+    // localStorage read deferred to effect for SSR-safety — sync from external.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSessionList(local);
 
     // Validate sessions against Supabase — remove ghosts

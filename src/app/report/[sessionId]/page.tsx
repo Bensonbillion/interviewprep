@@ -117,7 +117,10 @@ export default function ReportPage() {
     if (raw) {
       try {
         const s = JSON.parse(raw) as PrepSession;
+        // sessionStorage read deferred to effect for SSR-safety.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSession(s);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setStage(s.stage);
         return;
       } catch {
@@ -162,7 +165,10 @@ export default function ReportPage() {
       matchedAnswerType: type,
       expanded: false,
     }));
+    // Pre-population is intentional sync from session prop after fetch resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setQuestions(suggestions);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNextQId(suggestions.length + 1);
   }, [session]);
 

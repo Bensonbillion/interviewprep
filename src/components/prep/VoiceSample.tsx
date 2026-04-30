@@ -35,7 +35,10 @@ export function VoiceSample({
   // Sync if existingVersion changes (e.g. loaded after mount)
   useEffect(() => {
     if (existingVersion && !text) {
+      // Hydrating local state from a prop that loads asynchronously after mount.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setText(existingVersion);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSaved(true);
     }
   }, [existingVersion, text]);

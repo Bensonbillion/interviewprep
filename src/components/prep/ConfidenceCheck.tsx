@@ -26,6 +26,29 @@ export function ConfidenceCheck({ sessionId, slots, isFirstSession, onDismiss }:
   const [visible, setVisible] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
+  const unlockedSlots = slots.filter((s) => s.status === "unlocked" && s.content);
+
+  const submitFeedback = () => {
+    fetch("/api/feedback/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        confidenceAfter: confidence,
+        mostHelpfulCard: mostHelpful || undefined,
+        whatElseWouldHelp: whatElse.trim() || undefined,
+        disappointmentWithout: disappointment ?? undefined,
+      }),
+    }).catch(() => {});
+  };
+
+  const handleSubmitPartial = () => {
+    if (confidence) {
+      submitFeedback();
+    }
+    onDismiss();
+  };
+
   // Slide-in animation on mount
   useEffect(() => {
     const timer = setTimeout(() => setVisible(true), 50);
@@ -42,29 +65,6 @@ export function ConfidenceCheck({ sessionId, slots, isFirstSession, onDismiss }:
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   });
-
-  const unlockedSlots = slots.filter((s) => s.status === "unlocked" && s.content);
-
-  const handleSubmitPartial = () => {
-    if (confidence) {
-      submitFeedback();
-    }
-    onDismiss();
-  };
-
-  const submitFeedback = () => {
-    fetch("/api/feedback/session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId,
-        confidenceAfter: confidence,
-        mostHelpfulCard: mostHelpful || undefined,
-        whatElseWouldHelp: whatElse.trim() || undefined,
-        disappointmentWithout: disappointment ?? undefined,
-      }),
-    }).catch(() => {});
-  };
 
   const handleSubmit = () => {
     if (!confidence) return;

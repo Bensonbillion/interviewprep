@@ -132,7 +132,10 @@ export function RoundSelector({
   // Reset local state when stage leaves role_play
   useEffect(() => {
     if (selected !== "role_play") {
+      // Resetting child state on parent prop change is a documented pattern.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedCallCard(null);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedPersonaCard(null);
     }
   }, [selected]);
@@ -140,6 +143,8 @@ export function RoundSelector({
   // Reset persona when call type changes away from discovery
   useEffect(() => {
     if (selectedCallCard !== "discovery") {
+      // Resetting dependent state when its driver changes; sync with external.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedPersonaCard(null);
       onMockCallPersonaChange(null);
     }

@@ -16,6 +16,8 @@ export function useCredits(): CreditsState {
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
+    // Marking loading=true synchronously when re-fetching after a refresh tick.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     fetch("/api/user/credits")
       .then((r) => r.json())

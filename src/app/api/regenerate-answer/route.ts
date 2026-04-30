@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
 
     // Deterministic style cleanup — contractions for spoken, banned words for all
     const isSpoken = shouldHumanize(answerType);
-    let finalContent = styleLint(rawContent, isSpoken);
+    const finalContent = styleLint(rawContent, isSpoken);
 
     // Log regen with both raw and humanized versions (fire-and-forget)
     logAnswerVersion({

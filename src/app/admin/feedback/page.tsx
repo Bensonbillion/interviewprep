@@ -91,6 +91,9 @@ export default function FeedbackDashboardPage() {
   }
 
   useEffect(() => {
+    // fetchData synchronously calls setLoading(true) before its await — that
+    // is intentional so the spinner shows while days-filter changes propagate.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData(days);
   }, [days]);
 

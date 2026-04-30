@@ -69,7 +69,12 @@ export default function VoiceStylePage() {
     setLoading(false);
   }
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    // fetchData calls setLoading(true) synchronously before its await; that
+    // initial spinner-on-mount is intentional.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchData();
+  }, []);
 
   function startEditVoice() {
     if (!voice) return;

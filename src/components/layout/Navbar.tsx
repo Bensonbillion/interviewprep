@@ -57,6 +57,9 @@ export function Navbar() {
   useEffect(() => {
     if (creditsLoading) return;
     if (prevCreditsRef.current !== null && credits < prevCreditsRef.current) {
+      // Conditional flash with timer cleanup is a legitimate effect pattern;
+      // refactoring away the setState would break the auto-clear timeout.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCreditFlash(true);
       const t = setTimeout(() => setCreditFlash(false), 800);
       return () => clearTimeout(t);

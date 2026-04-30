@@ -7,7 +7,11 @@ export function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // Read DOM-driven theme state on mount; SSR can't see the documentElement
+    // class so this sync-from-external is the right pattern.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsDark(document.documentElement.classList.contains("dark"));
 
     const mq = window.matchMedia("(prefers-color-scheme: dark)");

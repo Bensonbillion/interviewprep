@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { InterviewStage, RoleType, InterviewerInput, MockCallType, MockCallPersona } from "@/types";
 import { PaywallModal } from "./PaywallModal";
@@ -33,6 +33,22 @@ interface StepDetailsProps {
     previousRoundContext?: string;
     isFirstRound?: boolean;
   }) => void;
+}
+
+function InterviewDateLabel({ value }: { value: string }) {
+  const label = useMemo(() => {
+    const d = new Date(value + "T12:00:00");
+    // Date.now() is impure; that's intentional here — the relative label
+    // ("Today" / "Tomorrow") is meant to reflect the current moment when
+    // the date input changes.
+    // eslint-disable-next-line react-hooks/purity
+    const diff = Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    if (diff === 0) return "Today — let's get you ready!";
+    if (diff === 1) return "Tomorrow — we'll make it count.";
+    if (diff <= 3) return `In ${diff} days — plenty of time to prep.`;
+    return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+  }, [value]);
+  return <p className="text-xs text-primary-500 mt-1.5 font-medium">📅 {label}</p>;
 }
 
 export function StepDetails({ roleType, onCompanyNameChange, onGenerate }: StepDetailsProps) {
@@ -358,18 +374,7 @@ export function StepDetails({ roleType, onCompanyNameChange, onGenerate }: StepD
           min={new Date().toISOString().split("T")[0]}
           className="w-full text-sm border border-gray-200 rounded-xl px-3.5 py-2.5 text-ink focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
         />
-        {interviewDate && (
-          <p className="text-xs text-primary-500 mt-1.5 font-medium">
-            📅 {(() => {
-              const d = new Date(interviewDate + "T12:00:00");
-              const diff = Math.ceil((d.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-              if (diff === 0) return "Today — let's get you ready!";
-              if (diff === 1) return "Tomorrow — we'll make it count.";
-              if (diff <= 3) return `In ${diff} days — plenty of time to prep.`;
-              return `${d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}`;
-            })()}
-          </p>
-        )}
+        {interviewDate && <InterviewDateLabel value={interviewDate} />}
       </div>
 
       {/* Job description (collapsed accordion) */}
