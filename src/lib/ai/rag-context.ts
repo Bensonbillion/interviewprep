@@ -81,6 +81,16 @@ export interface RagContext {
   detectionTechnique: string | null;
 }
 
+// PROMPT CACHING NOTE (May 2026):
+// Investigated adding cache_control to this function's output.
+// Measurement showed only ~1,700-2,500 tokens are stable across
+// kit slots — the rest (5,000+ tokens of per-answer-type RAG)
+// varies. Net cache savings: ~5% on Claude input cost.
+// Decision: not worth the refactor cost. Reconsider if:
+// - Stable preamble grows past 4K tokens (would help Haiku)
+// - Per-answer-type tail shrinks significantly
+// - Cross-slot regeneration becomes the dominant call pattern
+
 /**
  * Assemble the final system prompt in the correct order.
  *
