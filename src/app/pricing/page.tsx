@@ -6,10 +6,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Check } from "lucide-react";
 import { CREDIT_PACKAGES } from "@/lib/credits";
+import { Footer } from "@/components/landing/Footer";
 
 export default function PricingPage() {
   return (
-    <main className="min-h-screen bg-[#F0F7FF] py-12 px-4">
+    <div className="min-h-screen flex flex-col bg-[#F0F7FF]">
+      <main className="flex-1 py-12 px-4">
       <div className="max-w-3xl mx-auto">
         <Link href="/">
           <Button variant="ghost" size="sm" className="mb-6 gap-1 -ml-2 text-[#4A7AFF] hover:text-[#3B5FE6]">
@@ -110,6 +112,8 @@ export default function PricingPage() {
           </p>
         </div>
       </div>
-    </main>
+      </main>
+      <Footer />
+    </div>
   );
 }
