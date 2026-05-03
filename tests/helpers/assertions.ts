@@ -89,7 +89,7 @@ export function assertSafeErrorResponse(body: { error?: string }) {
   expect(error).not.toMatch(/\/src\//);
   // No database internals
   expect(error).not.toMatch(/supabase/i);
-  expect(error).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
+  expect(error).not.toContain("SUPABASE_SECRET_KEY");
 }
 
 /**

@@ -84,8 +84,8 @@ vi.mock("@/lib/supabase/server", () => ({
 
 // Fallback env vars for unit tests (won't override .env.local values)
 process.env.NEXT_PUBLIC_SUPABASE_URL ??= "http://localhost:54321";
-process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "test-anon-key";
-process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";
+process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??= "test-anon-key";
+process.env.SUPABASE_SECRET_KEY ??= "test-service-role-key";
 process.env.ANTHROPIC_API_KEY ??= "sk-ant-test-key";
 process.env.DATA_ENCRYPTION_KEY ??=
   "test-encryption-key-must-be-at-least-32-chars-long";

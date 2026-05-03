@@ -9,7 +9,7 @@ const authFile = path.join(__dirname, "../.auth/user.json");
 
 setup("authenticate", async ({ page }) => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  const serviceKey = process.env.SUPABASE_SECRET_KEY ?? "";
   const testEmail = process.env.TEST_USER_EMAIL ?? "paulhills566@gmail.com";
 
   if (!supabaseUrl || !serviceKey) {

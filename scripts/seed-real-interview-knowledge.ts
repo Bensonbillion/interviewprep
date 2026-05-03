@@ -6,7 +6,7 @@
  *
  * Requires .env.local with:
  *   NEXT_PUBLIC_SUPABASE_URL
- *   SUPABASE_SERVICE_ROLE_KEY
+ *   SUPABASE_SECRET_KEY
  *   OPENAI_API_KEY
  */
 
@@ -35,11 +35,11 @@ try {
 }
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY!;
 const OPENAI_KEY = process.env.OPENAI_API_KEY!;
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !OPENAI_KEY) {
-  console.error("Missing NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, or OPENAI_API_KEY");
+  console.error("Missing NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY, or OPENAI_API_KEY");
   process.exit(1);
 }
 

@@ -7,8 +7,8 @@
  *
  * Required env vars:
  *   NEXT_PUBLIC_SUPABASE_URL
- *   NEXT_PUBLIC_SUPABASE_ANON_KEY
- *   SUPABASE_SERVICE_ROLE_KEY
+ *   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+ *   SUPABASE_SECRET_KEY
  *   TEST_USER_PASSWORD  (password for paulhills566@gmail.com)
  *
  * User B is created/destroyed automatically via the admin API.
@@ -22,8 +22,8 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 // ── Setup ────────────────────────────────────────────────────────────────────
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const serviceRoleKey = process.env.SUPABASE_SECRET_KEY!;
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
 
 const TEST_USER_A_EMAIL = "bensonegemonye@yahoo.com";
 const TEST_USER_B_EMAIL = "rls-test-user-b@test-only.local";
