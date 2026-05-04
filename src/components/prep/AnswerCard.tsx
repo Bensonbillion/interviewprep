@@ -30,6 +30,8 @@ import { PrepMaterial } from "@/components/prep/PrepMaterial";
 import { SpeakingTime } from "@/components/prep/SpeakingTime";
 import { PracticeMode } from "@/components/prep/PracticeMode";
 import { VoiceSample } from "@/components/prep/VoiceSample";
+import { isStreamingAnswerType } from "@/lib/ai/streaming";
+import { consumeAnswerStream } from "@/lib/streaming/consume-sse";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -686,15 +688,45 @@ export function AnswerCard({
         try { const errData = await res.json(); errMsg = errData.error ?? errMsg; } catch { /* HTML error page */ }
         throw new Error(errMsg);
       }
-      const data = await res.json();
+
       const newVersions = [...versions, slot.content ?? ""].filter(Boolean);
-      onSlotUpdate(slot.type, {
-        content: data.content,
-        answerId: data.answerId,
-        versions: newVersions,
-        regenCount: regenCount + 1,
-        rating: undefined,
-      });
+      let finalAnswerId = "";
+      let streamedContent = "";
+
+      if (isStreamingAnswerType(slot.type)) {
+        // Live stream — push chunks into slot.content as they arrive.
+        await consumeAnswerStream(res, {
+          onText: (chunk) => {
+            streamedContent += chunk;
+            onSlotUpdate(slot.type, { content: streamedContent });
+          },
+          onDone: ({ answerId }) => {
+            finalAnswerId = answerId;
+          },
+          onError: (msg) => {
+            console.error("Regen stream error:", msg);
+          },
+        });
+        // Commit final state — versions/regenCount/rating once stream finishes.
+        onSlotUpdate(slot.type, {
+          content: streamedContent,
+          answerId: finalAnswerId,
+          versions: newVersions,
+          regenCount: regenCount + 1,
+          rating: undefined,
+        });
+      } else {
+        // Existing non-streaming JSON path.
+        const data = await res.json();
+        onSlotUpdate(slot.type, {
+          content: data.content,
+          answerId: data.answerId,
+          versions: newVersions,
+          regenCount: regenCount + 1,
+          rating: undefined,
+        });
+      }
+
       setVersionIndex(0);
       if (regenCount >= FREE_REGENS) {
         fetch("/api/user/spend-credit", {

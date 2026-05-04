@@ -10,10 +10,14 @@ import { fetchRagContext, assembleSystemPrompt, logAnswerVersion } from "@/lib/a
 import { checkAnswerQuality, logQualityCheck } from "@/lib/ai/quality-check";
 import { shouldHumanize } from "@/lib/ai/humanize-answer";
 import { styleLint } from "@/lib/ai/style-lint";
+import { isStreamingAnswerType, type AnswerStreamEvent } from "@/lib/ai/streaming";
 import type { AnswerType, PrepSession } from "@/types";
 import { STAGE_TYPE_METADATA, type StageType } from "@/lib/types/stages";
 import { auditLog } from "@/lib/security/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+// Vercel Pro plan — give the route enough headroom for streamed Sonnet generations.
+export const maxDuration = 60;
 
 // Answer types that use Haiku (lighter/cheaper tasks)
 const HAIKU_ANSWER_TYPES: AnswerType[] = [
@@ -147,6 +151,134 @@ export async function POST(req: NextRequest) {
       ? HAIKU
       : SONNET;
 
+    // ── STREAMING BRANCH ──────────────────────────────────────────────────────
+    // For the spoken-narrative answer types (TMAY, why_sales, etc.) the
+    // FormattedTextContent renderer accepts incremental string updates, so we
+    // pipe Claude's tokens to the client live for ~<2s TTFT instead of ~25s.
+    // Tradeoff: skips the post-Claude QC + auto-regenerate step. See
+    // src/lib/ai/streaming.ts for the rationale.
+    if (isStreamingAnswerType(answerType as AnswerType)) {
+      const answerId = crypto.randomUUID();
+      const isSpoken = shouldHumanize(answerType as AnswerType);
+      const claudeStream = await anthropic.messages.stream({
+        model,
+        max_tokens: maxTokens,
+        system,
+        messages: [{ role: "user", content: userContent }],
+      });
+
+      const encoder = new TextEncoder();
+      const readable = new ReadableStream({
+        async start(controller) {
+          let clientGone = false;
+          let accumulated = "";
+
+          const send = (event: AnswerStreamEvent) => {
+            if (clientGone) return;
+            try {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+            } catch {
+              // Controller closed (likely client disconnect). Stop trying to
+              // write but keep the upstream Anthropic loop running so the
+              // server-side post-processing still completes.
+              clientGone = true;
+            }
+          };
+
+          try {
+            for await (const event of claudeStream) {
+              if (
+                event.type === "content_block_delta" &&
+                event.delta.type === "text_delta"
+              ) {
+                accumulated += event.delta.text;
+                send({ type: "text", text: event.delta.text });
+              }
+            }
+
+            // Stream complete — apply deterministic style cleanup on the full
+            // text. styleLint operates on the final string, not per-chunk, so
+            // there's no way to feed cleaned text incrementally to the client.
+            // The visible streamed text and the persisted finalContent may
+            // therefore differ slightly in punctuation/spacing — acceptable.
+            const finalContent = styleLint(accumulated, isSpoken);
+
+            // Fire-and-forget logging + persistence (matches non-streaming path).
+            logAnswerVersion({
+              sessionId,
+              answerType: answerType as AnswerType,
+              content: finalContent,
+              generationType: "initial",
+              promptVersionId: rag.activePromptVersionId,
+              knowledgeChunkIds: rag.knowledgeChunkIds,
+              goldenExampleIds: rag.goldenExampleIds,
+            });
+
+            auditLog({
+              eventType: "generation_completed",
+              userId: auth.userId,
+              resourceType: "answer",
+              resourceId: answerId,
+              details: {
+                answerType,
+                model,
+                company: session.company?.name,
+                streamed: true,
+              },
+            });
+
+            if (sessionId !== "anon") {
+              db.from("generated_answers")
+                .upsert(
+                  {
+                    id: answerId,
+                    session_id: sessionId,
+                    user_id: auth.userId,
+                    answer_type: answerType,
+                    content: finalContent,
+                    metadata: { model, streamed: true },
+                    status: "completed",
+                  },
+                  { onConflict: "id" }
+                )
+                .then(({ error: dbErr }) => {
+                  if (dbErr) console.error("[generate-answer] DB upsert error:", dbErr);
+                });
+            }
+
+            send({ type: "done", answerId, model });
+          } catch (err) {
+            console.error("[generate-answer] stream error:", err);
+            send({
+              type: "error",
+              message: "Generation failed. Please try again.",
+            });
+          } finally {
+            try {
+              controller.close();
+            } catch {
+              /* already closed */
+            }
+          }
+        },
+        cancel() {
+          // Client aborted. Don't tear down the upstream Anthropic loop —
+          // post-processing continues in `start()` and writes the answer to
+          // the DB even though the client won't see it.
+        },
+      });
+
+      return new Response(readable, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    }
+
+    // ── NON-STREAMING BRANCH (existing path, unchanged) ──────────────────────
     const response = await anthropic.messages.create({
       model,
       max_tokens: maxTokens,

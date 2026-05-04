@@ -68,9 +68,12 @@ const validSession = {
   stage: "recruiter",
 };
 
+// Default answerType is a non-streaming JSON type — keeps tests on the
+// existing messages.create() path. See src/lib/ai/streaming.ts for the
+// list of types that take the streaming branch.
 const validBody = {
   sessionId: "00000000-0000-0000-0000-000000000000",
-  answerType: "tell_me_about_yourself",
+  answerType: "behavioral_star",
   session: validSession,
 };
 
@@ -98,7 +101,7 @@ describe("POST /api/generate-answer", () => {
 
     expect(res.status).toBe(200);
     expect(body.answerId).toBeDefined();
-    expect(body.answerType).toBe("tell_me_about_yourself");
+    expect(body.answerType).toBe("behavioral_star");
     expect(body.content).toBeDefined();
     expect(typeof body.content).toBe("string");
     expect(body.content.length).toBeGreaterThan(0);

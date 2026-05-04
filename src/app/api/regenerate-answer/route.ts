@@ -9,7 +9,10 @@ import { parseJobListing, buildJobListingContext } from "@/lib/ai/job-listing";
 import { fetchRagContext, assembleSystemPrompt, logAnswerVersion } from "@/lib/ai/rag-context";
 import { shouldHumanize } from "@/lib/ai/humanize-answer";
 import { styleLint } from "@/lib/ai/style-lint";
+import { isStreamingAnswerType, type AnswerStreamEvent } from "@/lib/ai/streaming";
 import type { AnswerType, PrepSession } from "@/types";
+
+export const maxDuration = 60;
 
 const HAIKU_ANSWER_TYPES: AnswerType[] = ["company_brief", "cheat_sheet", "comp_expectations"];
 
@@ -104,7 +107,88 @@ export async function POST(req: NextRequest) {
       : user;
 
     const model = HAIKU_ANSWER_TYPES.includes(answerType) ? HAIKU : SONNET;
+    const isSpoken = shouldHumanize(answerType);
 
+    // ── STREAMING BRANCH (spoken narrative types only) ───────────────────────
+    if (isStreamingAnswerType(answerType)) {
+      const answerId = crypto.randomUUID();
+      const claudeStream = await anthropic.messages.stream({
+        model,
+        max_tokens: maxTokens,
+        system,
+        messages: [{ role: "user", content: userContent }],
+      });
+
+      const encoder = new TextEncoder();
+      const readable = new ReadableStream({
+        async start(controller) {
+          let clientGone = false;
+          let accumulated = "";
+
+          const send = (event: AnswerStreamEvent) => {
+            if (clientGone) return;
+            try {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+            } catch {
+              clientGone = true;
+            }
+          };
+
+          try {
+            for await (const event of claudeStream) {
+              if (
+                event.type === "content_block_delta" &&
+                event.delta.type === "text_delta"
+              ) {
+                accumulated += event.delta.text;
+                send({ type: "text", text: event.delta.text });
+              }
+            }
+
+            const finalContent = styleLint(accumulated, isSpoken);
+
+            logAnswerVersion({
+              sessionId,
+              answerType,
+              content: finalContent,
+              generationType: "regen",
+              quickAction: quickAction ?? null,
+              promptVersionId: rag.activePromptVersionId,
+              knowledgeChunkIds: rag.knowledgeChunkIds,
+              goldenExampleIds: rag.goldenExampleIds,
+            });
+
+            send({ type: "done", answerId, model });
+          } catch (err) {
+            console.error("[regenerate-answer] stream error:", err);
+            send({
+              type: "error",
+              message: "Failed to regenerate. Please try again.",
+            });
+          } finally {
+            try {
+              controller.close();
+            } catch {
+              /* already closed */
+            }
+          }
+        },
+        cancel() {
+          // Client aborted — let upstream + post-processing finish.
+        },
+      });
+
+      return new Response(readable, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    }
+
+    // ── NON-STREAMING BRANCH (existing path, unchanged) ──────────────────────
     const response = await anthropic.messages.create({
       model,
       max_tokens: maxTokens,
@@ -120,8 +204,6 @@ export async function POST(req: NextRequest) {
       .replace(/\s*```$/i, "")
       .trim();
 
-    // Deterministic style cleanup — contractions for spoken, banned words for all
-    const isSpoken = shouldHumanize(answerType);
     const finalContent = styleLint(rawContent, isSpoken);
 
     // Log regen with both raw and humanized versions (fire-and-forget)

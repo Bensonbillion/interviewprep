@@ -13,11 +13,14 @@ import type {
   PrepSession,
   InterviewerInput,
   InterviewerDossier,
+  AnswerType,
 } from "@/types";
 import { buildAnswerSlots } from "@/lib/session/answer-slots";
 import { addToSessionList } from "@/lib/session/session-list";
 import { trackEvent } from "@/lib/tracking/events";
 import { getAttributionProperties } from "@/lib/tracking/attribution";
+import { isStreamingAnswerType } from "@/lib/ai/streaming";
+import { consumeAnswerStream } from "@/lib/streaming/consume-sse";
 
 function buildSteps(hasInterviewers: boolean) {
   return [
@@ -215,14 +218,32 @@ export function GenerationScreen({
             }),
           });
           if (priorityRes.ok) {
-            const priorityData = await priorityRes.json();
-            if (priorityData.content) {
-              session.answerSlots[prioritySlotIdx] = {
-                ...session.answerSlots[prioritySlotIdx],
-                status: "unlocked",
-                content: priorityData.content,
-                answerId: priorityData.answerId,
-              };
+            if (isStreamingAnswerType(priorityType as AnswerType)) {
+              let streamed = "";
+              let finalAnswerId = "";
+              await consumeAnswerStream(priorityRes, {
+                onText: (chunk) => { streamed += chunk; },
+                onDone: ({ answerId }) => { finalAnswerId = answerId; },
+                onError: () => {},
+              });
+              if (streamed.trim()) {
+                session.answerSlots[prioritySlotIdx] = {
+                  ...session.answerSlots[prioritySlotIdx],
+                  status: "unlocked",
+                  content: streamed,
+                  answerId: finalAnswerId,
+                };
+              }
+            } else {
+              const priorityData = await priorityRes.json();
+              if (priorityData.content) {
+                session.answerSlots[prioritySlotIdx] = {
+                  ...session.answerSlots[prioritySlotIdx],
+                  status: "unlocked",
+                  content: priorityData.content,
+                  answerId: priorityData.answerId,
+                };
+              }
             }
           }
         } catch {

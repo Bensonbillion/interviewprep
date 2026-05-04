@@ -19,6 +19,8 @@ import { getSessionList as getSessionListForCount } from "@/lib/session/session-
 import { useCredits } from "@/hooks/useCredits";
 import { tracker } from "@/lib/feedback/implicit-tracker";
 import PanelTriggerBanner from "@/components/defense/PanelTriggerBanner";
+import { isStreamingAnswerType } from "@/lib/ai/streaming";
+import { consumeAnswerStream } from "@/lib/streaming/consume-sse";
 import {
   Loader2,
   Phone,
@@ -470,10 +472,49 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
               body: JSON.stringify({ sessionId, answerType: type, session: currentSession }),
             });
 
-            // Always check res.ok BEFORE res.json() — a failed response may be
-            // HTML (Next.js 500 page, Vercel timeout) which throws SyntaxError
+            // Always check res.ok BEFORE consuming the body — a failed response
+            // may be HTML (Next.js 500 page, Vercel timeout)
             if (!res.ok) continue; // retry
 
+            const isPriority = ROUND_PRIORITY[currentSession.stage] === type;
+
+            if (isStreamingAnswerType(type)) {
+              // Live-stream branch — set the slot to unlocked immediately and
+              // append text chunks into content as they arrive.
+              setSlots((prev) =>
+                prev.map((s) =>
+                  s.type === type
+                    ? {
+                        ...s,
+                        status: isPriority ? ("unlocked" as const) : ("locked" as const),
+                        content: "",
+                      }
+                    : s
+                )
+              );
+              let streamed = "";
+              let finalAnswerId = "";
+              let streamErrored = false;
+              await consumeAnswerStream(res, {
+                onText: (chunk) => {
+                  streamed += chunk;
+                  setSlots((prev) =>
+                    prev.map((s) => (s.type === type ? { ...s, content: streamed } : s))
+                  );
+                },
+                onDone: ({ answerId }) => { finalAnswerId = answerId; },
+                onError: () => { streamErrored = true; },
+              });
+              if (streamErrored || !streamed.trim()) continue;
+              setSlots((prev) =>
+                prev.map((s) =>
+                  s.type === type ? { ...s, content: streamed, answerId: finalAnswerId } : s
+                )
+              );
+              return; // done — exit loop
+            }
+
+            // Non-streaming JSON path
             let data: { content?: string; answerId?: string };
             try {
               data = await res.json();
@@ -484,7 +525,6 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
             if (!data.content) continue; // empty response — retry
 
             // Success — priority answer auto-unlocks; all others locked until paid
-            const isPriority = ROUND_PRIORITY[currentSession.stage] === type;
             setSlots((prev) =>
               prev.map((s) =>
                 s.type === type
@@ -624,28 +664,61 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
             body: JSON.stringify({ sessionId, answerType: type, session: currentSession }),
           });
           if (genRes.ok) {
-            const data = await genRes.json().catch(() => null);
-            if (data?.content?.trim()) {
-              // Generation succeeded — NOW deduct credit
-              const creditRes = await fetch("/api/user/spend-credit", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ sessionId: `unlock-${sessionId}-${type}` }),
-              });
-              if (!creditRes.ok) {
-                console.error("[unlock] spend-credit failed after generation");
-              }
+            let finalContent = "";
+            let finalAnswerId = "";
+
+            if (isStreamingAnswerType(type)) {
+              // Switch slot to "unlocked" up front so the user sees text fill in.
               setSlots((prev) =>
                 prev.map((s) =>
-                  s.type === type
-                    ? { ...s, status: "unlocked" as const, content: data.content, answerId: data.answerId }
-                    : s
+                  s.type === type ? { ...s, status: "unlocked" as const, content: "" } : s
                 )
               );
-              refreshCredits?.();
-              generated = true;
-              break;
+              let streamErrored = false;
+              await consumeAnswerStream(genRes, {
+                onText: (chunk) => {
+                  finalContent += chunk;
+                  setSlots((prev) =>
+                    prev.map((s) => (s.type === type ? { ...s, content: finalContent } : s))
+                  );
+                },
+                onDone: ({ answerId }) => { finalAnswerId = answerId; },
+                onError: () => { streamErrored = true; },
+              });
+              if (streamErrored || !finalContent.trim()) {
+                if (attempt < 1) await new Promise((r) => setTimeout(r, 1500));
+                continue;
+              }
+            } else {
+              // Non-streaming JSON path
+              const data = await genRes.json().catch(() => null);
+              if (!data?.content?.trim()) {
+                if (attempt < 1) await new Promise((r) => setTimeout(r, 1500));
+                continue;
+              }
+              finalContent = data.content;
+              finalAnswerId = data.answerId;
             }
+
+            // Generation succeeded — NOW deduct credit
+            const creditRes = await fetch("/api/user/spend-credit", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ sessionId: `unlock-${sessionId}-${type}` }),
+            });
+            if (!creditRes.ok) {
+              console.error("[unlock] spend-credit failed after generation");
+            }
+            setSlots((prev) =>
+              prev.map((s) =>
+                s.type === type
+                  ? { ...s, status: "unlocked" as const, content: finalContent, answerId: finalAnswerId }
+                  : s
+              )
+            );
+            refreshCredits?.();
+            generated = true;
+            break;
           }
           // Failed — retry after brief delay
           if (attempt < 1) await new Promise((r) => setTimeout(r, 1500));
