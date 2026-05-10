@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyApiAuth } from "@/lib/auth/verify";
 import { parseResumeFromFile } from "@/lib/resume/parser";
+import { apiLimiter, checkRateLimit, buildRateLimitResponse } from "@/lib/security/rate-limit";
 
 const ALLOWED_TYPES: Record<string, readonly number[]> = {
   "application/pdf": [0x25, 0x50, 0x44, 0x46], // %PDF
@@ -18,6 +19,10 @@ export async function POST(req: NextRequest) {
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Rate limit — file processing has real CPU cost, was previously unprotected.
+  const rl = await checkRateLimit(apiLimiter, auth.userId);
+  if (!rl.allowed) return buildRateLimitResponse("resume upload", rl);
 
   try {
     const formData = await req.formData();

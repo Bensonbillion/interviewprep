@@ -474,7 +474,13 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
 
             // Always check res.ok BEFORE consuming the body — a failed response
             // may be HTML (Next.js 500 page, Vercel timeout)
-            if (!res.ok) continue; // retry
+            if (!res.ok) {
+              // Rate-limited — retrying immediately would re-trip the same limit.
+              // Bail out of the whole loop; the slot remains in "loading" state
+              // and the retry-exhaustion path below marks it locked.
+              if (res.status === 429) break;
+              continue; // retry
+            }
 
             const isPriority = ROUND_PRIORITY[currentSession.stage] === type;
 
@@ -663,6 +669,15 @@ export function PrepSessionView({ initialSession, sessionId }: PrepSessionViewPr
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ sessionId, answerType: type, session: currentSession }),
           });
+          // Rate-limit hit — surface the server's friendly message and stop
+          // retrying. Retrying immediately would just re-trip the same limit.
+          if (genRes.status === 429) {
+            try {
+              const data = await genRes.json();
+              if (data?.message) alert(data.message);
+            } catch { /* malformed body */ }
+            break;
+          }
           if (genRes.ok) {
             let finalContent = "";
             let finalAnswerId = "";

@@ -56,20 +56,45 @@ export function mockRateLimitAllowed() {
  * Mock rate limiting — blocked.
  */
 export function mockRateLimitBlocked() {
-  vi.doMock("@/lib/security/rate-limit", () => ({
-    aiLimiter: null,
-    feedbackLimiter: null,
-    authLimiter: null,
-    apiLimiter: null,
-    checkRateLimit: vi.fn().mockResolvedValue({
-      allowed: false,
-      headers: {
-        "X-RateLimit-Limit": "10",
-        "X-RateLimit-Remaining": "0",
-        "X-RateLimit-Reset": String(Date.now() + 60000),
-      },
-    }),
-  }));
+  vi.doMock("@/lib/security/rate-limit", () => {
+    const reset = Date.now() + 60000;
+    const headers = {
+      "X-RateLimit-Limit": "10",
+      "X-RateLimit-Remaining": "0",
+      "X-RateLimit-Reset": String(reset),
+    };
+    return {
+      aiLimiter: null,
+      feedbackLimiter: null,
+      authLimiter: null,
+      apiLimiter: null,
+      checkRateLimit: vi.fn().mockResolvedValue({ allowed: false, headers, reset }),
+      // Match the real buildRateLimitResponse contract — see
+      // src/lib/security/rate-limit.ts. Routes call this directly now.
+      buildRateLimitResponse: vi.fn((routeName: string, rl: { headers: Record<string, string>; reset?: number }) => {
+        const retryAfterSec = rl.reset
+          ? Math.max(1, Math.ceil((rl.reset - Date.now()) / 1000))
+          : 60;
+        const minutes = Math.ceil(retryAfterSec / 60);
+        return new Response(
+          JSON.stringify({
+            error: "rate_limit_exceeded",
+            message: `You've hit the limit for ${routeName}. Try again in about ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+            retry_after_seconds: retryAfterSec,
+          }),
+          {
+            status: 429,
+            headers: {
+              ...rl.headers,
+              "Content-Type": "application/json",
+              "Retry-After": String(retryAfterSec),
+            },
+          }
+        );
+      }),
+      getRateLimitKey: vi.fn(),
+    };
+  });
 }
 
 /**

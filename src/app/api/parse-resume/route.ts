@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyApiAuth } from "@/lib/auth/verify";
 import { parseResumeFromFile } from "@/lib/resume/parser";
+import { apiLimiter, checkRateLimit, buildRateLimitResponse } from "@/lib/security/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,6 +9,10 @@ export async function POST(req: NextRequest) {
     if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Rate limit — parsing has real CPU cost, was previously unprotected.
+    const rl = await checkRateLimit(apiLimiter, auth.userId);
+    if (!rl.allowed) return buildRateLimitResponse("resume parsing", rl);
 
     const formData = await req.formData();
     const file = formData.get("file");

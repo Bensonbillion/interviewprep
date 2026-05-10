@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { anthropic, SONNET, HAIKU } from "@/lib/ai";
 import { verifyApiAuth } from "@/lib/auth/verify";
-import { aiLimiter, checkRateLimit } from "@/lib/security/rate-limit";
+import { aiLimiter, checkRateLimit, buildRateLimitResponse } from "@/lib/security/rate-limit";
 import { regenerateAnswerSchema } from "@/lib/validation/schemas";
 import { buildPromptForAnswerType } from "@/lib/ai/prompts";
 import { detectRoleSeniority, getSeniorityInstructions } from "@/lib/ai/seniority";
@@ -33,13 +33,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { allowed, headers: rlHeaders } = await checkRateLimit(aiLimiter, auth.userId);
-  if (!allowed) {
-    return NextResponse.json(
-      { error: "Too many requests. Please wait a moment." },
-      { status: 429, headers: rlHeaders }
-    );
-  }
+  const rl = await checkRateLimit(aiLimiter, auth.userId);
+  if (!rl.allowed) return buildRateLimitResponse("answer regeneration", rl);
 
   try {
     const body = await req.json();

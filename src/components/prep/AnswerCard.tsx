@@ -685,7 +685,16 @@ export function AnswerCard({
       });
       if (!res.ok) {
         let errMsg = "Regeneration failed";
-        try { const errData = await res.json(); errMsg = errData.error ?? errMsg; } catch { /* HTML error page */ }
+        try {
+          const errData = await res.json();
+          // Rate-limit response: surface the user-friendly message verbatim.
+          // See buildRateLimitResponse in src/lib/security/rate-limit.ts.
+          if (res.status === 429 && errData.message) {
+            errMsg = errData.message;
+          } else {
+            errMsg = errData.message ?? errData.error ?? errMsg;
+          }
+        } catch { /* HTML error page */ }
         throw new Error(errMsg);
       }
 
@@ -737,6 +746,13 @@ export function AnswerCard({
       }
     } catch (err) {
       console.error("Regen error:", err);
+      // Surface rate-limit messages so the user knows when to retry. The
+      // server emits a friendly "try again in N minutes" message via
+      // buildRateLimitResponse — pass it straight through.
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.toLowerCase().includes("limit")) {
+        alert(msg);
+      }
     } finally {
       setIsRegenerating(false);
     }

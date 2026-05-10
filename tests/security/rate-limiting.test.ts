@@ -61,7 +61,8 @@ describe("Rate limiting", () => {
       expect(res.status).toBe(429);
       const body = await res.json();
       expect(body.error).toBeDefined();
-      expect(body.error.toLowerCase()).toContain("too many");
+      expect(body.error).toBe("rate_limit_exceeded");
+      expect(body.message?.toLowerCase()).toContain("limit");
       expectRateLimitHeaders(Object.fromEntries(res.headers.entries()));
     });
 
@@ -83,7 +84,8 @@ describe("Rate limiting", () => {
       const res = await POST(req);
       expect(res.status).toBe(429);
       const body = await res.json();
-      expect(body.error.toLowerCase()).toContain("too many");
+      expect(body.error).toBe("rate_limit_exceeded");
+      expect(body.message?.toLowerCase()).toContain("limit");
       expectRateLimitHeaders(Object.fromEntries(res.headers.entries()));
     });
 

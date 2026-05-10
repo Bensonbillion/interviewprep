@@ -202,7 +202,8 @@ describe("POST /api/generate-answer", () => {
     expect(res.status).toBe(429);
     const body = await res.json();
     expect(body.error).toBeDefined();
-    expect(body.error.toLowerCase()).toContain("too many");
+    expect(body.error).toBe("rate_limit_exceeded");
+      expect(body.message?.toLowerCase()).toContain("limit");
   });
 
   // ── Claude API error handling ───────────────────────────────────────
