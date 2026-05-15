@@ -3,6 +3,7 @@ import { Hero } from "@/components/landing/Hero";
 import { CompanyGrid } from "@/components/landing/CompanyGrid";
 import { LogoStrip } from "@/components/landing/LogoStrip";
 import { HowItWorks } from "@/components/landing/HowItWorks";
+import { KitOutputExample } from "@/components/landing/KitOutputExample";
 import { WhySalesPrep } from "@/components/landing/WhySalesPrep";
 import { Testimonials } from "@/components/landing/Testimonials";
 import { StatsGrid } from "@/components/landing/StatsGrid";
@@ -31,6 +32,7 @@ export default function HomePage() {
       <CompanyGrid />
       <LogoStrip />
       <HowItWorks />
+      <KitOutputExample />
       <WhySalesPrep />
       <Testimonials />
       <StatsGrid />
