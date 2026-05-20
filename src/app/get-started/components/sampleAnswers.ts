@@ -11,7 +11,7 @@ export interface SampleAnswer {
 
 export const SAMPLE_ANSWERS: Record<RoleType, SampleAnswer> = {
   sdr_bdr: {
-    contextName: "Marcus Chen",
+    contextName: "Marcus J.",
     contextRole: "SDR",
     contextCompany: "Gong",
     tellMeAboutYourself:

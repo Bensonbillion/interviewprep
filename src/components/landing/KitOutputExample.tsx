@@ -4,6 +4,7 @@ interface Sample {
   name: string;
   role: string;
   company: string;
+  prior: string;
   tellMeAboutYourself: string;
   whyQuestion: string;
   whyAnswer: string;
@@ -15,11 +16,12 @@ const SARAH: Sample = {
   name: "Sarah Torres",
   role: "AE",
   company: "Samsara",
+  prior: "AE at Motive",
   tellMeAboutYourself:
     "I've spent the last 3 years closing mid-market SaaS into operations-heavy buyers — most recently as an AE at Motive, where I carried a $1.4M quota and finished at 124% by running multi-threaded deals into Fleet Managers, Safety Directors, and CFOs.\n\nWhat pulls me to Samsara is the Connected Operations Cloud thesis — the same buyers I've been selling to are now consolidating telematics, AI Dash Cams, and asset tracking onto one platform, and that's a story I can tell from the operator's point of view.",
   whyQuestion: "Why Samsara?",
   whyAnswer:
-    "Two reasons. First, I've watched the IoT category since the 2021 IPO and Samsara is the only player with the integrated camera + telematics + analytics story — the rest are point solutions. Second, this role lands me in front of the exact buyer I've been selling: a VP Ops already paying for fragmented tools. The pitch sells itself when you can show them one platform instead of four.",
+    "Honestly — at Motive we lost a real number of deals, and a pattern I kept seeing was buyers wanting camera, telematics, and analytics on one platform instead of stitched together. I've watched Samsara win from the other side of the table. I want to be on that side of it.",
   discoveryQuestion: "Discovery question to ask the hiring manager",
   discoveryAnswer:
     "Walk me through how a top-performing AE on your team is currently winning competitive deals against Motive and Geotab — what's the play, and where do reps usually get stuck?",
@@ -29,6 +31,7 @@ const MARCUS: Sample = {
   name: "Marcus J.",
   role: "SDR",
   company: "Gong",
+  prior: "FOH manager, hospitality",
   tellMeAboutYourself:
     "I spent three years managing front-of-house at a high-volume restaurant group — ran a 15-person team, hit revenue targets every quarter, and built my career on reading people and handling pressure in real time. What I realized is that every skill I developed in hospitality — handling objections, creating urgency, turning a hard no into a yes — is exactly what SDRs do on cold calls.\n\nWhen I decided to pivot into tech sales, I went all in: completed a sales development bootcamp, read Fanatical Prospecting twice, and ran mock cold calls until the framework felt second nature. I chose Gong specifically because I've been watching how revenue intelligence is reshaping how sales teams coach and ramp new reps. I want to be on the inside of that shift — and I'm ready to earn it.",
   whyQuestion: "Why Gong?",
@@ -48,10 +51,15 @@ function SampleCard({ sample }: { sample: Sample }) {
       </div>
 
       <div className="p-5 sm:p-7 space-y-5 flex-1">
-        <p className="text-[12px] text-[#9B8E82]">
-          {sample.name} → {sample.role} at{" "}
-          <span className="font-medium text-[#1C1713]">{sample.company}</span>
-        </p>
+        <div>
+          <p className="text-[12px] text-[#9B8E82]">
+            {sample.name} → {sample.role} at{" "}
+            <span className="font-medium text-[#1C1713]">{sample.company}</span>
+          </p>
+          <p className="text-[11px] text-[#9B8E82] mt-1">
+            Previously: <span className="text-[#1C1713]">{sample.prior}</span>
+          </p>
+        </div>
 
         <div>
           <p className="text-[11px] font-medium tracking-[0.1em] uppercase text-[#E8735A] mb-2">
