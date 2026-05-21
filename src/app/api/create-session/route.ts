@@ -6,7 +6,14 @@ import { CreateSessionInputSchema } from "@/lib/types/schemas";
 import { buildAnswerSlots, buildAnswerSlotsFromStageType } from "@/lib/session/answer-slots";
 import { extractResumeForPrep } from "@/lib/ai/extract-resume";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { ParsedResume, CompanyProfile, RelevanceMap, PrepSession } from "@/types";
+import { runPositioningEngine } from "@/lib/positioning/engine";
+import type {
+  ParsedResume,
+  CompanyProfile,
+  RelevanceMap,
+  PrepSession,
+  RoleType,
+} from "@/types";
 import type { StageType } from "@/lib/types/stages";
 import { auditLog } from "@/lib/security/audit";
 
@@ -135,12 +142,51 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build relevance map + extract grounded resume in parallel
-    const [relevanceMap, extractedResume] = await Promise.all([
+    // ── 1. Pre-insert prep_sessions so the Positioning Engine has a
+    //       valid session.id to reference (positioning_briefs.session_id
+    //       FK depends on this row existing). session_data is null at
+    //       this point; we patch it in the final UPDATE after Promise.all.
+    //       A partial row is harmless — answer slots and session_data are
+    //       written later, and a slot-less session is just an empty
+    //       session a user can re-open with no answer data.
+    const sessionId = crypto.randomUUID();
+    const db = createAdminClient();
+    const { error: insertErr } = await db
+      .from("prep_sessions")
+      .insert({
+        id: sessionId,
+        user_id: auth.userId,
+        job_description: jobDescription,
+        target_role: targetRole,
+        role_type: roleType,
+        stage,
+        ...(stageType && { stage_type: stageType }),
+        ...(stageName && { stage_name: stageName }),
+        ...(stageOrder != null && { stage_order: stageOrder }),
+        ...(parentSessionId && { parent_session_id: parentSessionId }),
+      });
+    if (insertErr) {
+      console.error("[create-session] initial insert failed:", insertErr.message);
+      return NextResponse.json({ error: "Failed to create session" }, { status: 500 });
+    }
+
+    // ── 2. Three independent AI steps in parallel.
+    //       positioningBrief is widened to PositioningBrief | null by the
+    //       .catch(); downstream consumers must handle the null branch.
+    const [relevanceMap, extractedResume, positioningBrief] = await Promise.all([
       buildRelevanceMap(resume, company, jobDescription, targetRole),
       extractResumeForPrep(resume).catch((err) => {
         console.warn("Resume extraction failed (non-fatal, using fallback):", err);
         return undefined;
+      }),
+      runPositioningEngine(sessionId, resume, company, roleType as RoleType, {
+        targetCompanyUrl: companyUrl,
+      }).catch((err) => {
+        console.error("[create-session] positioning_engine_failed", {
+          sessionId,
+          err: err instanceof Error ? err.message : String(err),
+        });
+        return null;
       }),
     ]);
 
@@ -150,7 +196,7 @@ export async function POST(req: NextRequest) {
       : buildAnswerSlots(stage as PrepSession["stage"], resume.backgroundType);
 
     const session: PrepSession = {
-      id: crypto.randomUUID(),
+      id: sessionId,
       resume,
       extractedResume,
       jobDescription,
@@ -170,39 +216,38 @@ export async function POST(req: NextRequest) {
       ...(parentSessionId && { parentSessionId }),
     };
 
-    // Persist to Supabase (fire-and-forget — session also stored client-side)
-    const db = createAdminClient();
+    // ── 3. Final UPDATE to fill session_data + relevance_map.
+    //       Fire-and-forget to preserve the existing response latency.
     db.from("prep_sessions")
-      .upsert(
-        {
-          id: session.id,
-          user_id: auth.userId,
-          session_data: session,
-          job_description: jobDescription,
-          target_role: targetRole,
-          role_type: roleType,
-          stage,
-          relevance_map: relevanceMap,
-          ...(stageType && { stage_type: stageType }),
-          ...(stageName && { stage_name: stageName }),
-          ...(stageOrder != null && { stage_order: stageOrder }),
-          ...(parentSessionId && { parent_session_id: parentSessionId }),
-        },
-        { onConflict: "id" }
-      )
+      .update({
+        session_data: session,
+        relevance_map: relevanceMap,
+      })
+      .eq("id", sessionId)
       .then(({ error: dbErr }) => {
-        if (dbErr) console.error("[create-session] DB upsert error:", dbErr.message);
+        if (dbErr) console.error("[create-session] DB update error:", dbErr.message);
       });
 
     auditLog({
       eventType: "generation_requested",
       userId: auth.userId,
       resourceType: "session",
-      resourceId: session.id,
-      details: { company: companyName, targetRole, stage, stageType: stageType ?? null },
+      resourceId: sessionId,
+      details: {
+        company: companyName,
+        targetRole,
+        stage,
+        stageType: stageType ?? null,
+        positioning_type: positioningBrief?.positioning_type ?? null,
+      },
     });
 
-    return NextResponse.json({ session });
+    return NextResponse.json({
+      session,
+      // null when the engine degraded — downstream consumers treat null
+      // as "positioning unknown" and fall back to today's behavior.
+      positioning_type: positioningBrief?.positioning_type ?? null,
+    });
   } catch (err) {
     console.error("Create session error:", err);
     return NextResponse.json(

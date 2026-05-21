@@ -209,6 +209,150 @@ export const PrepSessionSchema = z.object({
   createdAt: z.number(),
 });
 
+// ─── Positioning Engine ───────────────────────────────────────────────────────
+
+export const PositioningTypeSchema = z.enum([
+  "direct_competitor",
+  "adjacent_player",
+  "ecosystem",
+  "category_switcher",
+  "industry_switcher",
+  "early_career",
+]);
+
+export const PositioningResearchDepthSchema = z.enum([
+  "none",
+  "minimal",
+  "moderate",
+  "comprehensive",
+]);
+
+export const CompetitiveSourceTypeSchema = z.enum([
+  "marketing",
+  "g2",
+  "repvue",
+  "bravado",
+  "reddit",
+  "glassdoor",
+]);
+
+export const ClassificationSignalSchema = z.enum([
+  "company_profile_competitors",
+  "haiku_classification",
+]);
+
+// v4: substantiated_facts (company-level, sourced) + interrogation_lines
+// (STAR-shaped questions for the candidate) replace v3's competitive_truths.
+
+export const SubstantiatedFactSchema = z.object({
+  fact: z.string().min(1),
+  about: z.enum(["target", "anchor", "both"]),
+  use_in: z.array(AnswerTypeSchema),
+  source: z.string().nullable(),
+  source_type: CompetitiveSourceTypeSchema.nullable(),
+  confidence: z.number().min(0).max(1),
+});
+
+export const InterrogationLineSchema = z.object({
+  question: z.string().min(1),
+  why_it_matters: z.string().min(1),
+  targets: z.array(AnswerTypeSchema),
+  star_slot_hint: z.string().min(1),
+  hypothesis: z.string().nullable(),
+  directionality_note: z.string().min(1),
+});
+
+export const CompetitivePointSchema = z.object({
+  point: z.string().min(1),
+  detail: z.string(),
+  confidence: z.number().min(0).max(1),
+});
+
+export const TransferableBridgeSchema = z.object({
+  from: z.string().min(1),
+  to: z.string().min(1),
+  why_it_maps: z.string().min(1),
+});
+
+// Classifier output. anchor_employer/role are nullable for early_career.
+export const PositioningClassificationSchema = z.object({
+  positioning_type: PositioningTypeSchema,
+  anchor_employer: z.string().nullable(),
+  anchor_employer_role: z.string().nullable(),
+  classification_reasoning: z.string(),
+  classification_confidence: z.number().min(0).max(1),
+  classification_signal: ClassificationSignalSchema,
+});
+
+// Competitive synthesis (Sonnet) output — validated before upsert.
+export const CompetitiveSynthesisSchema = z.object({
+  competitive_relationship: z.string(),
+  target_company_wedge: z.string(),
+  anchor_company_wedge: z.string(),
+  where_target_wins: z.array(CompetitivePointSchema),
+  where_anchor_wins: z.array(CompetitivePointSchema),
+  shared_buyers: z.array(z.string()),
+  substantiated_facts: z.array(SubstantiatedFactSchema),
+  interrogation_lines: z.array(InterrogationLineSchema),
+  research_depth: PositioningResearchDepthSchema,
+});
+
+// Switcher synthesis (Haiku) output.
+export const SwitcherBriefSchema = z.object({
+  transferable_bridges: z.array(TransferableBridgeSchema).min(1),
+  domain_gap_to_close: z.string(),
+  company_hook: z.string().min(1),
+});
+
+// Candidate-hook synthesis (Haiku) output.
+export const CandidateHookSchema = z.object({
+  company_hook: z.string().min(1),
+});
+
+// Read-side shape for the engine consumer — what comes back from
+// positioning_briefs joined with competitive_dynamics. Matches the
+// TypeScript PositioningBrief interface in src/types/index.ts.
+export const CompetitiveDynamicSchema = z.object({
+  id: z.string().uuid(),
+  anchor_company_id: z.string().uuid(),
+  target_company_id: z.string().uuid(),
+  competitive_relationship: z.string().nullable(),
+  target_company_wedge: z.string().nullable(),
+  anchor_company_wedge: z.string().nullable(),
+  where_target_wins: z.array(CompetitivePointSchema),
+  where_anchor_wins: z.array(CompetitivePointSchema),
+  shared_buyers: z.array(z.string()),
+  substantiated_facts: z.array(SubstantiatedFactSchema),
+  interrogation_lines: z.array(InterrogationLineSchema),
+  research_depth: PositioningResearchDepthSchema,
+  sources: z.array(
+    z.object({
+      url: z.string(),
+      title: z.string(),
+      source_type: z.string(),
+    })
+  ),
+  intel_refreshed_at: z.string(),
+  truths_refreshed_at: z.string(),
+});
+
+export const PositioningBriefSchema = z.object({
+  id: z.string().uuid(),
+  session_id: z.string().uuid(),
+  positioning_type: PositioningTypeSchema,
+  anchor_employer: z.string().nullable(),
+  anchor_employer_role: z.string().nullable(),
+  classification_reasoning: z.string(),
+  classification_confidence: z.number().min(0).max(1),
+  classification_signal: ClassificationSignalSchema,
+  competitive_dynamic_id: z.string().uuid().nullable(),
+  competitive_dynamic: CompetitiveDynamicSchema.optional(),
+  transferable_bridges: z.array(TransferableBridgeSchema),
+  domain_gap_to_close: z.string().nullable(),
+  company_hook: z.string(),
+  generated_at: z.string(),
+});
+
 // ─── Type exports ─────────────────────────────────────────────────────────────
 
 export type CreateSessionInput = z.infer<typeof CreateSessionInputSchema>;

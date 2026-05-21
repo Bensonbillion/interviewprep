@@ -349,6 +349,129 @@ export interface InterviewerDossier {
   conversationalStyle?: string; // How they interview (formal, rapid-fire, case-based, etc.)
 }
 
+// ─── Positioning Engine ───────────────────────────────────────────────────────
+//
+// Computes the candidate→target-company relationship and (for competitive
+// cases) the shared company-vs-company competitive intel. The brief is
+// injected into every answer prompt downstream. See migration 041 and
+// src/lib/positioning/*.
+
+export type PositioningType =
+  | "direct_competitor"
+  | "adjacent_player"
+  | "ecosystem"
+  | "category_switcher"
+  | "industry_switcher"
+  | "early_career";
+
+export type PositioningResearchDepth =
+  | "none"
+  | "minimal"
+  | "moderate"
+  | "comprehensive";
+
+export type CompetitiveSourceType =
+  | "marketing"
+  | "g2"
+  | "repvue"
+  | "bravado"
+  | "reddit"
+  | "glassdoor";
+
+export type ClassificationSignal =
+  | "company_profile_competitors"
+  | "haiku_classification";
+
+// v4: split the engine's output into two categorically different shapes.
+// substantiated_facts are about the COMPANY (sourced, safe to state);
+// interrogation_lines are STAR-shaped questions for the CANDIDATE
+// (never claims). See migration 042 and src/lib/ai/positioning-prompts.ts.
+
+export interface SubstantiatedFact {
+  fact: string;
+  about: "target" | "anchor" | "both";
+  use_in: AnswerType[];
+  source: string | null;
+  source_type: CompetitiveSourceType | null;
+  confidence: number; // 0..1
+}
+
+export interface InterrogationLine {
+  question: string;
+  why_it_matters: string;
+  targets: AnswerType[];
+  star_slot_hint: string;
+  hypothesis: string | null; // engine's labeled guess; never a claim
+  directionality_note: string;
+}
+
+export interface CompetitivePoint {
+  point: string;
+  detail: string;
+  confidence: number; // 0..1
+}
+
+export interface CompetitiveSource {
+  url: string;
+  title: string;
+  source_type: CompetitiveSourceType | string;
+}
+
+export interface TransferableBridge {
+  from: string;
+  to: string;
+  why_it_maps: string;
+}
+
+export interface PositioningClassification {
+  positioning_type: PositioningType;
+  anchor_employer: string | null;
+  anchor_employer_role: string | null;
+  classification_reasoning: string;
+  classification_confidence: number; // 0..1
+  classification_signal: ClassificationSignal;
+}
+
+export interface CompetitiveDynamic {
+  id: string;
+  anchor_company_id: string;
+  target_company_id: string;
+  competitive_relationship: string | null;
+  target_company_wedge: string | null;
+  anchor_company_wedge: string | null;
+  where_target_wins: CompetitivePoint[];
+  where_anchor_wins: CompetitivePoint[];
+  shared_buyers: string[];
+  substantiated_facts: SubstantiatedFact[];
+  interrogation_lines: InterrogationLine[];
+  research_depth: PositioningResearchDepth;
+  sources: CompetitiveSource[];
+  intel_refreshed_at: string;
+  truths_refreshed_at: string;
+}
+
+export interface PositioningBrief {
+  id: string;
+  session_id: string;
+
+  positioning_type: PositioningType;
+  anchor_employer: string | null;
+  anchor_employer_role: string | null;
+  classification_reasoning: string;
+  classification_confidence: number;
+  classification_signal: ClassificationSignal;
+
+  competitive_dynamic_id: string | null;
+  competitive_dynamic?: CompetitiveDynamic; // joined on read
+
+  transferable_bridges: TransferableBridge[];
+  domain_gap_to_close: string | null;
+
+  company_hook: string;
+
+  generated_at: string;
+}
+
 // ─── Credits ──────────────────────────────────────────────────────────────────
 
 export interface CreditState {
