@@ -13,24 +13,26 @@ import type {
   PrepSession,
   InterviewerInput,
   InterviewerDossier,
-  AnswerType,
 } from "@/types";
 import { buildAnswerSlots } from "@/lib/session/answer-slots";
 import { addToSessionList } from "@/lib/session/session-list";
 import { trackEvent } from "@/lib/tracking/events";
 import { getAttributionProperties } from "@/lib/tracking/attribution";
-import { isStreamingAnswerType } from "@/lib/ai/streaming";
-import { consumeAnswerStream } from "@/lib/streaming/consume-sse";
 
 function buildSteps(hasInterviewers: boolean) {
+  // The priority-answer pre-gen and "Finalizing your prep kit" steps
+  // previously here are removed — no answer is generated before the
+  // candidate has fed the engine their lived competitive truth in the
+  // Insight Interview. "Mapping your strategic angle" covers session
+  // save + Positioning Engine as one user-visible step (the save is
+  // plumbing the user doesn't care about).
   return [
     "Verifying your resume",
     "Researching the company",
     "Mapping your experience to the role",
     ...(hasInterviewers ? ["Researching your interviewer"] : []),
-    "Building your opener answer",
-    "Finalizing your prep kit",
-    "Your prep kit is ready!",
+    "Mapping your strategic angle",
+    "Ready for the insight interview",
   ];
 }
 
@@ -191,70 +193,19 @@ export function GenerationScreen({
         session.interviewerDossiers = dossiers;
       }
 
-      // Pre-generate the priority answer for this stage (best-effort)
-      // Only attempt if the slot actually exists for this stage.
-      const STAGE_PRIORITY: Record<string, string> = {
-        recruiter: "tell_me_about_yourself",
-        hiring_manager: "resume_walkthrough", // HMs open with "walk me through your resume"
-        role_play: "role_play_script",
-        panel: "cheat_sheet",
-        take_home: "cold_email",              // primary take-home deliverable
-      };
-      const priorityType = STAGE_PRIORITY[stage];
-      const priorityStep = interviewers && interviewers.length > 0 ? 4 : 3;
-      advance(priorityStep);
-      const prioritySlotIdx = priorityType
-        ? session.answerSlots.findIndex((s) => s.type === priorityType)
-        : -1;
-      if (prioritySlotIdx !== -1 && priorityType) {
-        try {
-          const priorityRes = await fetch("/api/generate-answer", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              sessionId,
-              answerType: priorityType,
-              session,
-            }),
-          });
-          if (priorityRes.ok) {
-            if (isStreamingAnswerType(priorityType as AnswerType)) {
-              let streamed = "";
-              let finalAnswerId = "";
-              await consumeAnswerStream(priorityRes, {
-                onText: (chunk) => { streamed += chunk; },
-                onDone: ({ answerId }) => { finalAnswerId = answerId; },
-                onError: () => {},
-              });
-              if (streamed.trim()) {
-                session.answerSlots[prioritySlotIdx] = {
-                  ...session.answerSlots[prioritySlotIdx],
-                  status: "unlocked",
-                  content: streamed,
-                  answerId: finalAnswerId,
-                };
-              }
-            } else {
-              const priorityData = await priorityRes.json();
-              if (priorityData.content) {
-                session.answerSlots[prioritySlotIdx] = {
-                  ...session.answerSlots[prioritySlotIdx],
-                  status: "unlocked",
-                  content: priorityData.content,
-                  answerId: priorityData.answerId,
-                };
-              }
-            }
-          }
-        } catch {
-          // Priority pre-gen is best-effort — don't block session creation
-        }
-      }
-
-      // Finalize & persist (second-to-last step)
-      advance(STEPS.length - 2);
+      // ── Mapping your strategic angle (one user-visible step): save the
+      //   session to Supabase, then run the Positioning Engine against
+      //   the saved row.
+      //
+      //   Order matters. positioning_briefs.session_id FKs to
+      //   prep_sessions(id), so the engine's upsert needs the row to
+      //   exist. session/save is awaited (not fire-and-forget for the
+      //   first time in this flow) because the engine immediately needs
+      //   what it writes. Local sessionStorage + session-list write
+      //   happen alongside the network save for fast resume on refresh.
+      const angleStep = interviewers && interviewers.length > 0 ? 4 : 3;
+      advance(angleStep);
       sessionStorage.setItem(`session-${sessionId}`, JSON.stringify(session));
-      // Save lightweight summary for sidebar/dashboard
       addToSessionList({
         id: sessionId,
         companyName,
@@ -264,8 +215,7 @@ export function GenerationScreen({
         createdAt: session.createdAt,
         interviewDate: interviewDate ?? undefined,
       });
-      // Persist full session to Supabase (must complete before navigation)
-      await fetch("/api/session/save", {
+      const saveRes = await fetch("/api/session/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -274,15 +224,34 @@ export function GenerationScreen({
           companyName,
           interviewDate: interviewDate ?? undefined,
         }),
-      }).catch(() => {/* best-effort — sessionStorage is the fallback */});
-      // Deduct 1 credit in Supabase (best-effort — don't block if it fails)
+      });
+      if (!saveRes.ok) {
+        throw new Error("Failed to save session — cannot run positioning engine without a saved row.");
+      }
+
+      // Positioning Engine — classifier + competitive synthesis +
+      // candidate hook. For competitive types this is ~8–12s cold,
+      // ~2–3s warm cache. Best-effort: failure leaves the session
+      // without a positioning brief, which the Insight Interview
+      // surfaces as an empty interrogation_lines set + auto-advance
+      // past the step (per §8 for switcher / no-brief sessions).
+      try {
+        await fetch("/api/positioning", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionId }),
+        });
+      } catch {
+        // Engine writes its own audit log on failure; UI continues.
+      }
+
+      // Deduct 1 credit (best-effort).
       await fetch("/api/user/spend-credit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId }),
       }).catch(() => {/* non-blocking */});
 
-      // Track conversion event with attribution
       trackEvent({
         name: "prep_kit_created",
         properties: {
@@ -292,16 +261,18 @@ export function GenerationScreen({
           ...getAttributionProperties(),
         },
       });
+
+      // ── Done — hand off to the Insight Interview route. ──
+      //   The priority-answer pre-gen that used to fire here has moved
+      //   to the insight-complete handler (POST /api/insight-interview/
+      //   complete) — no answer is generated before the candidate has
+      //   fed the engine their lived competitive truth.
+      advance(STEPS.length - 1);
       await new Promise((r) => setTimeout(r, 600));
 
-      // Done! (last step)
-      advance(STEPS.length - 1);
-      await new Promise((r) => setTimeout(r, 800));
-
-      // Clear wizard state
       localStorage.removeItem("sp_gs_details");
 
-      router.push(`/prep/${sessionId}`);
+      router.push(`/get-started/insight?session=${sessionId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     }

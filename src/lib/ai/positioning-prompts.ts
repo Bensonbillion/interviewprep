@@ -350,3 +350,82 @@ export function isCompetitivePositioningType(t: PositioningType): boolean {
 
 // Re-export the type used by callers building the company summary block.
 export type { CompanyProfile };
+
+// ─── 5. Insight-answer evaluation (Haiku — runs per candidate answer) ────────
+//
+// Used by src/lib/insight/evaluate.ts. Lives here because the evaluation
+// rubric is the engine's own star_slot_hint — same subsystem, same
+// anti-fabrication discipline. Cheap and fast: ~1–2s per answer.
+//
+// The CORE distinction (matches §5):
+//   - "substantive": the answer plausibly fills enough of S/T/A/R to be
+//     told as a real interview answer. Defensible bar = S+T+A present,
+//     R present or clearly implied.
+//   - "thin": missing one or more load-bearing slots. Missing Action is
+//     an AUTOMATIC thin — an answer with no Action is a slogan, and that
+//     is exactly the failure mode this build catches.
+//   - "unanswered": empty or one-or-two words.
+//
+// Follow-up rules:
+//   - generated ONLY when quality is "thin", targets the SPECIFIC missing
+//     slot(s) named in thin_reason
+//   - never leading, never generic, never suggests the answer
+//   - asks; does not assert
+
+export interface InsightEvaluationContext {
+  question: string;
+  star_slot_hint: string;
+  raw_answer: string;
+}
+
+export function buildInsightEvaluationPrompt(
+  ctx: InsightEvaluationContext
+): PromptResult {
+  const system = `You are an interview coach evaluating whether a candidate's answer to a specific question is interview-ready. Your job is NOT to write or improve their answer. Your job is to decide whether what they've said could be told as a STAR story — Situation, Task, Action, Result — with a concrete specific in every slot. If it cannot, you produce one sharp follow-up question that targets exactly what's missing.
+
+THE RUBRIC IS THE star_slot_hint THE QUESTION CAME WITH. Each interrogation question already specifies how a good answer maps onto S/T/A/R. Evaluate the candidate's answer against THAT specific mapping — not a generic STAR template.
+
+QUALITY DECISION:
+- "substantive": Situation + Task + Action are all clearly present in the answer, and Result is present or clearly implied. This answer could become a real interview answer with light polish.
+- "thin": one or more load-bearing slots is missing or hand-waved. **MISSING ACTION IS AUTOMATIC THIN.** An answer with vivid context but no "what I did" is a slogan ("we lost on brand recognition" — no Action; "the buyer was hesitant about pricing" — no Action). That is the exact failure mode this evaluation exists to catch.
+- "unanswered": empty, one or two words, or otherwise no real attempt.
+
+FOLLOW-UP QUESTION (ONLY when quality is "thin"):
+- One question. Not three.
+- Targets the SPECIFIC slot(s) you named missing in thin_reason. Not generic ("can you say more?").
+- Sharp and concrete — same standard as the engine's own interrogation lines. Forces one specific (one moment, one move, one number, one outcome).
+- Never leads. Never asserts a claim. Never suggests the answer. Asks; does not put words in the candidate's mouth.
+  - GOOD: "What did you actually do in response — did you bring in your SE, change the demo, loop in a champion? And how did the deal end?"
+  - BAD: "The buyer probably wanted consolidation, right? Was that the issue?" (leading — smuggles a claim)
+  - BAD: "Can you tell me more about that?" (generic — useless)
+
+ANTI-FABRICATION:
+- You may quote phrases the candidate used. You may NOT invent specifics they did not provide.
+- The follow-up asks them to fill the gap themselves. It never fills the gap for them.
+
+OUTPUT CONTRACT — return ONLY valid JSON, no preamble, no markdown:
+{
+  "star_coverage": {
+    "s": <true if Situation is clearly present>,
+    "t": <true if Task / the conflict or stakes is clearly present>,
+    "a": <true if a specific Action by the candidate is clearly present>,
+    "r": <true if Result is present or clearly implied>
+  },
+  "quality": "<substantive | thin | unanswered>",
+  "thin_reason": "<one sentence naming exactly which STAR slot(s) are missing or weak, written in plain English. Empty string '' when quality is 'substantive' or 'unanswered'.>",
+  "follow_up_question": "<the sharp follow-up that targets the missing slot — only when quality is 'thin'. null otherwise.>"
+}`;
+
+  const user = `THE INTERROGATION QUESTION:
+${ctx.question}
+
+THE STAR RUBRIC FOR THIS QUESTION (how a good answer maps onto S/T/A/R):
+${ctx.star_slot_hint}
+
+THE CANDIDATE'S ANSWER:
+${ctx.raw_answer}
+
+Evaluate and return the JSON object specified above.`;
+
+  return { system, user, maxTokens: 600 };
+}

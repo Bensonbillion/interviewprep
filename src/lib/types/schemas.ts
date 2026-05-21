@@ -353,9 +353,74 @@ export const PositioningBriefSchema = z.object({
   generated_at: z.string(),
 });
 
+// ─── Insight Interview ────────────────────────────────────────────────────────
+
+export const InsightInterviewStatusSchema = z.enum([
+  "pending",
+  "in_progress",
+  "completed",
+  "skipped",
+]);
+
+export const AnswerQualitySchema = z.enum(["unanswered", "thin", "substantive"]);
+
+export const STARCoverageSchema = z.object({
+  s: z.boolean(),
+  t: z.boolean(),
+  a: z.boolean(),
+  r: z.boolean(),
+});
+
+// Output of evaluateInsightAnswer — what the per-answer endpoint returns.
+export const AnswerEvaluationSchema = z.object({
+  star_coverage: STARCoverageSchema,
+  quality: AnswerQualitySchema,
+  thin_reason: z.string(),
+  follow_up_question: z.string().nullable(),
+});
+
+// Read-side row shape returned from captured_insights.
+export const CapturedInsightSchema = z.object({
+  id: z.string().uuid(),
+  session_id: z.string().uuid(),
+  interrogation_line_index: z.number().int().min(0),
+  interrogation_question: z.string(),
+  star_slot_hint: z.string(),
+  raw_answer: z.string().nullable(),
+  drilled_answer: z.string().nullable(),
+  final_answer: z.string().nullable(),
+  answer_quality: AnswerQualitySchema,
+  star_coverage: STARCoverageSchema.nullable(),
+  follow_up_question: z.string().nullable(),
+  follow_up_dismissed: z.boolean(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+// API input schemas — used by the four insight-interview endpoints.
+export const InsightAnswerInputSchema = z.object({
+  session_id: z.string().uuid(),
+  interrogation_line_index: z.number().int().min(0),
+  raw_answer: z.string().min(1).max(10_000),
+});
+
+export const InsightDrillInputSchema = z.object({
+  session_id: z.string().uuid(),
+  interrogation_line_index: z.number().int().min(0),
+  follow_up_answer: z.string().min(1).max(10_000),
+});
+
+export const InsightCompleteInputSchema = z.object({
+  session_id: z.string().uuid(),
+  skipped: z.boolean().optional(),
+});
+
 // ─── Type exports ─────────────────────────────────────────────────────────────
 
 export type CreateSessionInput = z.infer<typeof CreateSessionInputSchema>;
 export type GenerateAnswerInput = z.infer<typeof GenerateAnswerInputSchema>;
 export type RateAnswerInput = z.infer<typeof RateAnswerInputSchema>;
 export type ResearchCompanyInput = z.infer<typeof ResearchCompanyInputSchema>;
+export type InsightAnswerInput = z.infer<typeof InsightAnswerInputSchema>;
+export type InsightDrillInput = z.infer<typeof InsightDrillInputSchema>;
+export type InsightCompleteInput = z.infer<typeof InsightCompleteInputSchema>;

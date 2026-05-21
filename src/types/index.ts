@@ -472,6 +472,59 @@ export interface PositioningBrief {
   generated_at: string;
 }
 
+// ─── Insight Interview ────────────────────────────────────────────────────────
+//
+// Captures the candidate's STAR-shaped answers to interrogation_lines from
+// the Positioning Engine. See migration 043 and src/lib/insight/*.
+
+export type InsightInterviewStatus =
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "skipped";
+
+export type AnswerQuality = "unanswered" | "thin" | "substantive";
+
+export interface STARCoverage {
+  s: boolean;
+  t: boolean;
+  a: boolean;
+  r: boolean;
+}
+
+export interface AnswerEvaluation {
+  star_coverage: STARCoverage;
+  quality: AnswerQuality;
+  /** Empty string when quality is "substantive" or "unanswered". */
+  thin_reason: string;
+  /** Generated only when quality is "thin". Null otherwise. */
+  follow_up_question: string | null;
+}
+
+export interface CapturedInsight {
+  id: string;
+  session_id: string;
+
+  /** Index into competitive_dynamics.interrogation_lines at capture time. */
+  interrogation_line_index: number;
+  /** Denormalized copy — survives a cache refresh that reorders the array. */
+  interrogation_question: string;
+  star_slot_hint: string;
+
+  raw_answer: string | null;
+  drilled_answer: string | null;
+  /** drilled_answer when present, else raw_answer. The downstream input. */
+  final_answer: string | null;
+
+  answer_quality: AnswerQuality;
+  star_coverage: STARCoverage | null;
+  follow_up_question: string | null;
+  follow_up_dismissed: boolean;
+
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Credits ──────────────────────────────────────────────────────────────────
 
 export interface CreditState {
