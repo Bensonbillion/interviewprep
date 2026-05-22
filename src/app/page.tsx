@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Hero } from "@/components/landing/Hero";
-import { SeeTheDifference } from "@/components/landing/SeeTheDifference";
+import { TheProblem } from "@/components/landing/TheProblem";
 import { HowItWorks } from "@/components/landing/HowItWorks";
+import { SeeTheDifference } from "@/components/landing/SeeTheDifference";
+import { WhatsInAKit } from "@/components/landing/WhatsInAKit";
 import { WhySalesPrep } from "@/components/landing/WhySalesPrep";
 import { FinalCTA } from "@/components/landing/FinalCTA";
 import { Footer } from "@/components/landing/Footer";
@@ -10,7 +12,7 @@ export const metadata: Metadata = {
   title:
     "SalesPrep AI — Your best interview answer is hiding in the job you're leaving.",
   description:
-    "AI interview prep that uses how your current company and your target company actually compete — so your answers say what a generic chatbot can't.",
+    "AI interview prep that uses how your current company and your target company actually compete — so your kit is the whole interview answered, in your voice.",
   alternates: {
     canonical: "/",
   },
@@ -18,7 +20,7 @@ export const metadata: Metadata = {
     title:
       "SalesPrep AI — Your best interview answer is hiding in the job you're leaving.",
     description:
-      "Interview prep built on how the company you're leaving stacks up against the company you're joining. For SDRs, BDRs, and AEs.",
+      "Interview prep built on how the company you're leaving stacks up against the company you're joining. A full kit — every question they'll ask, answered. For SDRs, BDRs, and AEs.",
     type: "website",
   },
 };
@@ -27,8 +29,10 @@ export default function HomePage() {
   return (
     <main className="bg-[#F7F6F3]">
       <Hero />
-      <SeeTheDifference />
+      <TheProblem />
       <HowItWorks />
+      <SeeTheDifference />
+      <WhatsInAKit />
       <WhySalesPrep />
       <FinalCTA />
       <Footer />

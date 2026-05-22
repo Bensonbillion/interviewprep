@@ -75,14 +75,14 @@ export function SeeTheDifference() {
             </div>
 
             <blockquote className="text-[14px] sm:text-[15px] text-[#1C1713] leading-[1.65] font-light flex-1">
-              &ldquo;Honestly — at Motive we lost a real number of deals, and a
-              pattern I kept seeing was buyers wanting camera, telematics, and
-              analytics on one platform instead of stitched together. There was
-              a 120-truck construction fleet in Texas where the safety director
-              told me, point-blank, they were leaning Samsara because they
-              didn&rsquo;t want to manage two vendors. I&rsquo;ve watched
-              Samsara win from the other side of the table. I want to be on
-              that side of it.&rdquo;
+              &ldquo;The honest answer is I&rsquo;ve been studying Samsara from
+              the other side of the table for three years. I lost a 120-truck
+              construction fleet in Texas when the safety director told me,
+              point-blank, they were leaning Samsara because Samsara&rsquo;s
+              site and equipment visibility covered their yard. I tried to
+              reframe it — but deep down I knew it was real. Motive is strong
+              on the vehicle side. Samsara goes wider. I&rsquo;d rather sell
+              from the side telling the stronger story.&rdquo;
             </blockquote>
 
             <p className="text-[11px] text-[#7A6F65] mt-4 pt-3 border-t border-[#F1ECE6]">

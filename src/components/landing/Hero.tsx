@@ -107,13 +107,14 @@ function SampleAnswerCard() {
 
       <div className="p-5 sm:p-6">
         <p className="text-[10px] font-medium tracking-[0.1em] uppercase text-[#E8735A] mb-3">
-          Tell me about yourself
+          Why Samsara?
         </p>
 
         <blockquote className="text-[15px] sm:text-[16px] text-[#1C1713] leading-[1.6] font-light">
-          &ldquo;I spent three years at Motive watching buyers choose Samsara.
-          I know exactly why they choose it — and I want to be the one making
-          that case at Samsara.&rdquo;
+          &ldquo;I&rsquo;ve been at Motive for three years going head-to-head
+          with Samsara. The losses taught me something — when a buyer is
+          running mixed operations, Samsara&rsquo;s unified platform just
+          covers more ground. I&rsquo;d rather sell from that side.&rdquo;
         </blockquote>
 
         <div className="mt-5 pt-4 border-t border-[#E8E4DF]">

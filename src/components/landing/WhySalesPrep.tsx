@@ -5,15 +5,15 @@ import { ScrollReveal } from "./ScrollReveal";
 const CARDS = [
   {
     title: "It knows the matchup.",
-    body: "SalesPrep researches how your current company and your target company actually compete — who wins which deals, and why. That competitive read is built into every answer.",
+    body: "SalesPrep researches how your current company and your target company actually compete, and builds that read into the answers where it belongs.",
   },
   {
-    title: "It asks before it writes.",
-    body: "The best interview answer is a specific story only you hold. SalesPrep asks for it — the real deal, the real objection — instead of guessing and hoping.",
+    title: "It interviews you first.",
+    body: "The sharpest material is a specific story only you hold. SalesPrep asks for it before it writes a word — instead of guessing, or handing you a template with blanks.",
   },
   {
-    title: "One story, every answer.",
-    body: "Your \"tell me about yourself,\" your \"why this company,\" your behavioral answers — all slices of one coherent narrative. Not six disconnected scripts.",
+    title: "It prepares the whole interview.",
+    body: "Not one answer — every round. Your opener, your behavioral stories, objection handling, the questions you ask them, a cheat sheet for the morning of. One coherent kit.",
   },
 ];
 
