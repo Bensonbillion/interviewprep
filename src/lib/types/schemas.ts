@@ -415,6 +415,55 @@ export const InsightCompleteInputSchema = z.object({
   skipped: z.boolean().optional(),
 });
 
+// ─── Narrative Spine ──────────────────────────────────────────────────────────
+
+export const StarProofPointSchema = z.object({
+  label: z.string().min(1),
+  situation: z.string(),
+  task: z.string(),
+  action: z.string(),
+  result: z.string(),
+  star_complete: z.boolean(),
+  source: z.enum(["captured_insight", "resume", "blended"]),
+  gaps: z.array(z.string()),
+});
+
+export const SpineCompetitiveTruthSchema = z.object({
+  truth: z.string().min(1),
+  use_in: z.array(AnswerTypeSchema),
+  candidate_phrasing: z.string(),
+  star_proof_ref: z.number().int().min(0).nullable(),
+});
+
+export const PositioningFrameSchema = z.object({
+  type: PositioningTypeSchema,
+  frame_statement: z.string().min(1),
+});
+
+// Synthesis (Sonnet) output — validated before upsert. Excludes the
+// server-managed fields (id, session_id, built_from, generated_at).
+export const NarrativeSpineSynthesisSchema = z.object({
+  core_thesis: z.string().min(1),
+  signature_proof_points: z.array(StarProofPointSchema),
+  competitive_truths: z.array(SpineCompetitiveTruthSchema),
+  company_hook: z.string().nullable(),
+  positioning_frame: PositioningFrameSchema,
+  narrative_risks: z.array(z.string()),
+});
+
+// Read-side row shape — what comes back from narrative_spines.
+export const NarrativeSpineSchema = NarrativeSpineSynthesisSchema.extend({
+  id: z.string().uuid(),
+  session_id: z.string().uuid(),
+  built_from: z.object({
+    has_positioning_brief: z.boolean(),
+    captured_insight_count: z.number().int().min(0),
+    positioning_type: PositioningTypeSchema.nullable(),
+    insight_interview_status: z.string(),
+  }),
+  generated_at: z.string(),
+});
+
 // ─── Type exports ─────────────────────────────────────────────────────────────
 
 export type CreateSessionInput = z.infer<typeof CreateSessionInputSchema>;

@@ -15,6 +15,7 @@ import type { AnswerType, PrepSession } from "@/types";
 import { STAGE_TYPE_METADATA, type StageType } from "@/lib/types/stages";
 import { auditLog } from "@/lib/security/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { loadNarrativeSpine } from "@/lib/spine/load";
 
 // Vercel Pro plan — give the route enough headroom for streamed Sonnet generations.
 export const maxDuration = 60;
@@ -74,6 +75,12 @@ export async function POST(req: NextRequest) {
     const seniorityText = getSeniorityInstructions(seniority);
     const jobListingContext = buildJobListingContext(jobListingSignals);
 
+    // Load the narrative spine (additive — absence falls back to spine-blind
+    // generation, which is exactly today's behavior). Real sessionId only.
+    const spine = sessionId !== "anon"
+      ? await loadNarrativeSpine(sessionId).catch(() => null)
+      : null;
+
     // Build base prompt — structural instructions + resume + company (items 7, 9, 10)
     const { system: baseSystem, user, maxTokens } = buildPromptForAnswerType(
       answerType as AnswerType,
@@ -95,6 +102,7 @@ export async function POST(req: NextRequest) {
         mockAccountName: session.mockAccountName,
         mockAccountContext: session.mockAccountContext,
         previousRoundContext: session.previousRoundContext,
+        spine: spine ?? undefined,
       },
       {
         question: body.question,

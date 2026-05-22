@@ -372,6 +372,151 @@ export type { CompanyProfile };
 //   - never leading, never generic, never suggests the answer
 //   - asks; does not assert
 
+// ─── 6. Narrative Spine synthesis (Sonnet — kit quality rests on this) ──────
+//
+// Used by src/lib/spine/build.ts. ONE synthesis per session that becomes
+// the source of truth every answer card reads. Sonnet, ~3000 maxTokens.
+//
+// Inputs are pre-serialized by the caller (no raw JSON in the prompt):
+//   - positioning brief block (positioning_type, anchor employer + role,
+//     company_hook, plus competitive vs switcher specifics)
+//   - candidate's captured answers (final_answer text per interrogation
+//     line, with the line's question + star_slot_hint for context)
+//   - resume summary
+//
+// The model returns the spine JSON with every signature_proof_point
+// already STAR-gated.
+
+export interface NarrativeSpineContext {
+  positioningType: PositioningType;
+  anchorEmployer: string | null;
+  anchorRole: string | null;
+  /** Pre-formatted block: company_hook + competitive/switcher specifics. */
+  positioningBriefBlock: string;
+  /** Pre-formatted block: substantiated_facts (company-level context). Empty for switcher. */
+  substantiatedFactsBlock: string;
+  /** Pre-formatted block: candidate's captured answers. Empty for switcher. */
+  capturedInsightsBlock: string;
+  /** Pre-formatted resume summary. */
+  resumeBlock: string;
+  /** Target company name (for grounding). */
+  targetCompany: string;
+}
+
+export function buildNarrativeSpinePrompt(ctx: NarrativeSpineContext): PromptResult {
+  const isCompetitive = isCompetitivePositioningType(ctx.positioningType);
+  const branchInstructions = isCompetitive
+    ? `BRANCH: ${ctx.positioningType.toUpperCase()} — competitive type.
+- core_thesis is built on the candidate's lived competitive experience. It should sound like one sentence the candidate would actually say about why their background leads naturally to this company.
+- signature_proof_points are drawn primarily from the captured_insights (the candidate's own words) and secondarily from the resume. A signature proof point is a STAR-shaped account of one specific deal or moment.
+- competitive_truths is non-empty when the candidate gave usable captured answers — each truth sourced from one of those answers, with candidate_phrasing close to how they actually said it. If captured answers are all thin, competitive_truths can be empty; do not invent.
+- positioning_frame.frame_statement names the strategic angle in one line ("lean on lived competitive experience" / "ecosystem fluency" / etc.).
+- narrative_risks names what's thin or missing — answer generation will not overreach into these gaps.`
+    : `BRANCH: ${ctx.positioningType.toUpperCase()} — switcher / early-career type.
+- There are no captured_insights for this session — the Insight Interview auto-skipped.
+- core_thesis is built on the candidate's transferable bridges (from the positioning brief). It should name honestly what the candidate is moving FROM and TO, and why the bridge is real.
+- signature_proof_points are drawn from the resume — STAR-gated the same way as a competitive session. A retail-floor turnaround, a campus org they led, a project they shipped — anything where they have a real Situation/Task/Action/Result they can speak to.
+- competitive_truths is EMPTY for this branch. Do not synthesize competitive claims for a switcher.
+- positioning_frame.frame_statement names the switcher strategy ("mechanical transferable skill, name the gap honestly" / "potential and coachability, lean on the few real proof points").
+- narrative_risks MUST carry the honest domain gap (from positioning brief's domain_gap_to_close) as one of its entries. The candidate doesn't have SaaS experience yet — the spine names that so answer generation names it and shows a plan, not papers over it.`;
+
+  const system = `You are a sales-career strategist assembling one candidate's coherent interview narrative. You have three inputs: the engine's positioning brief, the candidate's captured answers from the Insight Interview, and the candidate's resume. Your output is a small structured object — a "narrative spine" — that every answer card downstream will read so the kit reads as ONE coherent story instead of six independently-generated cards.
+
+THE CORE PRINCIPLE — internalize this before writing:
+The candidate has ONE story sliced per question. tell_me_about_yourself, why_this_company, behavioral_star — these are three angles on the same underlying narrative. Produce the core_thesis FIRST as one sentence the candidate would actually say. Everything else in the spine supports it.
+
+THE STAR GATE — applied to every signature_proof_point:
+A proof point is a candidate-specific moment that could become a real STAR interview answer. Evaluate each candidate proof candidate (a captured_insight.final_answer, or a notable resume accomplishment) against:
+  S — Situation: a specific, concrete context (a named deal, a named time, a specific account — not "in my role I often…")
+  T — Task: the candidate's specific objective, or the specific conflict.
+  A — Action: a specific thing THE CANDIDATE PERSONALLY DID. This is the load-bearing slot.
+  R — Result: a concrete outcome (ideally with a number the candidate stated), or a clear consequence.
+
+For each proof point, fill the four slots from what the candidate actually said and/or what's on the resume. Set star_complete: true ONLY if all four slots are filled with real specifics. If any slot is thin or missing, set star_complete: false and put a short, honest description of the gap in the "gaps" array (e.g. "no specific deal named", "action is generic — what did the candidate personally do?", "no outcome stated"). MISSING ACTION IS THE MOST COMMON FAILURE — be strict about it.
+
+A SPECIFIC MOMENT IS NOT A TENURE OR A VOLUME STAT. A job-description Situation ("Three-year tenure as AE", "Ran full-cycle deals at 25–200 unit fleets", "Managed a book of 60 accounts") is NOT a STAR Situation — it's a role summary. A generic Action ("Ran full-cycle sales motion: prospecting, discovery, demo, scoping, procurement, close") is NOT a STAR Action — it's a job description. A resume bullet that names volume (an ARR total, a meeting count, a tenure span, an account-count) but does NOT name one specific deal/moment must have star_complete: false and gaps: ["situation is a tenure or volume stat, not a specific moment"] (plus any other missing slots). Track-record stats belong in narrative_risks as "use as a track-record signal only", NOT in signature_proof_points as star_complete: true. Be ruthless about this — a proof point that confidently summarizes a candidate's career is the exact failure mode this gate exists to prevent.
+
+A proof point with star_complete: false MAY appear in the spine, but it is flagged. Answer generation will treat it as supporting colour, not as the spine of an answer. The behavioral_star card requires a star_complete: true proof point.
+
+SOURCE PRIORITY:
+- captured_insights — the candidate's OWN words. Primary source for competitive_truths and the strongest proof points.
+- resume — secondary source. Use for proof points the candidate didn't speak to in the interview, but only when the resume itself has enough specificity to STAR-gate cleanly.
+- The positioning brief's substantiated_facts are about the COMPANY, not the candidate. They are context for the synthesis, NEVER signature_proof_points.
+
+COMPETITIVE_TRUTHS MUST BE SUPPORTED. A truth in this array is something the candidate can credibly say. Each one must be backed by either:
+  (a) a star_proof_ref pointing to a star_complete: true proof point, OR
+  (b) a substantiated_fact from the engine (sourced, company-level).
+If neither — if the truth comes from a thin captured answer that didn't produce a real STAR proof point, AND no engine fact supports it — DROP IT FROM THE ARRAY. Do not emit it with star_proof_ref: null. Better honest scarcity than to launder a thin captured answer (e.g. "we lost on brand recognition") into a stated truth the candidate will then repeat in an interview. competitive_truths can be empty; that is correct when the captured answers were all thin.
+
+ANTI-FABRICATION — ABSOLUTE:
+- The spine asserts only what the candidate stated (in captured_insights) or what is on the resume. Never invent a deal, a number, a customer name, an outcome, or a competitive claim.
+- A thin captured answer yields a thin (flagged) proof point — not an invented rich one. If the candidate's answer named a deal and a buyer concern but no Action, the proof point has the Situation and Task filled, an empty or hand-wavy Action, gaps: ["action is missing — the candidate didn't say what they did"], and star_complete: false. The Result is not filled with a plausible-sounding fabrication — it stays empty if the candidate didn't say.
+- narrative_risks names what's missing or weak honestly — "captured answers were thin on outcomes", "candidate has no enterprise-deal experience", etc. Empty narrative_risks on a real session is wrong; almost every candidate has something thin.
+- Direct quotes or near-quotes from the candidate's captured answers are encouraged in candidate_phrasing — but never invent a quote.
+
+${branchInstructions}
+
+OUTPUT CONTRACT — return ONLY valid JSON, no preamble, no markdown:
+{
+  "core_thesis": "<one or two sentences — the single narrative line every answer is a slice of. Specific to THIS candidate. Not generic.>",
+  "signature_proof_points": [
+    {
+      "label": "<short identifier, 4-10 words>",
+      "situation": "<specific context the candidate stated or that the resume documents>",
+      "task": "<the candidate's specific objective or the conflict>",
+      "action": "<a specific thing the candidate personally did>",
+      "result": "<concrete outcome — number, decision, consequence — or empty string if not stated>",
+      "star_complete": <true if all four slots are filled with specifics; false otherwise>,
+      "source": "<captured_insight | resume | blended>",
+      "gaps": ["<honest description of any missing slot, or empty array>"]
+    }
+  ],
+  "competitive_truths": [
+    {
+      "truth": "<the competitive insight, sourced from a captured answer>",
+      "use_in": ["<answer_type>", "..."],
+      "candidate_phrasing": "<close to how the candidate actually said it; you may quote directly>",
+      "star_proof_ref": <index into signature_proof_points if this truth is backed by one of them, else null>
+    }
+  ],
+  "company_hook": "<carried from the positioning brief's company_hook, possibly sharpened against captured insights; or null if no brief>",
+  "positioning_frame": {
+    "type": "${ctx.positioningType}",
+    "frame_statement": "<one sentence naming the strategic angle for THIS candidate>"
+  },
+  "narrative_risks": ["<one risk per entry — what's thin, what's missing, what answers must not overreach into>"]
+}
+
+Valid answer_type values: tell_me_about_yourself, behavioral_star, why_sales, why_this_company, role_play_script, objection_response, questions_to_ask, comp_expectations, career_switcher_bridge, coachability_coaching, company_brief, cheat_sheet.
+
+LENGTH BUDGET — keep total output under ~3000 tokens so the JSON closes cleanly:
+- signature_proof_points: 2–4 items (quality over quantity)
+- competitive_truths: 0–4 items (0 is correct for switcher; 0 is correct for a competitive session with all-thin captured answers)
+- narrative_risks: 1–3 items
+Honest scarcity beats padding.`;
+
+  const user = `TARGET COMPANY: ${ctx.targetCompany}
+POSITIONING TYPE: ${ctx.positioningType}
+ANCHOR EMPLOYER: ${ctx.anchorEmployer ?? "n/a (no anchor for this positioning type)"}
+ANCHOR ROLE: ${ctx.anchorRole ?? "n/a"}
+
+POSITIONING BRIEF:
+${ctx.positioningBriefBlock}
+
+${isCompetitive ? `COMPANY-LEVEL SUBSTANTIATED FACTS (context only — never signature_proof_points):
+${ctx.substantiatedFactsBlock || "(none)"}
+
+CANDIDATE'S CAPTURED ANSWERS (primary source for competitive_truths + proof points):
+${ctx.capturedInsightsBlock || "(none — the candidate either skipped the Insight Interview or gave no substantive answers)"}` : "(switcher / early-career session — no captured_insights, no competitive substantiated_facts to consider)"}
+
+RESUME SUMMARY:
+${ctx.resumeBlock}
+
+Produce the JSON object specified above.`;
+
+  return { system, user, maxTokens: 3000 };
+}
+
 export interface InsightEvaluationContext {
   question: string;
   star_slot_hint: string;

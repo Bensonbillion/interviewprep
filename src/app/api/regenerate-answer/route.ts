@@ -11,6 +11,7 @@ import { shouldHumanize } from "@/lib/ai/humanize-answer";
 import { styleLint } from "@/lib/ai/style-lint";
 import { isStreamingAnswerType, type AnswerStreamEvent } from "@/lib/ai/streaming";
 import type { AnswerType, PrepSession } from "@/types";
+import { loadNarrativeSpine } from "@/lib/spine/load";
 
 export const maxDuration = 60;
 
@@ -55,6 +56,16 @@ export async function POST(req: NextRequest) {
     const seniorityText = getSeniorityInstructions(seniority);
     const jobListingContext = buildJobListingContext(jobListingSignals);
 
+    // Load the narrative spine for the same reasons as /generate-answer:
+    // regenerated answers must rebuild context with the spine so a regen
+    // doesn't strip the candidate's lived truth from the answer.
+    // (Note: this route's ctx is otherwise a strict subset of /generate-
+    // answer's — see tracked item 0D.5. Not fixed here; just ensuring
+    // spine reaches both.)
+    const spine = sessionId !== "anon"
+      ? await loadNarrativeSpine(sessionId).catch(() => null)
+      : null;
+
     // Build base prompt — structural instructions + resume + company (items 7, 9, 10)
     const { system: baseSystem, user, maxTokens } = buildPromptForAnswerType(
       answerType,
@@ -69,6 +80,7 @@ export async function POST(req: NextRequest) {
         stage: session.stage,
         seniority,
         jobListingSignals,
+        spine: spine ?? undefined,
       }
     );
 

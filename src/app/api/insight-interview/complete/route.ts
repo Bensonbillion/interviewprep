@@ -4,6 +4,7 @@ import { apiLimiter, checkRateLimit, buildRateLimitResponse } from "@/lib/securi
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ADMIN_EMAILS } from "@/lib/admin-config";
 import { InsightCompleteInputSchema } from "@/lib/types/schemas";
+import { buildNarrativeSpine } from "@/lib/spine/build";
 
 /**
  * POST /api/insight-interview/complete
@@ -56,8 +57,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to mark complete" }, { status: 500 });
     }
 
+    // ── Narrative Spine — build BEFORE returning. ────────────────────
+    // The chain is: Positioning Engine → Insight Interview → Narrative
+    // Spine → priority pre-gen. The spine must be in the DB before the
+    // client's subsequent generate-answer call so the priority answer
+    // isn't built spine-blind (same ordering mistake we caught with the
+    // Insight Interview itself). Switcher / skipped sessions also get a
+    // spine — buildNarrativeSpine handles the no-captured-insights case.
+    //
+    // Best-effort: buildNarrativeSpine has its own degrade-not-throw
+    // path, but if even that fails (e.g. no session_data.resume in the
+    // row) we log and continue. A missing spine downstream falls back
+    // to today's spine-blind behavior.
+    let spineBuilt = false;
+    try {
+      await buildNarrativeSpine(session_id);
+      spineBuilt = true;
+    } catch (err) {
+      console.error("[insight-interview complete] spine build failed:", {
+        sessionId: session_id,
+        err: err instanceof Error ? err.message : String(err),
+      });
+    }
+
     return NextResponse.json({
       status,
+      spine_built: spineBuilt,
       // The client kicks priority pre-gen and navigates next; this field
       // is informational, not load-bearing.
       next: `/prep/${session_id}`,

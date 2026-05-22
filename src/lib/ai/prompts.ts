@@ -18,6 +18,9 @@ import type {
   RoleType,
   AnswerType,
   MockCallPersona,
+  NarrativeSpine,
+  StarProofPoint,
+  SpineCompetitiveTruth,
 } from "@/types";
 
 interface PromptContext {
@@ -38,6 +41,14 @@ interface PromptContext {
   mockAccountName?: string;
   mockAccountContext?: string;
   previousRoundContext?: string;
+  /**
+   * The session's narrative spine — built once at Insight Interview
+   * complete, read by every positioning-relevant answer builder so the
+   * kit reads as one coherent story instead of N independent answers.
+   * Absent for sessions predating the build, or when spine generation
+   * degraded; builders MUST fall back to today's behavior when missing.
+   */
+  spine?: NarrativeSpine;
 }
 
 interface PromptResult {
@@ -164,6 +175,152 @@ function buildRelevanceContext(relevanceMap: RelevanceMap): string {
   return lines.join("\n");
 }
 
+
+// ─── Narrative Spine helpers ──────────────────────────────────────────────────
+// Used by positioning-relevant build*Prompt builders. Every helper returns
+// the empty string when the spine field is absent or empty — answer
+// builders interpolate the result and an empty string means "no spine
+// guidance," i.e. today's spine-blind behavior.
+
+/**
+ * The single highest-signal spine block — the candidate's core thesis +
+ * positioning frame. Useful for any answer that needs the one-line "who
+ * this candidate is" framing (TMAY, why_this_company, why_sales,
+ * career_switcher_bridge).
+ */
+function buildSpineThesisBlock(spine?: NarrativeSpine): string {
+  if (!spine) return "";
+  const parts = [
+    `CANDIDATE'S CORE NARRATIVE (every answer is a slice of this — do not contradict it):`,
+    spine.core_thesis,
+  ];
+  if (spine.positioning_frame?.frame_statement) {
+    parts.push(`STRATEGIC FRAME: ${spine.positioning_frame.frame_statement}`);
+  }
+  return parts.join("\n") + "\n";
+}
+
+/**
+ * Serialize STAR-complete proof points for use in an answer. Optionally
+ * filter to a subset. Returns empty string when no proof points qualify.
+ */
+function buildSpineProofPointsBlock(
+  spine: NarrativeSpine | undefined,
+  opts: { requireComplete?: boolean; limit?: number } = {}
+): string {
+  if (!spine) return "";
+  const requireComplete = opts.requireComplete ?? false;
+  const proofs = (spine.signature_proof_points ?? []).filter((p) =>
+    requireComplete ? p.star_complete : true
+  );
+  if (proofs.length === 0) return "";
+  const sliced = opts.limit ? proofs.slice(0, opts.limit) : proofs;
+  const lines = sliced.map((p, i) => formatProofPoint(p, i));
+  const heading = requireComplete
+    ? `STAR-COMPLETE PROOF POINTS (use these as the spine of your answer — every slot is grounded in what the candidate actually said or what's on their resume):`
+    : `PROOF POINTS (star_complete:true items are spine-ready; star_complete:false items are supporting colour only — never anchor an answer on them):`;
+  return `${heading}\n${lines.join("\n\n")}\n`;
+}
+
+function formatProofPoint(p: StarProofPoint, index: number): string {
+  const flag = p.star_complete ? "✓ STAR-complete" : `⚠ INCOMPLETE — ${p.gaps.join("; ")}`;
+  return [
+    `[${index}] ${p.label} (${flag}, source: ${p.source})`,
+    `   S: ${p.situation || "(missing)"}`,
+    `   T: ${p.task || "(missing)"}`,
+    `   A: ${p.action || "(missing)"}`,
+    `   R: ${p.result || "(missing)"}`,
+  ].join("\n");
+}
+
+/**
+ * Filter competitive truths by which answer types they're tagged for.
+ * Truths with star_proof_ref:null are clearly flagged as "supporting
+ * colour only, not the spine of a claim" — caller decides whether to
+ * include them in the user prompt at all.
+ */
+function buildSpineCompetitiveTruthsBlock(
+  spine: NarrativeSpine | undefined,
+  answerType: AnswerType,
+  opts: { includeUnsupported?: boolean } = {}
+): string {
+  if (!spine) return "";
+  const includeUnsupported = opts.includeUnsupported ?? false;
+  const truths = (spine.competitive_truths ?? []).filter((t) =>
+    t.use_in.includes(answerType) &&
+    (includeUnsupported || t.star_proof_ref !== null)
+  );
+  if (truths.length === 0) return "";
+  const lines = truths.map((t) => formatCompetitiveTruth(t));
+  return `COMPETITIVE TRUTHS (drawn from the candidate's own words — phrase your answer close to how THEY said it, not in marketing language):\n${lines.join("\n")}\n`;
+}
+
+function formatCompetitiveTruth(t: SpineCompetitiveTruth): string {
+  const support = t.star_proof_ref !== null
+    ? `(backed by proof point [${t.star_proof_ref}])`
+    : `(⚠ unsupported — use as setup line only, NOT as the spine of a claim the candidate must defend with a story)`;
+  return `- "${t.truth}" ${support}\n  Candidate's own phrasing: "${t.candidate_phrasing}"`;
+}
+
+/**
+ * Honest narrative_risks — answer generation reads this to know where
+ * NOT to overreach. A non-empty block is normal; the spine names what's
+ * thin so answers don't fabricate into the gap.
+ */
+function buildSpineRisksBlock(spine?: NarrativeSpine): string {
+  if (!spine || spine.narrative_risks.length === 0) return "";
+  return `NARRATIVE RISKS — DO NOT OVERREACH INTO THESE:\n${spine.narrative_risks.map((r) => `- ${r}`).join("\n")}\n`;
+}
+
+/**
+ * The company_hook — sharpened motivation/fit line carried from the
+ * positioning brief. Primary input for why_this_company.
+ */
+function buildSpineCompanyHookBlock(spine?: NarrativeSpine): string {
+  if (!spine?.company_hook) return "";
+  return `CANDIDATE'S COMPANY HOOK (the single sharpest reason THIS candidate wants THIS company — ground the answer in this):\n${spine.company_hook}\n`;
+}
+
+/**
+ * Composite spine section — what most positioning-relevant builders
+ * inject as one block at the top of their user prompt. Returns empty
+ * string when no spine present (caller's prompt then reads exactly as
+ * today). The composition is intentionally narrative-oriented: thesis,
+ * then proof points the answer can lean on, then competitive truths
+ * tagged for this answer type, then risks to avoid.
+ */
+interface SpineSectionOpts {
+  /** Include the company_hook block — mainly for why_this_company. */
+  includeCompanyHook?: boolean;
+  /** Filter proof points to star_complete:true only. behavioral_star uses this. */
+  requireCompleteProofs?: boolean;
+  /** Cap how many proof points to surface. */
+  proofPointLimit?: number;
+  /** Include competitive truths flagged unsupported (star_proof_ref:null). */
+  includeUnsupportedTruths?: boolean;
+}
+
+function buildSpineSection(
+  spine: NarrativeSpine | undefined,
+  answerType: AnswerType,
+  opts: SpineSectionOpts = {}
+): string {
+  if (!spine) return "";
+  const blocks = [
+    buildSpineThesisBlock(spine),
+    opts.includeCompanyHook ? buildSpineCompanyHookBlock(spine) : "",
+    buildSpineProofPointsBlock(spine, {
+      requireComplete: opts.requireCompleteProofs,
+      limit: opts.proofPointLimit,
+    }),
+    buildSpineCompetitiveTruthsBlock(spine, answerType, {
+      includeUnsupported: opts.includeUnsupportedTruths,
+    }),
+    buildSpineRisksBlock(spine),
+  ].filter((b) => b.length > 0);
+  if (blocks.length === 0) return "";
+  return `══ NARRATIVE SPINE — read first; this answer is a slice of the candidate's single coherent story ══\n${blocks.join("\n")}══ END SPINE ══\n\n`;
+}
 
 function buildPersonalContextBlock(personalContext?: string): string {
   if (!personalContext?.trim()) return "";
@@ -472,7 +629,7 @@ PROBE-READINESS — this answer must survive:
 - "Tell me more about [specific role]" — each role mentioned needs enough depth in the narrative to continue discussing for 60+ seconds
 - "Why did you leave [company]?" — every career transition must have a forward-leaning reason already embedded. Never escape-framing ("I wanted more" not "it wasn't working out").
 
-CANDIDATE:
+${buildSpineSection(ctx.spine, "tell_me_about_yourself", { proofPointLimit: 2 })}CANDIDATE:
 ${buildResumeContext(ctx)}
 
 TARGET: ${ctx.targetRole} at ${ctx.company.name}
@@ -514,7 +671,7 @@ ${buildResumeContext(ctx)}
 COMPANY:
 ${buildCompanyContext(ctx.company)}
 ${buildPersonalContextBlock(ctx.personalContext)}
-Use the Answer Card structure (## Quick take → ## 30-second version → ## Full answer → ## Key proof points → ## If they dig deeper → ## Make it yours). Bold the 3-5 most important phrases.`,
+${buildSpineSection(ctx.spine, "why_sales", { proofPointLimit: 2 })}Use the Answer Card structure (## Quick take → ## 30-second version → ## Full answer → ## Key proof points → ## If they dig deeper → ## Make it yours). Bold the 3-5 most important phrases.`,
       maxTokens: 800,
     };
   }
@@ -559,7 +716,7 @@ REAL-WORLD PATTERNS:
 CANDIDATE:
 ${buildResumeContext(ctx)}
 ${buildPersonalContextBlock(ctx.personalContext)}
-Use the Answer Card structure (## Quick take → ## 30-second version → ## Full answer → ## Key proof points → ## If they dig deeper → ## Make it yours). Bold the 3-5 most important phrases.`,
+${buildSpineSection(ctx.spine, "why_sales", { proofPointLimit: 2 })}Use the Answer Card structure (## Quick take → ## 30-second version → ## Full answer → ## Key proof points → ## If they dig deeper → ## Make it yours). Bold the 3-5 most important phrases.`,
     maxTokens: 800,
   };
 }
@@ -622,7 +779,7 @@ REAL-WORLD PATTERNS:
 - Show value proposition in SPECIFIC numbers, not vague claims. Good: 'enables 5x as many conversations' Bad: 'increases efficiency.' Great: 'reps will have more conversations in a day than a peer will have in an entire week.'
 - ONE candidate at SaaStr got hired on the spot because they had created a free trial account, tested competitors, and brought printouts with improvement recommendations. Signal this level of initiative in the answer.
 
-CANDIDATE:
+${buildSpineSection(ctx.spine, "why_this_company", { includeCompanyHook: true, proofPointLimit: 2 })}CANDIDATE:
 ${buildResumeContext(ctx)}
 
 COMPANY:
@@ -783,13 +940,15 @@ REAL STAR PATTERNS FROM HIRED CANDIDATES:
 - The reflection layer matters more than the result. Good: 'I now have a 10-item checklist I go through when a mistake occurs, that I developed with my boss and five colleagues.' Bad: 'And that's how I learned to always work harder.'
 - RED FLAG: Never switch from 'I' to 'you' when discussing mistakes. 'You should always...' signals deflection. Keep it in first person throughout.
 
-CANDIDATE:
+${buildSpineSection(ctx.spine, "behavioral_star", { requireCompleteProofs: true })}CANDIDATE:
 ${buildResumeContext(ctx)}
 
 RELEVANCE MAP:
 ${buildRelevanceContext(ctx.relevanceMap)}
 ${buildPersonalContextBlock(ctx.personalContext)}
-IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
+${ctx.spine && (ctx.spine.signature_proof_points ?? []).some((p) => p.star_complete) ? `SPINE GUIDANCE FOR BEHAVIORAL_STAR: when the spine surfaces star_complete:true proof points above, anchor EVERY behavioral answer on one of them. The proof points are STAR-gated specifics from the candidate's own captured insights or resume — they are the right shape for this question type. If none of the spine's proof points fits a particular question, draw from the resume bullets directly. Never build a behavioral answer on a proof point flagged star_complete:false — those are supporting colour, not the spine of an answer.
+
+` : ""}IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
 {"answers": [{"question": "...", "answer": "...", "resumeSource": "which bullet/role this draws from"}]}`,
     maxTokens: 2000,
   };
@@ -1030,7 +1189,7 @@ REQUIREMENTS:
 COMPANY CONTEXT:
 ${buildCompanyContext(ctx.company)}
 
-IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
+${buildSpineSection(ctx.spine, "objection_response", { proofPointLimit: 2 })}IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
 {"responses": [{"objection": "...", "response": "..."}]}`,
     maxTokens: 800,
   };
@@ -1412,7 +1571,7 @@ Write a 2-sentence coaching note reminding the candidate these are NOT a checkli
 COMPANY:
 ${buildCompanyContext(ctx.company)}
 
-IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
+${buildSpineSection(ctx.spine, "questions_to_ask", { includeUnsupportedTruths: true })}${ctx.spine?.narrative_risks?.length ? "(SPINE NOTE: narrative_risks above name what's thin or live for this candidate — good questions are the ones the candidate would genuinely want answered to fill those gaps. Lean into them.)\n\n" : ""}IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
 {
   "coachingNote": "2-sentence coaching note about how to use these",
   "questions": [
@@ -1548,7 +1707,7 @@ REQUIREMENTS:
 - Never say "even though I don't have direct sales experience" — reframe as "different path, same skills"
 - Specific: actual job titles, industries, situations, and numbers where available
 ${buildPersonalContextBlock(ctx.personalContext)}
-IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
+${buildSpineSection(ctx.spine, "career_switcher_bridge", { proofPointLimit: 3 })}IMPORTANT: Return ONLY the raw JSON object below — no markdown, no ## headings, no prose before or after. Just the JSON.
 {
   "bridges": [
     {

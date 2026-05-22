@@ -525,6 +525,62 @@ export interface CapturedInsight {
   updated_at: string;
 }
 
+// ─── Narrative Spine ──────────────────────────────────────────────────────────
+//
+// One per-session synthesis the candidate's coherent interview narrative
+// is built from. Generated once at the end of the Insight Interview
+// (POST /api/insight-interview/complete). Every answer card reads it so
+// the kit reads as one person's coherent story rather than six
+// independently-generated cards. See migration 044 and src/lib/spine/*.
+
+export interface StarProofPoint {
+  label: string;
+  situation: string;
+  task: string;
+  action: string;
+  result: string;
+  /** True only when all four slots are filled with real specifics. */
+  star_complete: boolean;
+  source: "captured_insight" | "resume" | "blended";
+  /** Honest list of what's missing or weak; non-empty when star_complete is false. */
+  gaps: string[];
+}
+
+export interface SpineCompetitiveTruth {
+  /** The truth as sourced from the candidate's captured answer. */
+  truth: string;
+  use_in: AnswerType[];
+  /** Close to how the candidate actually phrased it. */
+  candidate_phrasing: string;
+  /** Index into signature_proof_points if this truth has a backing proof; else null. */
+  star_proof_ref: number | null;
+}
+
+export interface PositioningFrame {
+  type: PositioningType;
+  frame_statement: string;
+}
+
+export interface NarrativeSpineBuiltFrom {
+  has_positioning_brief: boolean;
+  captured_insight_count: number;
+  positioning_type: PositioningType | null;
+  insight_interview_status: string;
+}
+
+export interface NarrativeSpine {
+  id: string;
+  session_id: string;
+  core_thesis: string;
+  signature_proof_points: StarProofPoint[];
+  competitive_truths: SpineCompetitiveTruth[];
+  company_hook: string | null;
+  positioning_frame: PositioningFrame;
+  narrative_risks: string[];
+  built_from: NarrativeSpineBuiltFrom;
+  generated_at: string;
+}
+
 // ─── Credits ──────────────────────────────────────────────────────────────────
 
 export interface CreditState {
