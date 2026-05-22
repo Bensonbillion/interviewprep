@@ -1,26 +1,24 @@
 import type { Metadata } from "next";
 import { Hero } from "@/components/landing/Hero";
-import { CompanyGrid } from "@/components/landing/CompanyGrid";
-import { LogoStrip } from "@/components/landing/LogoStrip";
+import { SeeTheDifference } from "@/components/landing/SeeTheDifference";
 import { HowItWorks } from "@/components/landing/HowItWorks";
-import { KitOutputExample } from "@/components/landing/KitOutputExample";
 import { WhySalesPrep } from "@/components/landing/WhySalesPrep";
-import { Testimonials } from "@/components/landing/Testimonials";
-import { StatsGrid } from "@/components/landing/StatsGrid";
 import { FinalCTA } from "@/components/landing/FinalCTA";
 import { Footer } from "@/components/landing/Footer";
 
 export const metadata: Metadata = {
-  title: "SalesPrep AI — Your interviewer has a scorecard. Now you do too.",
+  title:
+    "SalesPrep AI — Your best interview answer is hiding in the job you're leaving.",
   description:
-    "AI-powered interview prep for sales candidates. Company-specific scoring criteria, discovery scripts, trap questions, and a live teleprompter.",
+    "AI interview prep that uses how your current company and your target company actually compete — so your answers say what a generic chatbot can't.",
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "SalesPrep AI — Your interviewer has a scorecard. Now you do too.",
+    title:
+      "SalesPrep AI — Your best interview answer is hiding in the job you're leaving.",
     description:
-      "Company-specific scoring criteria, discovery scripts, trap questions, and a live teleprompter. Built from your resume.",
+      "Interview prep built on how the company you're leaving stacks up against the company you're joining. For SDRs, BDRs, and AEs.",
     type: "website",
   },
 };
@@ -29,13 +27,9 @@ export default function HomePage() {
   return (
     <main className="bg-[#F7F6F3]">
       <Hero />
-      <CompanyGrid />
-      <LogoStrip />
+      <SeeTheDifference />
       <HowItWorks />
-      <KitOutputExample />
       <WhySalesPrep />
-      <Testimonials />
-      <StatsGrid />
       <FinalCTA />
       <Footer />
     </main>
