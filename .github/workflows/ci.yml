@@ -71,13 +71,37 @@ jobs:
         if: steps.pw-cache.outputs.cache-hit != 'true'
       - run: npx playwright install-deps
         if: steps.pw-cache.outputs.cache-hit == 'true'
-      - name: Wait for Vercel Preview
-        uses: patrickedqvist/wait-for-vercel-preview@v1.3.2
+      # patrickedqvist/wait-for-vercel-preview@v1.3.2 hit its 600s timeout
+      # on every shard of every PR run (last verified 2026-06-05 across
+      # three reruns on insight-interview-universal, with Vercel check
+      # showing pass). Replaced with a direct GitHub Deployments API poll
+      # so the gate stops training us to ignore it. Polls every 15s for
+      # up to 10 minutes, filtering on vercel[bot] + environment success.
+      - name: Wait for Vercel preview URL
         id: vercel
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          max_timeout: 600
-          check_interval: 10
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          sha="${{ github.event.pull_request.head.sha || github.sha }}"
+          echo "Resolving Vercel preview for sha=$sha"
+          for attempt in $(seq 1 40); do
+            deployment_id=$(gh api "repos/${{ github.repository }}/deployments?sha=$sha&per_page=100" \
+              --jq '.[] | select(.creator.login=="vercel[bot]") | .id' 2>/dev/null | head -n1 || true)
+            if [ -n "$deployment_id" ]; then
+              preview_url=$(gh api "repos/${{ github.repository }}/deployments/$deployment_id/statuses" \
+                --jq '.[] | select(.state=="success") | .environment_url' 2>/dev/null | head -n1 || true)
+              if [ -n "$preview_url" ]; then
+                echo "url=$preview_url" >> "$GITHUB_OUTPUT"
+                echo "Resolved preview after attempt ${attempt}: $preview_url"
+                exit 0
+              fi
+            fi
+            echo "Attempt $attempt/40: no successful Vercel deployment yet for $sha — sleeping 15s"
+            sleep 15
+          done
+          echo "::error::No successful Vercel preview deployment for $sha after 600s"
+          exit 1
       - name: Run Playwright tests
         run: npx playwright test --shard=${{ matrix.shard }}
         env:

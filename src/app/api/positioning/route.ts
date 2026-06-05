@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
       session.resume,
       session.company,
       session.roleType,
+      session.stage,
       { refresh, targetCompanyUrl: session.companyUrl }
     );
 
@@ -81,12 +82,27 @@ export async function POST(req: NextRequest) {
       competitive_dynamic = (dyn as CompetitiveDynamic | null) ?? null;
     }
 
+    // 045: surface the engine's degrade signal. The engine no longer
+    // throws for missable failures — it falls through to a fallback
+    // brief and persists interrogation_source = 'fallback'. Callers use
+    // {degraded, degrade_reason} to log/track without inferring from
+    // status codes. degraded === true is still a 200; the engine's job
+    // is to always ship a renderable brief.
+    const degraded = brief.interrogation_source === "fallback";
+    const degrade_reason = degraded
+      ? "engine_served_fallback_interrogation_set"
+      : null;
+
     return NextResponse.json({
       positioning_brief: brief,
       competitive_dynamic,
+      degraded,
+      degrade_reason,
     });
   } catch (err) {
-    console.error("[/api/positioning] error:", err);
+    // True unexpected errors only (e.g. DB outage on session lookup).
+    // The engine itself is degrade-not-throw — see runPositioningEngine.
+    console.error("[/api/positioning] unexpected error:", err);
     return NextResponse.json(
       { error: "Failed to run positioning engine" },
       { status: 500 }

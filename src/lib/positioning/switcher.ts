@@ -7,8 +7,11 @@ import {
 } from "@/lib/ai/positioning-prompts";
 import { SwitcherBriefSchema } from "@/lib/types/schemas";
 import { checkAnswerQuality } from "@/lib/ai/quality-check";
+import { getFallbackInterrogationLines } from "./fallback-interrogation";
 import type {
   CompanyProfile,
+  InterrogationLine,
+  InterviewStage,
   ParsedResume,
   PositioningClassification,
   RoleType,
@@ -19,19 +22,33 @@ export interface SwitcherBrief {
   transferable_bridges: TransferableBridge[];
   domain_gap_to_close: string;
   company_hook: string;
+  /** Switcher-shaped interrogation questions the candidate answers on /get-started/insight. Persisted to positioning_briefs.fallback_interrogation_lines. */
+  interrogation_lines: InterrogationLine[];
+  /** True if the synthesis call failed and the brief was stitched together from the static fallback set + a thin hook. The engine uses this to set interrogation_source = 'fallback' for honest UI copy. */
+  used_fallback: boolean;
 }
 
 /**
  * Synthesize the brief for switcher / early-career types. One Haiku call
  * with the switcher prompt. Quality-checked (caller-orchestrated regen).
- * Never throws — degrades to an empty-ish brief that the orchestrator
- * still ships rather than blocking session creation.
+ * Never throws — degrades to a brief stitched together from the static
+ * fallback interrogation set + a thin hook, so the orchestrator can still
+ * ship and the Insight Interview always renders SOMETHING.
+ *
+ * The brief carries `used_fallback` so the engine can persist
+ * interrogation_source = 'fallback' (vs. 'switcher') for honest UI copy
+ * on /get-started/insight.
+ *
+ * `stage` is taken from the session and passed through to the fallback
+ * picker — the static set is currently stage-agnostic but the picker's
+ * signature includes it so future stage-specific tuning is non-breaking.
  */
 export async function synthesizeSwitcherBrief(
   classification: PositioningClassification,
   resume: ParsedResume,
   company: CompanyProfile,
-  roleType: RoleType
+  roleType: RoleType,
+  stage: InterviewStage
 ): Promise<SwitcherBrief> {
   const promptCtx: SwitcherBriefContext = {
     classification,
@@ -51,9 +68,9 @@ export async function synthesizeSwitcherBrief(
       schema: SwitcherBriefSchema,
       label: "synthesizeSwitcherBrief",
     });
-    brief = data;
+    brief = { ...data, used_fallback: false };
   } catch (err) {
-    console.error("[positioning_engine] switcher synthesis failed; degrading", {
+    console.error("[positioning_engine] switcher synthesis failed; degrading to static fallback", {
       type: classification.positioning_type,
       err: err instanceof Error ? err.message : String(err),
     });
@@ -61,7 +78,9 @@ export async function synthesizeSwitcherBrief(
       transferable_bridges: [],
       domain_gap_to_close:
         "Insufficient data to identify a domain gap automatically. Candidate should describe in the Insight Interview which target-role responsibilities they have not yet practiced.",
-      company_hook: `Genuine interest in ${company.name} grounded in the candidate's resume — to be sharpened during prep.`,
+      company_hook: `Interest in ${company.name} grounded in the candidate's resume — to be sharpened during prep.`,
+      interrogation_lines: getFallbackInterrogationLines(stage, roleType),
+      used_fallback: true,
     };
   }
 
@@ -92,8 +111,10 @@ async function applyQualityCheckPass(
       schema: SwitcherBriefSchema,
       label: "synthesizeSwitcherBrief.qualityCheckRetry",
     });
-    const retryCritical = await collectCriticalIssues(retry);
-    return retryCritical.length < critical.length ? retry : brief;
+    // Preserve used_fallback across the regen — schema doesn't carry it.
+    const retryBrief: SwitcherBrief = { ...retry, used_fallback: brief.used_fallback };
+    const retryCritical = await collectCriticalIssues(retryBrief);
+    return retryCritical.length < critical.length ? retryBrief : brief;
   } catch {
     return brief;
   }
@@ -107,6 +128,14 @@ async function collectCriticalIssues(brief: SwitcherBrief) {
       text: b.why_it_maps,
       location: `transferable_bridges[${i}].why_it_maps`,
     })),
+    // v2 (045): interrogation_lines are now part of the switcher brief.
+    // Scan their free-text fields against the same banned-phrase rules.
+    ...brief.interrogation_lines.flatMap((l, i) => [
+      { text: l.question, location: `interrogation_lines[${i}].question` },
+      { text: l.why_it_matters, location: `interrogation_lines[${i}].why_it_matters` },
+      { text: l.star_slot_hint, location: `interrogation_lines[${i}].star_slot_hint` },
+      { text: l.directionality_note, location: `interrogation_lines[${i}].directionality_note` },
+    ]),
   ].filter((f) => f.text && f.text.length > 0);
 
   const all = await Promise.all(

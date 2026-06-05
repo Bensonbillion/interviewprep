@@ -179,9 +179,14 @@ export async function POST(req: NextRequest) {
         console.warn("Resume extraction failed (non-fatal, using fallback):", err);
         return undefined;
       }),
-      runPositioningEngine(sessionId, resume, company, roleType as RoleType, {
-        targetCompanyUrl: companyUrl,
-      }).catch((err) => {
+      runPositioningEngine(
+        sessionId,
+        resume,
+        company,
+        roleType as RoleType,
+        stage as PrepSession["stage"],
+        { targetCompanyUrl: companyUrl }
+      ).catch((err) => {
         console.error("[create-session] positioning_engine_failed", {
           sessionId,
           err: err instanceof Error ? err.message : String(err),

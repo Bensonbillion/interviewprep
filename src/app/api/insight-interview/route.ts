@@ -7,19 +7,27 @@ import type {
   CapturedInsight,
   InsightInterviewStatus,
   InterrogationLine,
+  InterrogationSource,
   PositioningType,
 } from "@/types";
 
 /**
  * GET /api/insight-interview?session_id=<uuid>
  *
- * Returns the interrogation_lines for the session (from its
- * positioning_brief's competitive_dynamic) plus any captured_insights
- * already saved, so the surface can render and resume.
+ * Returns the interrogation_lines for the session plus any
+ * captured_insights already saved, so the surface can render and resume.
  *
- * When the session is a switcher / early-career type, or for any reason
- * has no competitive_dynamic, interrogation_lines is empty — the UI uses
- * that signal to auto-skip per spec §8.
+ * READ PRECEDENCE (045 — universal Insight Interview):
+ *   1. competitive_dynamics.interrogation_lines, when the brief has a
+ *      competitive_dynamic_id and the dynamic carries non-empty lines.
+ *   2. positioning_briefs.fallback_interrogation_lines, otherwise.
+ *      Populated by the switcher synthesis path or the static-fallback
+ *      degrade path inside the engine.
+ *
+ * interrogation_source is read directly from the brief — it is persisted
+ * at write time (not inferred at read time) so the surface can show
+ * honest "we couldn't fully research this matchup" copy only when the
+ * static fallback was actually served, not for switcher synthesis.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -52,14 +60,21 @@ export async function GET(req: NextRequest) {
     // Load positioning_brief → competitive_dynamic → interrogation_lines.
     const { data: brief } = await db
       .from("positioning_briefs")
-      .select("positioning_type, competitive_dynamic_id")
+      .select("positioning_type, competitive_dynamic_id, fallback_interrogation_lines, interrogation_source")
       .eq("session_id", sessionId)
       .maybeSingle();
 
     let interrogation_lines: InterrogationLine[] = [];
     const positioning_type: PositioningType | null =
       (brief?.positioning_type as PositioningType | undefined) ?? null;
+    // Default to 'competitive' when no brief exists (legacy sessions
+    // pre-045). The fallback display only kicks in on an explicit
+    // 'fallback' value persisted by the engine.
+    const interrogation_source: InterrogationSource =
+      (brief?.interrogation_source as InterrogationSource | undefined) ?? "competitive";
 
+    // Precedence: dynamic-joined lines first. If none, fall back to the
+    // per-session lines on the brief (switcher synthesis or static set).
     if (brief?.competitive_dynamic_id) {
       const { data: dyn } = await db
         .from("competitive_dynamics")
@@ -68,6 +83,10 @@ export async function GET(req: NextRequest) {
         .maybeSingle();
       const raw = (dyn?.interrogation_lines ?? []) as InterrogationLine[];
       interrogation_lines = Array.isArray(raw) ? raw : [];
+    }
+    if (interrogation_lines.length === 0) {
+      const fallback = (brief?.fallback_interrogation_lines ?? []) as InterrogationLine[];
+      interrogation_lines = Array.isArray(fallback) ? fallback : [];
     }
 
     // Load any existing captured_insights for this session.
@@ -84,6 +103,7 @@ export async function GET(req: NextRequest) {
       captured_insights,
       insight_interview_status: (sessionRow.insight_interview_status ?? "pending") as InsightInterviewStatus,
       positioning_type,
+      interrogation_source,
     });
   } catch (err) {
     console.error("[/api/insight-interview GET] error:", err);

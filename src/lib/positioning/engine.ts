@@ -19,10 +19,13 @@ import {
   type ResearchRequest,
 } from "./research";
 import { synthesizeSwitcherBrief } from "./switcher";
+import { getFallbackInterrogationLines } from "./fallback-interrogation";
 import type {
   CompanyProfile,
   CompetitiveDynamic,
   InterrogationLine,
+  InterrogationSource,
+  InterviewStage,
   ParsedResume,
   PositioningBrief,
   PositioningClassification,
@@ -53,19 +56,54 @@ export async function runPositioningEngine(
   resume: ParsedResume,
   company: CompanyProfile,
   roleType: RoleType,
+  stage: InterviewStage,
   opts: RunOpts = {}
 ): Promise<PositioningBrief> {
   // ── 1. Classify ──────────────────────────────────────────────────
-  // Runs first because nothing else can branch without it. The intel
-  // lookup it does internally is concurrent with the no-op anchor scrape
-  // below if the type turns out to be switcher.
-  const classification = await classifyPositioning(resume, company, roleType);
+  // Runs first because nothing else can branch without it. If
+  // classification itself throws (Haiku outage, schema drift), degrade
+  // to a fallback brief — the Insight Interview MUST still render.
+  let classification: PositioningClassification;
+  try {
+    classification = await classifyPositioning(resume, company, roleType);
+  } catch (err) {
+    console.error("[positioning_engine] classification failed; serving fallback brief", {
+      sessionId,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return assembleAndStore({
+      sessionId,
+      classification: classifierFallback(company),
+      competitiveDynamicId: null,
+      competitiveDynamic: null,
+      transferableBridges: [],
+      domainGapToClose: null,
+      companyHook: `Interest in ${company.name} grounded in the candidate's resume — to be sharpened during prep.`,
+      fallbackInterrogationLines: getFallbackInterrogationLines(stage, roleType),
+      interrogationSource: "fallback",
+    });
+  }
 
   // ── 2. Branch: competitive vs switcher ──────────────────────────
   if (isCompetitivePositioningType(classification.positioning_type)) {
-    return runCompetitivePath({ sessionId, classification, resume, company, roleType, opts });
+    return runCompetitivePath({ sessionId, classification, resume, company, roleType, stage, opts });
   }
-  return runSwitcherPath({ sessionId, classification, resume, company, roleType });
+  return runSwitcherPath({ sessionId, classification, resume, company, roleType, stage });
+}
+
+// Used only when the classifier itself throws — the brief still needs a
+// non-null PositioningClassification to satisfy the schema. We treat the
+// session as "unknown switcher" so downstream consumers (spine builder,
+// generators) don't get a misleading anchor employer.
+function classifierFallback(company: CompanyProfile): PositioningClassification {
+  return {
+    positioning_type: "category_switcher",
+    anchor_employer: null,
+    anchor_employer_role: null,
+    classification_reasoning: `Classifier could not complete; engine served the fallback interview set for ${company.name}.`,
+    classification_confidence: 0,
+    classification_signal: "haiku_classification",
+  };
 }
 
 // ─── Competitive path ─────────────────────────────────────────────────────
@@ -76,11 +114,12 @@ interface CompetitivePathArgs {
   resume: ParsedResume;
   company: CompanyProfile;
   roleType: RoleType;
+  stage: InterviewStage;
   opts: RunOpts;
 }
 
 async function runCompetitivePath(args: CompetitivePathArgs): Promise<PositioningBrief> {
-  const { sessionId, classification, resume, company, roleType, opts } = args;
+  const { sessionId, classification, resume, company, roleType, stage, opts } = args;
 
   // Resolve anchor + target company profiles → ids. Both run concurrently.
   const anchorName = classification.anchor_employer;
@@ -89,7 +128,7 @@ async function runCompetitivePath(args: CompetitivePathArgs): Promise<Positionin
     console.warn("[positioning_engine] competitive type with null anchor_employer; degrading", {
       type: classification.positioning_type,
     });
-    return runSwitcherPath({ sessionId, classification, resume, company, roleType });
+    return runSwitcherPath({ sessionId, classification, resume, company, roleType, stage });
   }
 
   const [anchorRow, targetRow] = await Promise.all([
@@ -103,10 +142,11 @@ async function runCompetitivePath(args: CompetitivePathArgs): Promise<Positionin
 
   // If either company can't be resolved, the FK constraint on
   // competitive_dynamics cannot be satisfied. Degrade to a brief with no
-  // competitive_dynamic_id — the orchestrator can still ship the
-  // classification + a thin candidate hook.
+  // competitive_dynamic_id AND populate fallback_interrogation_lines so
+  // the Insight Interview still renders questions (was previously empty
+  // → silent auto-skip; the universal-interview build closes that hole).
   if (!anchorRow || !targetRow) {
-    console.warn("[positioning_engine] failed to resolve company_profiles row; skipping competitive research", {
+    console.warn("[positioning_engine] failed to resolve company_profiles row; serving fallback interrogation set", {
       anchorResolved: !!anchorRow,
       targetResolved: !!targetRow,
     });
@@ -118,10 +158,17 @@ async function runCompetitivePath(args: CompetitivePathArgs): Promise<Positionin
       transferableBridges: [],
       domainGapToClose: null,
       companyHook: await thinHookFallback(classification, company),
+      fallbackInterrogationLines: getFallbackInterrogationLines(stage, roleType),
+      interrogationSource: "fallback",
     });
   }
 
-  // Run research; this handles its own cache + degradation.
+  // Run research; this handles its own cache + degradation. If the
+  // research call itself throws (Sonnet outage, parse failure beyond its
+  // internal retries), recover into the fallback set rather than letting
+  // the exception bubble up and produce an empty interrogation_lines
+  // session. Same applies to candidate-hook synthesis below.
+  //
   // (Target interview-intel summary was previously sourced from
   // company_interview_intel, but the live table's schema doesn't match
   // the repo's migrations — see classify.ts header. Passed as empty
@@ -136,15 +183,57 @@ async function runCompetitivePath(args: CompetitivePathArgs): Promise<Positionin
     targetInterviewIntelSummary: "",
     refresh: opts.refresh,
   };
-  const dynamic = await researchCompetitiveDynamic(researchReq);
 
-  // Candidate-specific hook (Haiku, never cached).
-  const companyHook = await synthesizeCandidateHook({
-    classification,
-    dynamic,
-    resume,
-    company,
-  });
+  let dynamic: CompetitiveDynamic;
+  try {
+    dynamic = await researchCompetitiveDynamic(researchReq);
+  } catch (err) {
+    console.error("[positioning_engine] competitive research threw; serving fallback interrogation set", {
+      sessionId,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return assembleAndStore({
+      sessionId,
+      classification,
+      competitiveDynamicId: null,
+      competitiveDynamic: null,
+      transferableBridges: [],
+      domainGapToClose: null,
+      companyHook: await thinHookFallback(classification, company),
+      fallbackInterrogationLines: getFallbackInterrogationLines(stage, roleType),
+      interrogationSource: "fallback",
+    });
+  }
+
+  // If research returned an unsaved dynamic (id empty) AND no interrogation
+  // lines, the candidate would land on an empty interview. Backstop with
+  // the fallback set so the surface still renders. A successfully cached
+  // dynamic with non-empty interrogation_lines is the normal happy path
+  // and takes interrogation_source = 'competitive'.
+  const dynamicHasLines = dynamic.interrogation_lines && dynamic.interrogation_lines.length > 0;
+  if (!dynamicHasLines) {
+    console.warn("[positioning_engine] competitive research produced no interrogation_lines; serving fallback set", {
+      sessionId,
+      dynamicId: dynamic.id || null,
+    });
+  }
+
+  // Candidate-specific hook (Haiku, never cached). thinHookFallback on throw.
+  let companyHook: string;
+  try {
+    companyHook = await synthesizeCandidateHook({
+      classification,
+      dynamic,
+      resume,
+      company,
+    });
+  } catch (err) {
+    console.warn("[positioning_engine] candidate hook synthesis threw; using thin fallback", {
+      sessionId,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    companyHook = await thinHookFallback(classification, company);
+  }
 
   return assembleAndStore({
     sessionId,
@@ -154,6 +243,13 @@ async function runCompetitivePath(args: CompetitivePathArgs): Promise<Positionin
     transferableBridges: [],
     domainGapToClose: null,
     companyHook,
+    // Mirror the dynamic's lines into the brief column when they exist
+    // — the GET route's precedence (dynamic → brief) makes this column
+    // unused for the happy path, but populating it keeps the brief a
+    // self-contained read for any consumer that doesn't want to join.
+    // When the dynamic produced NO lines, serve the static fallback set.
+    fallbackInterrogationLines: dynamicHasLines ? [] : getFallbackInterrogationLines(stage, roleType),
+    interrogationSource: dynamicHasLines ? "competitive" : "fallback",
   });
 }
 
@@ -165,11 +261,18 @@ interface SwitcherPathArgs {
   resume: ParsedResume;
   company: CompanyProfile;
   roleType: RoleType;
+  stage: InterviewStage;
 }
 
 async function runSwitcherPath(args: SwitcherPathArgs): Promise<PositioningBrief> {
-  const { sessionId, classification, resume, company, roleType } = args;
-  const switcher = await synthesizeSwitcherBrief(classification, resume, company, roleType);
+  const { sessionId, classification, resume, company, roleType, stage } = args;
+  const switcher = await synthesizeSwitcherBrief(
+    classification,
+    resume,
+    company,
+    roleType,
+    stage
+  );
 
   return assembleAndStore({
     sessionId,
@@ -179,6 +282,11 @@ async function runSwitcherPath(args: SwitcherPathArgs): Promise<PositioningBrief
     transferableBridges: switcher.transferable_bridges,
     domainGapToClose: switcher.domain_gap_to_close,
     companyHook: switcher.company_hook,
+    fallbackInterrogationLines: switcher.interrogation_lines,
+    // 'switcher' = synthesized, 'fallback' = degraded path served static
+    // questions. The route reads this to decide whether to render the
+    // "we couldn't fully research this matchup" header.
+    interrogationSource: switcher.used_fallback ? "fallback" : "switcher",
   });
 }
 
@@ -270,6 +378,10 @@ interface AssembleArgs {
   transferableBridges: PositioningBrief["transferable_bridges"];
   domainGapToClose: string | null;
   companyHook: string;
+  /** Per-session interrogation lines for switcher / fallback paths. Empty for the competitive happy path (lines live on the dynamic). */
+  fallbackInterrogationLines: InterrogationLine[];
+  /** Source of the lines surfaced on /get-started/insight — drives honest UI copy. */
+  interrogationSource: InterrogationSource;
 }
 
 async function assembleAndStore(args: AssembleArgs): Promise<PositioningBrief> {
@@ -288,6 +400,8 @@ async function assembleAndStore(args: AssembleArgs): Promise<PositioningBrief> {
     transferable_bridges: args.transferableBridges,
     domain_gap_to_close: args.domainGapToClose,
     company_hook: args.companyHook,
+    fallback_interrogation_lines: args.fallbackInterrogationLines,
+    interrogation_source: args.interrogationSource,
     generated_at: nowIso,
   };
 
@@ -318,6 +432,8 @@ async function assembleAndStore(args: AssembleArgs): Promise<PositioningBrief> {
       transferable_bridges: args.transferableBridges,
       domain_gap_to_close: args.domainGapToClose,
       company_hook: args.companyHook,
+      fallback_interrogation_lines: args.fallbackInterrogationLines,
+      interrogation_source: args.interrogationSource,
       generated_at: nowIso,
     };
     return fallback;
@@ -337,6 +453,8 @@ async function assembleAndStore(args: AssembleArgs): Promise<PositioningBrief> {
     transferable_bridges: (row.transferable_bridges ?? []) as PositioningBrief["transferable_bridges"],
     domain_gap_to_close: row.domain_gap_to_close,
     company_hook: row.company_hook,
+    fallback_interrogation_lines: (row.fallback_interrogation_lines ?? []) as InterrogationLine[],
+    interrogation_source: (row.interrogation_source ?? "competitive") as InterrogationSource,
     generated_at: row.generated_at,
   };
 

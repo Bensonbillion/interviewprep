@@ -297,11 +297,17 @@ export const CompetitiveSynthesisSchema = z.object({
   research_depth: PositioningResearchDepthSchema,
 });
 
-// Switcher synthesis (Haiku) output.
+// Switcher synthesis (Haiku) output. interrogation_lines (added when the
+// Insight Interview became universal) carry the switcher-shaped questions
+// the candidate answers in /get-started/insight. Min 3 enforces the
+// "interview always renders SOMETHING" guarantee for switcher sessions;
+// the degrade path in switcher.ts uses a static fallback set, not this
+// schema, so the floor here is real synthesis output only.
 export const SwitcherBriefSchema = z.object({
   transferable_bridges: z.array(TransferableBridgeSchema).min(1),
   domain_gap_to_close: z.string(),
   company_hook: z.string().min(1),
+  interrogation_lines: z.array(InterrogationLineSchema).min(3),
 });
 
 // Candidate-hook synthesis (Haiku) output.
@@ -336,6 +342,18 @@ export const CompetitiveDynamicSchema = z.object({
   truths_refreshed_at: z.string(),
 });
 
+// Source of the interrogation lines surfaced on /get-started/insight.
+// Persisted on positioning_briefs (migration 045) so the route renders
+// honest UI copy without having to infer — switcher-synthesized lines
+// and static fallback lines both live in fallback_interrogation_lines,
+// but only the fallback case gets the "we couldn't fully research this
+// matchup" header.
+export const InterrogationSourceSchema = z.enum([
+  "competitive",
+  "switcher",
+  "fallback",
+]);
+
 export const PositioningBriefSchema = z.object({
   id: z.string().uuid(),
   session_id: z.string().uuid(),
@@ -350,6 +368,8 @@ export const PositioningBriefSchema = z.object({
   transferable_bridges: z.array(TransferableBridgeSchema),
   domain_gap_to_close: z.string().nullable(),
   company_hook: z.string(),
+  fallback_interrogation_lines: z.array(InterrogationLineSchema).default([]),
+  interrogation_source: InterrogationSourceSchema.default("competitive"),
   generated_at: z.string(),
 });
 

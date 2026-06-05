@@ -21,7 +21,13 @@ export type TrackingEvent =
   | { name: "answer_generated"; properties: { answer_type: string; company?: string } }
   | { name: "answer_copied"; properties: { answer_type: string } }
   | { name: "report_submitted"; properties: { company?: string; stage?: string } }
-  | { name: "outcome_updated"; properties: { outcome: string; company?: string } };
+  | { name: "outcome_updated"; properties: { outcome: string; company?: string } }
+  // 045: fires when the Insight Interview surface loaded with zero
+  // interrogation_lines — the silent-skip canary. positioning_type and
+  // interrogation_source help distinguish "switcher synthesis produced
+  // none" from "competitive engine failure landed on no fallback either".
+  // Session 9 wires this to PostHog; until then it's a no-op call site.
+  | { name: "insight_interview_empty"; properties: { session_id: string; positioning_type: string | null; interrogation_source: string | null } };
 
 export interface UserContext {
   userId?: string;
