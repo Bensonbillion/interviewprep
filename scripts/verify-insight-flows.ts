@@ -156,13 +156,13 @@ async function main() {
   const { createClient } = await import("@supabase/supabase-js");
   const { runPositioningEngine } = await import("../src/lib/positioning/engine");
   const { buildNarrativeSpine } = await import("../src/lib/spine/build");
-  const { synthesizeMotiveResumeFixture, synthesizeSamsaraCompanyFixture } =
-    (await import("../scripts/lib/motive-samsara-fixtures").catch(() => ({} as Record<string, undefined>)));
 
   // Inline the Motive→Samsara fixtures — copied from the existing
   // run-positioning-motive-samsara.ts script so this verification is
-  // self-contained.
-  const motiveResume: ParsedResume = synthesizeMotiveResumeFixture?.() ?? {
+  // self-contained. (An earlier draft tried to optionally import a
+  // shared fixtures module if it existed, but the .catch was unverifiable
+  // at tsc-time and broke the Vercel build — inlining is cleaner.)
+  const motiveResume: ParsedResume = {
     rawText: "(fixture)",
     personalInfo: { name: "Alex Chen" },
     roles: [
@@ -189,7 +189,7 @@ async function main() {
     suggestedRoleType: "account_executive",
   };
 
-  const samsaraCompany: CompanyProfile = synthesizeSamsaraCompanyFixture?.() ?? {
+  const samsaraCompany: CompanyProfile = {
     name: "Samsara",
     productDescription: "Connected operations platform — IoT hardware + cloud software for fleet management, equipment monitoring, and industrial workflows.",
     icp: { companySizes: ["mid-market", "enterprise"], industries: ["Trucking", "Construction", "Field services"], buyerPersonas: ["VP Fleet", "Director of Safety", "COO"] },
