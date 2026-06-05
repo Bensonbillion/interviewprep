@@ -151,6 +151,7 @@ async function main() {
       motiveAeResume,
       samsaraCompany,
       "account_executive",
+      "hiring_manager",
       // Warm cache after first successful run; remove `refresh: true`
       // to exercise the warm-cache path. Add it back to force a re-run.
       { targetCompanyUrl: "https://www.samsara.com" }

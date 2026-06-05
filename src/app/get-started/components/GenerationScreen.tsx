@@ -231,18 +231,43 @@ export function GenerationScreen({
 
       // Positioning Engine — classifier + competitive synthesis +
       // candidate hook. For competitive types this is ~8–12s cold,
-      // ~2–3s warm cache. Best-effort: failure leaves the session
-      // without a positioning brief, which the Insight Interview
-      // surfaces as an empty interrogation_lines set + auto-advance
-      // past the step (per §8 for switcher / no-brief sessions).
+      // ~2–3s warm cache. After 045 (universal Insight Interview) the
+      // engine is degrade-not-throw — it always writes a brief with a
+      // renderable interrogation set (competitive, switcher, or static
+      // fallback) and returns {degraded, degrade_reason}. We surface
+      // degrade via console.warn so Sentry picks it up; we do not
+      // swallow errors silently anymore.
       try {
-        await fetch("/api/positioning", {
+        const posRes = await fetch("/api/positioning", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ session_id: sessionId }),
         });
-      } catch {
-        // Engine writes its own audit log on failure; UI continues.
+        if (!posRes.ok) {
+          console.warn("[GenerationScreen] /api/positioning returned non-200", {
+            sessionId,
+            status: posRes.status,
+          });
+        } else {
+          const posData = (await posRes.json().catch(() => ({}))) as {
+            degraded?: boolean;
+            degrade_reason?: string | null;
+          };
+          if (posData.degraded) {
+            console.warn("[GenerationScreen] positioning engine degraded", {
+              sessionId,
+              reason: posData.degrade_reason,
+            });
+          }
+        }
+      } catch (err) {
+        // True network failure (rare) — log and continue. The Insight
+        // page will detect empty interrogation_lines and fire its own
+        // telemetry event, so this isn't invisible.
+        console.warn("[GenerationScreen] /api/positioning fetch failed", {
+          sessionId,
+          err: err instanceof Error ? err.message : String(err),
+        });
       }
 
       // Deduct 1 credit (best-effort).

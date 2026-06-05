@@ -450,6 +450,16 @@ export interface CompetitiveDynamic {
   truths_refreshed_at: string;
 }
 
+/**
+ * Source of the interrogation lines the candidate sees on /get-started/
+ * insight. Persisted on positioning_briefs (migration 045) so the surface
+ * can render honest UI copy without inferring — switcher-synthesized
+ * lines and static-fallback lines both live in
+ * fallback_interrogation_lines, but only "fallback" gets the "we couldn't
+ * fully research this matchup" header.
+ */
+export type InterrogationSource = "competitive" | "switcher" | "fallback";
+
 export interface PositioningBrief {
   id: string;
   session_id: string;
@@ -468,6 +478,12 @@ export interface PositioningBrief {
   domain_gap_to_close: string | null;
 
   company_hook: string;
+
+  // ── Interrogation_lines storage for non-competitive paths (045) ──
+  /** Used when competitive_dynamic_id is null: switcher synthesis output OR static fallback set. Read AFTER the dynamic-joined lines. */
+  fallback_interrogation_lines: InterrogationLine[];
+  /** Where the lines surfaced to the candidate came from. Drives honest UI copy. */
+  interrogation_source: InterrogationSource;
 
   generated_at: string;
 }

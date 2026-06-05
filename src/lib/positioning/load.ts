@@ -1,6 +1,11 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { CompetitiveDynamic, PositioningBrief } from "@/types";
+import type {
+  CompetitiveDynamic,
+  InterrogationLine,
+  InterrogationSource,
+  PositioningBrief,
+} from "@/types";
 
 /**
  * Reusable reader for a session's positioning brief + (when applicable)
@@ -46,6 +51,8 @@ export async function loadPositioningBriefWithDynamic(
     transferable_bridges: (briefRow.transferable_bridges ?? []) as PositioningBrief["transferable_bridges"],
     domain_gap_to_close: briefRow.domain_gap_to_close,
     company_hook: briefRow.company_hook,
+    fallback_interrogation_lines: (briefRow.fallback_interrogation_lines ?? []) as InterrogationLine[],
+    interrogation_source: (briefRow.interrogation_source ?? "competitive") as InterrogationSource,
     generated_at: briefRow.generated_at,
   };
 

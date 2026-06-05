@@ -25,16 +25,18 @@
  * for card 2's evaluation to complete.
  */
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Loader2, Sparkles, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { LogoIcon } from "@/components/Logo";
+import { trackEvent } from "@/lib/tracking/events";
 import type {
   AnswerEvaluation,
   CapturedInsight,
   InsightInterviewStatus,
   InterrogationLine,
+  InterrogationSource,
   PositioningType,
   PrepSession,
 } from "@/types";
@@ -62,6 +64,24 @@ interface CardState {
   drilling: boolean;
   /** True when raw_answer differs from what's been evaluated server-side. */
   dirty: boolean;
+}
+
+/**
+ * Render a string with `*word*` markers as italic emphasis. Used in the
+ * fallback interrogation set so we can italicize specific words (e.g. the
+ * "you" in "what specifically did *you* do") without storing JSX or
+ * pulling in a markdown renderer. Plain text otherwise — no other
+ * formatting is interpreted.
+ */
+function renderEmphasis(text: string): ReactNode {
+  if (!text.includes("*")) return text;
+  const parts = text.split(/(\*[^*]+\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
+      return <em key={i} className="italic font-medium">{part.slice(1, -1)}</em>;
+    }
+    return part;
+  });
 }
 
 function emptyCardState(): CardState {
@@ -104,6 +124,12 @@ function InsightPageBody() {
   const [cards, setCards] = useState<CardState[]>([]);
   const [status, setStatus] = useState<InsightInterviewStatus>("pending");
   const [positioningType, setPositioningType] = useState<PositioningType | null>(null);
+  // 045: source drives honest UI copy. 'fallback' shows the "we couldn't
+  // fully research this matchup" header; 'competitive' and 'switcher'
+  // show the standard header. Default 'competitive' is a safe pre-045
+  // value for any legacy session.
+  const [interrogationSource, setInterrogationSource] =
+    useState<InterrogationSource>("competitive");
   const [error, setError] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
 
@@ -140,10 +166,12 @@ function InsightPageBody() {
         captured_insights: CapturedInsight[];
         insight_interview_status: InsightInterviewStatus;
         positioning_type: PositioningType | null;
+        interrogation_source?: InterrogationSource;
       };
       setInterrogationLines(data.interrogation_lines);
       setStatus(data.insight_interview_status);
       setPositioningType(data.positioning_type);
+      setInterrogationSource(data.interrogation_source ?? "competitive");
 
       // Build per-card state, restoring captured answers by index.
       const byIndex = new Map<number, CapturedInsight>();
@@ -154,8 +182,20 @@ function InsightPageBody() {
       });
       setCards(initial);
 
-      // Switcher / no-brief auto-skip per spec §8.
+      // 045: this branch USED TO be the silent-skip every switcher
+      // session and every degraded competitive session fell into. After
+      // 045 the engine writes a fallback set for those paths, so this
+      // is now an exceptional state. We keep the auto-skip as a safety
+      // net but emit telemetry so the failure is no longer invisible.
       if (data.interrogation_lines.length === 0 && data.insight_interview_status !== "completed") {
+        trackEvent({
+          name: "insight_interview_empty",
+          properties: {
+            session_id: sessionId,
+            positioning_type: data.positioning_type ?? null,
+            interrogation_source: data.interrogation_source ?? null,
+          },
+        });
         await finishInterview(sessionId, true);
         return;
       }
@@ -310,14 +350,18 @@ function InsightPageBody() {
     );
   }
 
-  // Switcher / no-brief — we triggered the auto-skip; show a brief
-  // spinner state until the navigation lands.
+  // Empty-lines auto-skip in-flight. After 045 this should be rare —
+  // engine paths always populate either dynamic or fallback lines. When
+  // it does fire, the narrated copy matches what's actually running
+  // during the wait: buildNarrativeSpine is a Sonnet call that weaves
+  // captured answers (or, in this skip case, the resume) into one
+  // coherent story.
   if (interrogationLines.length === 0) {
     return (
       <main className="min-h-screen bg-[#F0F7FF] flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-[#4A7AFF] mx-auto mb-3" />
-          <p className="text-sm text-[#64748B]">Building your prep kit…</p>
+          <p className="text-sm text-[#64748B]">Weaving your answers into one story…</p>
         </div>
       </main>
     );
@@ -332,11 +376,18 @@ function InsightPageBody() {
             <LogoIcon size="md" theme="light" />
           </div>
           <h1 className="text-3xl font-bold text-[#0F172A]">Tell us what only you know</h1>
-          <p className="text-base text-[#475569] mt-2 max-w-xl mx-auto">
-            We pulled the {interrogationLines.length} questions an interviewer at this company is most likely to test you on.
-            Your answer is what makes the prep kit yours — not a chatbot&rsquo;s.
-            {positioningType ? <> Positioning: <span className="font-semibold">{positioningType.replace(/_/g, " ")}</span>.</> : null}
-          </p>
+          {interrogationSource === "fallback" ? (
+            <p className="text-base text-[#475569] mt-2 max-w-xl mx-auto">
+              We couldn&rsquo;t fully research this matchup — but these are the questions that matter most anyway.
+              Your answer is what makes the prep kit yours, not a chatbot&rsquo;s.
+            </p>
+          ) : (
+            <p className="text-base text-[#475569] mt-2 max-w-xl mx-auto">
+              We pulled the {interrogationLines.length} questions an interviewer at this company is most likely to test you on.
+              Your answer is what makes the prep kit yours — not a chatbot&rsquo;s.
+              {positioningType ? <> Positioning: <span className="font-semibold">{positioningType.replace(/_/g, " ")}</span>.</> : null}
+            </p>
+          )}
         </div>
 
         {/* Progress signal */}
@@ -392,7 +443,7 @@ function InsightPageBody() {
             className="bg-[#4A7AFF] hover:bg-[#3B66E8] disabled:bg-[#94A3B8] text-white font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
           >
             {finishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {finishing ? "Building your kit…" : "Submit and build my kit"}
+            {finishing ? "Weaving your answers into one story…" : "Submit and build my kit"}
           </button>
         </div>
         {!allAttempted && !finishing && (
@@ -452,9 +503,9 @@ function InterrogationCard({
           {isReady ? <Check className="w-4 h-4" /> : index + 1}
         </div>
         <div className="flex-1">
-          <p className="text-base font-semibold text-[#0F172A] leading-snug">{line.question}</p>
+          <p className="text-base font-semibold text-[#0F172A] leading-snug">{renderEmphasis(line.question)}</p>
           <p className="text-xs text-[#64748B] mt-1.5 leading-relaxed">
-            <span className="font-medium text-[#475569]">Why it matters:</span> {line.why_it_matters}
+            <span className="font-medium text-[#475569]">Why it matters:</span> {renderEmphasis(line.why_it_matters)}
           </p>
         </div>
       </div>

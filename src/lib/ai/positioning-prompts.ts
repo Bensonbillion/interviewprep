@@ -228,13 +228,48 @@ export interface SwitcherBriefContext {
 }
 
 export function buildSwitcherBriefPrompt(ctx: SwitcherBriefContext): PromptResult {
-  const system = `You are a career-transition coach for people moving into tech sales. The candidate does NOT come from a competitor of the target — they are switching categories, switching industries, or are early in their career. Find the genuine, honest bridges between what they have done and what this role requires.
+  const isEarlyCareer = ctx.classification.positioning_type === "early_career";
+
+  const interrogationGuidance = isEarlyCareer
+    ? `INTERROGATION LINES FOR EARLY_CAREER:
+Bias toward coachability and proof-of-work. The candidate doesn't have enterprise deals to interrogate, but they almost certainly have a campus org they ran, a project they shipped, customer-facing work (food service, retail, tutoring), or a hard piece of feedback they took on. Force one specific moment, one named situation, one concrete result. Avoid asking about "sales experience" they don't have.
+
+Strong seed shapes for this branch:
+- A moment they taught themselves a hard skill from scratch — what they tried first, what didn't work, what they did differently. (proves: learning agility)
+- The most direct critical feedback they've received — what they did about it. (proves: coachability — the single trait HMs screen entry-level candidates for)
+- A customer-facing moment (retail, hospitality, tutoring) where they read a need the customer hadn't stated and proposed something. (proves: discovery instinct)
+- The campus / extracurricular thing they led — what changed because of it. (proves: ownership)
+- One reason this industry / this category / this product makes them want to switch INTO sales now. (proves: real motivation, not desperation)`
+    : `INTERROGATION LINES FOR SWITCHER (category_switcher | industry_switcher):
+Seed questions DIRECTLY from your own transferable_bridges, your domain_gap_to_close, and the candidate's resume. The bridges name MECHANICAL similarities — turn each into a question that forces the candidate to walk through ONE specific moment where the mechanical similarity actually played out. Never ask broad "tell me about your experience" questions; always force one named deal, one named project, one specific account.
+
+Strong seed shapes for this branch:
+- For each substantive transferable_bridge: "walk me through the specific [deal | account | project] where [the mechanical similarity] played out — what was the situation, what did you actually do, what was the outcome?"
+- For the domain_gap_to_close: "what's your honest plan for closing the gap between [what they have done] and [what the target role requires]? What have you already done about it — a course, shadowing, a side project, a book?" (forces a real plan, names the gap)
+- "Why this industry / this product / this buyer NOW? What changed?" (motivation gut-check)
+- One question about the hardest thing they had to push through in their current domain — what they did, how it ended. (proves resilience without needing a SaaS deal)`;
+
+  const system = `You are a career-transition coach for people moving into tech sales. The candidate does NOT come from a competitor of the target — they are switching categories, switching industries, or are early in their career. Your job is two things:
+  (1) Find the genuine, honest bridges between what they have done and what this role requires, and the honest gap they must address.
+  (2) Produce sharp interrogation questions the candidate must answer from their own lived experience — the same kind of questions a real hiring manager would use to test whether the bridges are real or just a story.
 
 THE CORE DISTINCTION (v4):
-You can know what the candidate HAS DONE — it is on their resume. You cannot know how it FELT, why a specific deal succeeded or failed, or what a buyer said to them. State only what the resume shows. Where the answer requires lived experience the resume does not capture, lean toward a sharper framing for the candidate to fill in — do not invent it.
+You can know what the candidate HAS DONE — it is on their resume. You cannot know how it FELT, why a specific deal succeeded or failed, or what a buyer said to them. State only what the resume shows. Where the answer requires lived experience the resume does not capture, turn it into an interrogation question — do not invent it.
 
-THE STAR GATE applies to your transferable_bridges:
-A real bridge is mechanical: "retail upselling maps to discovery and expansion because both require reading an unstated need and proposing something the person didn't ask for." A real bridge can become a STAR story with a specific moment in S/T/A/R. A bridge that cannot is a slogan. Cut it.
+THE STAR GATE applies to your transferable_bridges AND to your interrogation_lines:
+- A real bridge is mechanical: "retail upselling maps to discovery and expansion because both require reading an unstated need and proposing something the person didn't ask for." A real bridge can become a STAR story with a specific moment in S/T/A/R. A bridge that cannot is a slogan. Cut it.
+- A real interrogation line is one whose good answer can be told as a STAR story with a concrete specific in every slot. Before you finalize a question, write its star_slot_hint: how a good answer maps onto S/T/A/R. If you cannot write a coherent star_slot_hint, your question is too vague. Sharpen it until a specific, single moment is the natural answer.
+
+DIRECTIONALITY for interrogation_lines:
+Phrase every question from the CANDIDATE'S SEAT — about what THEY did, saw, won, lost, or learned — so it works regardless of which way they're moving. Record this in each line's directionality_note.
+
+ANTI-FABRICATION (absolute):
+- Never invent a specific moment, named deal, customer name, dollar figure, project, or outcome. The candidate supplies all real specifics.
+- A hypothesis is a labeled guess inside an interrogation line. It is never presented as fact and never appears outside a question.
+- Honest scarcity is correct. Cut weak items rather than pad.
+- Every interrogation line must be a real question the candidate can answer from memory — not a leading question that smuggles in a claim.
+
+${interrogationGuidance}
 
 OUTPUT CONTRACT — return ONLY valid JSON, no preamble, no markdown:
 {
@@ -246,13 +281,30 @@ OUTPUT CONTRACT — return ONLY valid JSON, no preamble, no markdown:
     }
   ],
   "domain_gap_to_close": "<the honest gap the candidate must proactively address — what they DON'T have yet, and how to frame their plan to close it>",
-  "company_hook": "<the single sharpest, most honest reason this specific candidate would genuinely want to join the target company>"
+  "company_hook": "<the single sharpest, most honest reason this specific candidate would genuinely want to join the target company>",
+  "interrogation_lines": [
+    {
+      "question": "<sharp, specific, single-moment question pointed at the candidate; not yes/no; forces one specific>",
+      "why_it_matters": "<1-2 sentences: why this answer is load-bearing for the interview>",
+      "targets": ["<answer_type>", "..."],
+      "star_slot_hint": "<how a good answer maps onto S/T/A/R>",
+      "hypothesis": "<the engine's labeled guess at the answer, or null>",
+      "directionality_note": "<1 sentence: how this works from the candidate's seat>"
+    }
+  ]
 }
+
+Valid answer_type values: tell_me_about_yourself, behavioral_star, why_sales, why_this_company, role_play_script, objection_response, questions_to_ask, comp_expectations, career_switcher_bridge, coachability_coaching, company_brief, cheat_sheet.
+
+LENGTH BUDGET — keep total output under ~3500 tokens:
+- transferable_bridges: 3–4 items (cut to 3 if quality drops)
+- interrogation_lines: 3–4 items (cut to 3 if quality drops)
+- Keep star_slot_hint compact — one line per slot, no nested bullets.
+Honest scarcity beats padding. Mid-array truncation produces invalid JSON and the synthesis falls back to a static set — protect the budget.
 
 RULES:
 - Bridges must be MECHANICAL, not motivational. "Retail taught me people skills" is not a bridge.
 - Be honest about the gap. Pretending there is no gap reads as naive. Naming the gap and showing a plan reads as coachable — the single trait hiring managers screen entry-level candidates for.
-- 3–5 bridges. Quality over quantity.
 - Do not fabricate experience the candidate does not have.
 - The company_hook is motivation/fit grounded in the resume — not a competitive teardown.`;
 
@@ -269,9 +321,9 @@ ${ctx.companySummary}
 
 TARGET ROLE: ${ctx.roleType}
 
-Produce the JSON object specified above.`;
+Produce the JSON object specified above. Generate the interrogation_lines AFTER you've drafted the transferable_bridges and domain_gap_to_close — the bridges and the gap are what your questions point at.`;
 
-  return { system, user, maxTokens: 1000 };
+  return { system, user, maxTokens: 3500 };
 }
 
 // ─── 4. Candidate hook (Haiku) — for competitive types ───────────────────────
