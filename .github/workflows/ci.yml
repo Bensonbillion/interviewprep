@@ -44,10 +44,10 @@ jobs:
     name: E2E Tests (Playwright)
     needs: [static]
     runs-on: ubuntu-latest
-    # Soft signal until we wire Vercel Protection Bypass for Automation +
-    # update auth.setup.ts. Tracked separately; this isn't a regression
-    # gate today.
-    continue-on-error: true
+    # Real blocking gate as of the ci-hygiene session. Vercel Protection
+    # Bypass for Automation is wired through extraHTTPHeaders in
+    # playwright.config.ts via VERCEL_AUTOMATION_BYPASS_SECRET — preview
+    # SSO is no longer in front of the tests.
     strategy:
       fail-fast: false
       matrix:
@@ -109,6 +109,7 @@ jobs:
           TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
