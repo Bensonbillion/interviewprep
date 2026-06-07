@@ -16,6 +16,16 @@ export default defineConfig({
     trace: "on-first-retry",
     screenshot: "on-first-failure",
     video: "on-first-retry",
+    // Vercel Preview Protection bypass — every request out of every
+    // project (setup + chromium + mobile) carries the header, so a
+    // protected preview is reachable without the SSO redirect. The
+    // secret is set in Vercel project settings (Deployment Protection
+    // → Protection Bypass for Automation) and mirrored to GitHub
+    // Actions as VERCEL_AUTOMATION_BYPASS_SECRET. Local runs against
+    // http://localhost:3000 simply omit the env var and send no header.
+    extraHTTPHeaders: process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+      ? { "x-vercel-protection-bypass": process.env.VERCEL_AUTOMATION_BYPASS_SECRET }
+      : {},
   },
   projects: [
     // Auth setup — runs first

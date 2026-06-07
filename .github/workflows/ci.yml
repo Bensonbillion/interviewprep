@@ -19,9 +19,23 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      # Using `npm install` rather than `npm ci` because npm audit fix
+      # on macOS introduces requires for Linux-only platform deps
+      # (@emnapi/runtime, @emnapi/core) that the resulting lockfile
+      # doesn't include as resolved entries. Reproducible-lock strictness
+      # is sacrificed; in exchange CI no longer flakes on cross-platform
+      # lockfile gaps. Tracked in #22 — proper fix is to regenerate the
+      # lock on Linux (Docker) when we next touch this dep tree.
+      - run: npm install --no-audit --no-fund
       - run: npx next build --no-lint || true
       - run: npm run lint
+      # Allowlisted npm audit gate. scripts/check-audit.mjs fails on ANY
+      # new high+critical advisory that isn't explicitly listed with a
+      # dated reason + tracking issue. Known-deferred (Next.js + a
+      # picomatch transitive) are excepted — see issue #22. When that
+      # follow-up lands the entries get removed and the gate ratchets up.
+      - name: npm audit (allowlisted)
+        run: node scripts/check-audit.mjs
       - run: npm run test:unit -- --coverage
       - uses: actions/upload-artifact@v4
         if: always()
@@ -44,10 +58,10 @@ jobs:
     name: E2E Tests (Playwright)
     needs: [static]
     runs-on: ubuntu-latest
-    # Soft signal until we wire Vercel Protection Bypass for Automation +
-    # update auth.setup.ts. Tracked separately; this isn't a regression
-    # gate today.
-    continue-on-error: true
+    # Real blocking gate as of the ci-hygiene session. Vercel Protection
+    # Bypass for Automation is wired through extraHTTPHeaders in
+    # playwright.config.ts via VERCEL_AUTOMATION_BYPASS_SECRET — preview
+    # SSO is no longer in front of the tests.
     strategy:
       fail-fast: false
       matrix:
@@ -58,7 +72,14 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      # Using `npm install` rather than `npm ci` because npm audit fix
+      # on macOS introduces requires for Linux-only platform deps
+      # (@emnapi/runtime, @emnapi/core) that the resulting lockfile
+      # doesn't include as resolved entries. Reproducible-lock strictness
+      # is sacrificed; in exchange CI no longer flakes on cross-platform
+      # lockfile gaps. Tracked in #22 — proper fix is to regenerate the
+      # lock on Linux (Docker) when we next touch this dep tree.
+      - run: npm install --no-audit --no-fund
       - name: Get Playwright version
         id: pw
         run: echo "v=$(node -e 'console.log(require("@playwright/test/package.json").version)')" >> $GITHUB_OUTPUT
@@ -109,6 +130,7 @@ jobs:
           TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -126,7 +148,14 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      # Using `npm install` rather than `npm ci` because npm audit fix
+      # on macOS introduces requires for Linux-only platform deps
+      # (@emnapi/runtime, @emnapi/core) that the resulting lockfile
+      # doesn't include as resolved entries. Reproducible-lock strictness
+      # is sacrificed; in exchange CI no longer flakes on cross-platform
+      # lockfile gaps. Tracked in #22 — proper fix is to regenerate the
+      # lock on Linux (Docker) when we next touch this dep tree.
+      - run: npm install --no-audit --no-fund
       - run: npx tsx tests/evals/run-evals.ts
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
