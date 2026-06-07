@@ -19,7 +19,14 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      # Using `npm install` rather than `npm ci` because npm audit fix
+      # on macOS introduces requires for Linux-only platform deps
+      # (@emnapi/runtime, @emnapi/core) that the resulting lockfile
+      # doesn't include as resolved entries. Reproducible-lock strictness
+      # is sacrificed; in exchange CI no longer flakes on cross-platform
+      # lockfile gaps. Tracked in #22 — proper fix is to regenerate the
+      # lock on Linux (Docker) when we next touch this dep tree.
+      - run: npm install --no-audit --no-fund
       - run: npx next build --no-lint || true
       - run: npm run lint
       # Allowlisted npm audit gate. scripts/check-audit.mjs fails on ANY
@@ -65,7 +72,14 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      # Using `npm install` rather than `npm ci` because npm audit fix
+      # on macOS introduces requires for Linux-only platform deps
+      # (@emnapi/runtime, @emnapi/core) that the resulting lockfile
+      # doesn't include as resolved entries. Reproducible-lock strictness
+      # is sacrificed; in exchange CI no longer flakes on cross-platform
+      # lockfile gaps. Tracked in #22 — proper fix is to regenerate the
+      # lock on Linux (Docker) when we next touch this dep tree.
+      - run: npm install --no-audit --no-fund
       - name: Get Playwright version
         id: pw
         run: echo "v=$(node -e 'console.log(require("@playwright/test/package.json").version)')" >> $GITHUB_OUTPUT
@@ -134,7 +148,14 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      # Using `npm install` rather than `npm ci` because npm audit fix
+      # on macOS introduces requires for Linux-only platform deps
+      # (@emnapi/runtime, @emnapi/core) that the resulting lockfile
+      # doesn't include as resolved entries. Reproducible-lock strictness
+      # is sacrificed; in exchange CI no longer flakes on cross-platform
+      # lockfile gaps. Tracked in #22 — proper fix is to regenerate the
+      # lock on Linux (Docker) when we next touch this dep tree.
+      - run: npm install --no-audit --no-fund
       - run: npx tsx tests/evals/run-evals.ts
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
