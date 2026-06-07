@@ -22,6 +22,8 @@ jobs:
       - run: npm ci
       - run: npx next build --no-lint || true
       - run: npm run lint
+      - name: npm audit (high+)
+        run: npm audit --audit-level=high
       - run: npm run test:unit -- --coverage
       - uses: actions/upload-artifact@v4
         if: always()
