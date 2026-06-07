@@ -22,12 +22,13 @@ jobs:
       - run: npm ci
       - run: npx next build --no-lint || true
       - run: npm run lint
-      # npm audit step intentionally NOT here. The current dep tree has
-      # high-sev advisories in Next 16.1.6 + transitives that can't be
-      # patched without also bumping the React Compiler ESLint plugin
-      # via cascading dep updates, which produces ~80 new lint errors
-      # we'd have to either fix or suppress. Tracked as a dedicated
-      # follow-up — see PR description and SECRETS.md acceptance notes.
+      # Allowlisted npm audit gate. scripts/check-audit.mjs fails on ANY
+      # new high+critical advisory that isn't explicitly listed with a
+      # dated reason + tracking issue. Known-deferred (Next.js + a
+      # picomatch transitive) are excepted — see issue #22. When that
+      # follow-up lands the entries get removed and the gate ratchets up.
+      - name: npm audit (allowlisted)
+        run: node scripts/check-audit.mjs
       - run: npm run test:unit -- --coverage
       - uses: actions/upload-artifact@v4
         if: always()
