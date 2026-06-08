@@ -142,6 +142,13 @@ test.describe("Conversion Tracking", () => {
     await page.goto(
       "/?utm_source=google&utm_medium=cpc&utm_campaign=spring_2026"
     );
+    // Same race as the first-touch / timestamp tests — wait for the
+    // attribution module to write before reading.
+    await page.waitForFunction(
+      () => localStorage.getItem("sp_last_touch") !== null,
+      undefined,
+      { timeout: 5000 }
+    );
 
     const stored = await page.evaluate(() =>
       localStorage.getItem("sp_last_touch")
@@ -204,6 +211,12 @@ test.describe("Conversion Tracking", () => {
 
   test("attribution includes landing page path", async ({ page }) => {
     await page.goto("/get-started?utm_source=linkedin");
+    // Same race as the other attribution tests.
+    await page.waitForFunction(
+      () => localStorage.getItem("sp_last_touch") !== null,
+      undefined,
+      { timeout: 5000 }
+    );
 
     const stored = await page.evaluate(() =>
       localStorage.getItem("sp_last_touch")
