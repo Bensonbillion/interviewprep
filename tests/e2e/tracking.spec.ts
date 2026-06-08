@@ -154,8 +154,17 @@ test.describe("Conversion Tracking", () => {
   });
 
   test("first-touch attribution is not overwritten", async ({ page }) => {
-    // First visit with Google
+    // First visit with Google. waitForFunction protects against a race
+    // between page.goto resolving and the attribution module writing
+    // sp_first_touch — observed deterministically on production-domain
+    // builds (faster JS init than preview), passed only by luck on
+    // preview deploys.
     await page.goto("/?utm_source=google&utm_medium=cpc");
+    await page.waitForFunction(
+      () => localStorage.getItem("sp_first_touch") !== null,
+      undefined,
+      { timeout: 5000 }
+    );
 
     const firstTouch1 = await page.evaluate(() =>
       localStorage.getItem("sp_first_touch")
@@ -163,8 +172,22 @@ test.describe("Conversion Tracking", () => {
     expect(firstTouch1).toBeTruthy();
     expect(JSON.parse(firstTouch1!).utm_source).toBe("google");
 
-    // Second visit with Facebook
+    // Second visit with Facebook. Wait for sp_last_touch to flip — the
+    // first-touch should NOT change, so we anchor the wait on last_touch.
     await page.goto("/?utm_source=facebook&utm_medium=social");
+    await page.waitForFunction(
+      () => {
+        const raw = localStorage.getItem("sp_last_touch");
+        if (!raw) return false;
+        try {
+          return JSON.parse(raw).utm_source === "facebook";
+        } catch {
+          return false;
+        }
+      },
+      undefined,
+      { timeout: 5000 }
+    );
 
     const firstTouch2 = await page.evaluate(() =>
       localStorage.getItem("sp_first_touch")
@@ -192,10 +215,26 @@ test.describe("Conversion Tracking", () => {
 
   test("attribution includes timestamp", async ({ page }) => {
     await page.goto("/?utm_source=test");
+    // Wait for the attribution module to write sp_last_touch with a
+    // timestamp. Same race as the first-touch test.
+    await page.waitForFunction(
+      () => {
+        const raw = localStorage.getItem("sp_last_touch");
+        if (!raw) return false;
+        try {
+          return Boolean(JSON.parse(raw).timestamp);
+        } catch {
+          return false;
+        }
+      },
+      undefined,
+      { timeout: 5000 }
+    );
 
     const stored = await page.evaluate(() =>
       localStorage.getItem("sp_last_touch")
     );
+    expect(stored).toBeTruthy();
     const parsed = JSON.parse(stored!);
     expect(parsed.timestamp).toBeTruthy();
     // Should be a valid ISO date
