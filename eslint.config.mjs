@@ -12,6 +12,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // 2026-06-08: leftover Claude Code worktrees under .claude/ were
+    // surfacing 43 phantom React Compiler errors locally that CI didn't
+    // see (CI's checkout doesn't include .gitignored paths). Pinning
+    // the ignore here so the next stray worktree can't resurrect the
+    // mystery. Diagnosis history in issue #22.
+    ".claude/**",
   ]),
 ]);
 

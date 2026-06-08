@@ -17,25 +17,25 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: npm
-      # Using `npm install` rather than `npm ci` because npm audit fix
-      # on macOS introduces requires for Linux-only platform deps
-      # (@emnapi/runtime, @emnapi/core) that the resulting lockfile
-      # doesn't include as resolved entries. Reproducible-lock strictness
-      # is sacrificed; in exchange CI no longer flakes on cross-platform
-      # lockfile gaps. Tracked in #22 — proper fix is to regenerate the
-      # lock on Linux (Docker) when we next touch this dep tree.
-      - run: npm install --no-audit --no-fund
+      - run: npm ci
       - run: npx next build --no-lint || true
       - run: npm run lint
-      # Allowlisted npm audit gate. scripts/check-audit.mjs fails on ANY
-      # new high+critical advisory that isn't explicitly listed with a
-      # dated reason + tracking issue. Known-deferred (Next.js + a
-      # picomatch transitive) are excepted — see issue #22. When that
-      # follow-up lands the entries get removed and the gate ratchets up.
-      - name: npm audit (allowlisted)
+      # Production-tier blocking audit gate. Fails CI on any new
+      # high+critical advisory whose GHSA id is NOT in
+      # scripts/check-audit.mjs ALLOWED_GHSAS. Allowlist is currently
+      # empty after #22; see file header for the gate's two modes.
+      - name: npm audit (production, blocking)
         run: node scripts/check-audit.mjs
+      # Dev-tier soft warning step. Surfaces high+critical advisories
+      # that only exist in the dev tree (not shipped to production).
+      # continue-on-error: true so glob ReDoS in a CLI tool doesn't
+      # block PRs, but a build-time RCE / supply-chain compromise gets
+      # visibility in the CI log.
+      - name: npm audit (dev tree, warning only)
+        continue-on-error: true
+        run: node scripts/check-audit.mjs --mode=dev
       - run: npm run test:unit -- --coverage
       - uses: actions/upload-artifact@v4
         if: always()
@@ -70,16 +70,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: npm
-      # Using `npm install` rather than `npm ci` because npm audit fix
-      # on macOS introduces requires for Linux-only platform deps
-      # (@emnapi/runtime, @emnapi/core) that the resulting lockfile
-      # doesn't include as resolved entries. Reproducible-lock strictness
-      # is sacrificed; in exchange CI no longer flakes on cross-platform
-      # lockfile gaps. Tracked in #22 — proper fix is to regenerate the
-      # lock on Linux (Docker) when we next touch this dep tree.
-      - run: npm install --no-audit --no-fund
+      - run: npm ci
       - name: Get Playwright version
         id: pw
         run: echo "v=$(node -e 'console.log(require("@playwright/test/package.json").version)')" >> $GITHUB_OUTPUT
@@ -146,16 +139,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: npm
-      # Using `npm install` rather than `npm ci` because npm audit fix
-      # on macOS introduces requires for Linux-only platform deps
-      # (@emnapi/runtime, @emnapi/core) that the resulting lockfile
-      # doesn't include as resolved entries. Reproducible-lock strictness
-      # is sacrificed; in exchange CI no longer flakes on cross-platform
-      # lockfile gaps. Tracked in #22 — proper fix is to regenerate the
-      # lock on Linux (Docker) when we next touch this dep tree.
-      - run: npm install --no-audit --no-fund
+      - run: npm ci
       - run: npx tsx tests/evals/run-evals.ts
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

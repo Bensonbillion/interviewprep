@@ -1,0 +1,35 @@
+name: Regen lockfile (manual)
+
+# Manual one-shot to regenerate package-lock.json on a Linux runner.
+# Workaround for the cross-platform optional-deps gap that bit PR #21:
+# `npm install` on macOS leaves Linux-only platform deps (@emnapi/runtime,
+# @emnapi/core, @img/sharp-linux-x64) out of the lock, which then breaks
+# `npm ci` on the Ubuntu runner. This workflow uploads the lockfile
+# generated on Linux as an artifact; we download and commit it.
+#
+# Run via: gh workflow run regen-lockfile.yml --ref <branch>
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Wipe lock + install
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install --no-audit --no-fund
+      - name: Snapshot resolved versions of interest
+        run: |
+          echo "Top-level deps the audit gate cares about:"
+          node -e "const d=require('./package-lock.json'); const pkgs=['next','picomatch','vite','undici','xmldom','flatted','happy-dom','path-to-regexp','fast-uri']; for (const p of pkgs) { const e = d.packages['node_modules/'+p]; console.log('  '+p.padEnd(20)+(e?e.version:'(not present)'));}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-lock-linux
+          path: package-lock.json
+          retention-days: 7
