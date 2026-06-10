@@ -174,12 +174,13 @@ SELECT ok(
   'search_pass expires_at lands in [now()+29d, now()+31d]'
 );
 
--- ── 11. Legacy grant_credits_from_stripe dedup ──────────────────────────────
--- Two separate statements: CTEs run in their own snapshots, so packing
--- both RPC calls into one statement (the obvious-looking form) leaves
--- the second invocation unable to see the first's webhook_events insert.
--- The webhook handler in production makes one RPC call per request, so
--- the realistic test is two sequential statements.
+-- ── 11. Legacy grant_credits_from_stripe dedup (by side effects) ────────────
+-- Two separate statements call the function with the same event id. We
+-- assert by checking how many credit_purchases rows landed — should be
+-- one (the first call's), even though we attempted two purchases. This
+-- pattern mirrors how the other dedup tests in this file assert (5/6
+-- check entitlement row counts) and avoids parser-edge cases with
+-- extracting ->>'status' from a function call inside a CTE.
 SELECT public.grant_credits_from_stripe(
   'evt_legacy_1',
   'checkout.session.completed',
@@ -187,15 +188,19 @@ SELECT public.grant_credits_from_stripe(
   'cs_legacy_1', 'pi_legacy_1', 'starter', 8, 1600, 'usd'
 );
 
+SELECT public.grant_credits_from_stripe(
+  'evt_legacy_1',     -- same event id
+  'checkout.session.completed',
+  tests.get_supabase_uid('webhook_test_bob'),
+  'cs_legacy_2', 'pi_legacy_2', 'starter', 8, 1600, 'usd'
+);
+
 SELECT is(
-  (SELECT (public.grant_credits_from_stripe(
-    'evt_legacy_1',     -- same event id as the call above
-    'checkout.session.completed',
-    tests.get_supabase_uid('webhook_test_bob'),
-    'cs_legacy_2', 'pi_legacy_2', 'starter', 8, 1600, 'usd'
-  ))->>'status'),
-  'duplicate',
-  'legacy RPC dedups on event id the same way'
+  (SELECT count(*)::int FROM public.credit_purchases
+   WHERE user_id = tests.get_supabase_uid('webhook_test_bob')
+     AND pack_id = 'starter'),
+  1,
+  'legacy RPC dedup: second call with same event id did NOT create a second credit_purchases row'
 );
 
 SELECT * FROM finish();
