@@ -11,12 +11,6 @@ name: Regen lockfile (manual)
 
 on:
   workflow_dispatch: {}
-  # Temporary push trigger for PR #25 to bootstrap the first Linux-native
-  # lockfile on the branch (workflow_dispatch can't fire from a non-default
-  # branch). This trigger will be removed in the commit that lands the
-  # regenerated lock. Future regenerations use workflow_dispatch only.
-  push:
-    branches: [fix-22-next-patch]
 
 jobs:
   regen:
