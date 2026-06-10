@@ -213,6 +213,34 @@ export type Database = {
         };
         Update: never;
       };
+      entitlements: {
+        Row: {
+          id: string;
+          user_id: string;
+          type: "single_round" | "full_interview" | "search_pass";
+          company_scope: string | null;
+          round_scope: string | null;
+          source_stripe_session: string | null;
+          expires_at: string | null;
+          status: "active" | "revoked";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          type: "single_round" | "full_interview" | "search_pass";
+          company_scope?: string | null;
+          round_scope?: string | null;
+          source_stripe_session?: string | null;
+          expires_at?: string | null;
+          status?: "active" | "revoked";
+          created_at?: string;
+        };
+        Update: {
+          status?: "active" | "revoked";
+          expires_at?: string | null;
+        };
+      };
       knowledge_documents: {
         Row: {
           id: string;
@@ -355,6 +383,15 @@ export type Database = {
           p_description?: string;
         };
         Returns: void;
+      };
+      has_entitlement: {
+        Args: {
+          p_user_id: string;
+          p_action: string;
+          p_company?: string | null;
+          p_round?: string | null;
+        };
+        Returns: boolean;
       };
       search_knowledge: {
         Args: { query_embedding: number[]; match_threshold?: number; match_count?: number };

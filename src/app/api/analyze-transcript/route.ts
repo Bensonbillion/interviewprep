@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { aiLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 import { auditLog } from "@/lib/security/audit";
 import { analyzeTranscriptSchema } from "@/lib/validation/schemas";
+import { checkAccess } from "@/lib/entitlements";
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,23 +33,37 @@ export async function POST(req: NextRequest) {
 
     const { transcript, roleType, interviewStage } = parsed.data;
 
-    // Spend 1 credit
-    const admin = createAdminClient();
-    const analysisId = `transcript-analysis-${Date.now()}`;
-    const { data: creditOk, error: creditErr } = await admin.rpc("spend_credit", {
-      p_user_id: auth.userId,
-      p_answer_id: analysisId,
-      p_description: "Transcript analysis",
-    });
-
-    if (creditErr) {
-      console.error("[analyze-transcript] Credit error:", creditErr.message);
-      return NextResponse.json({ error: "Failed to process credit." }, { status: 500 });
-    }
-
-    if (creditOk === false) {
+    // Entitlement-first access check, credit fallback. transcript
+    // analysis is a live_mode action. This route doesn't currently
+    // receive a sessionId so we can't resolve a company scope —
+    // checkAccess will only match search_pass on the entitlement side;
+    // full_interview cannot be matched without knowing the company.
+    //
+    // TODO(Session 3): when the Live Mode UI starts calling this route
+    // it should send sessionId, and we should resolveSessionScope() to
+    // unlock full_interview-at-company entitlements.
+    const access = await checkAccess(auth.userId, "live_mode", {});
+    if (access.source === "denied") {
       return NextResponse.json({ error: "Insufficient credits" }, { status: 402 });
     }
+
+    const admin = createAdminClient();
+    const analysisId = `transcript-analysis-${Date.now()}`;
+    if (access.source === "credit") {
+      const { data: creditOk, error: creditErr } = await admin.rpc("spend_credit", {
+        p_user_id: auth.userId,
+        p_answer_id: analysisId,
+        p_description: "Transcript analysis",
+      });
+      if (creditErr) {
+        console.error("[analyze-transcript] Credit error:", creditErr.message);
+        return NextResponse.json({ error: "Failed to process credit." }, { status: 500 });
+      }
+      if (creditOk === false) {
+        return NextResponse.json({ error: "Insufficient credits" }, { status: 402 });
+      }
+    }
+    // access.source === "entitlement" → search_pass covers; no deduction.
 
     const systemPrompt = `You are an expert sales interview coach and former hiring manager with 15+ years of experience evaluating sales candidates. You analyze interview transcripts with precision and honesty.
 

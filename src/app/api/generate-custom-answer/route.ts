@@ -6,6 +6,7 @@ import { aiLimiter, checkRateLimit } from "@/lib/security/rate-limit";
 import { auditLog } from "@/lib/security/audit";
 import { SPOKEN_VOICE_PROFILE } from "@/lib/ai/prompts";
 import { styleLint } from "@/lib/ai/style-lint";
+import { checkAccess, resolveSessionScope } from "@/lib/entitlements";
 import type { PrepSession } from "@/types";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -55,22 +56,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Question too long (max 500 characters)" }, { status: 400 });
     }
 
-    // Spend 1 credit
-    const admin = createAdminClient();
-    const { data: creditOk, error: creditErr } = await admin.rpc("spend_credit", {
-      p_user_id: auth.userId,
-      p_answer_id: `custom-${sessionId}-${Date.now()}`,
-      p_description: "Custom question answer",
-    });
-
-    if (creditErr) {
-      console.error("[custom-answer] Credit error:", creditErr.message);
-      return NextResponse.json({ error: "Failed to process credit." }, { status: 500 });
+    // Entitlement-first access check, with legacy credit fallback. Scope
+    // is resolved server-side from prep_sessions — never trust the
+    // client's session payload for the access decision.
+    const scope = await resolveSessionScope(auth.userId, sessionId);
+    if (!scope) {
+      // Either the session doesn't exist or the caller isn't the owner.
+      // Treat as denial; no credit deduct, no entitlement consumed.
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
-
-    if (creditOk === false) {
+    const access = await checkAccess(auth.userId, "custom", scope);
+    if (access.source === "denied") {
       return NextResponse.json({ error: "Insufficient credits" }, { status: 402 });
     }
+
+    const admin = createAdminClient();
+    if (access.source === "credit") {
+      const { data: creditOk, error: creditErr } = await admin.rpc("spend_credit", {
+        p_user_id: auth.userId,
+        p_answer_id: `custom-${sessionId}-${Date.now()}`,
+        p_description: "Custom question answer",
+      });
+      if (creditErr) {
+        console.error("[custom-answer] Credit error:", creditErr.message);
+        return NextResponse.json({ error: "Failed to process credit." }, { status: 500 });
+      }
+      if (creditOk === false) {
+        return NextResponse.json({ error: "Insufficient credits" }, { status: 402 });
+      }
+    }
+    // access.source === "entitlement" → allowed without deduction.
 
     // Build context from session
     const topBullets = (session.resume?.roles ?? [])
