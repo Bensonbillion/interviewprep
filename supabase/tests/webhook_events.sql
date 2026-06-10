@@ -175,24 +175,25 @@ SELECT ok(
 );
 
 -- ── 11. Legacy grant_credits_from_stripe dedup ──────────────────────────────
--- Use credit_purchases row by going through the legacy RPC twice.
-WITH first AS (
-  SELECT public.grant_credits_from_stripe(
-    'evt_legacy_1',
-    'checkout.session.completed',
-    tests.get_supabase_uid('webhook_test_bob'),
-    'cs_legacy_1', 'pi_legacy_1', 'starter', 8, 1600, 'usd'
-  ) AS r
-), second AS (
-  SELECT public.grant_credits_from_stripe(
-    'evt_legacy_1',     -- same event id
+-- Two separate statements: CTEs run in their own snapshots, so packing
+-- both RPC calls into one statement (the obvious-looking form) leaves
+-- the second invocation unable to see the first's webhook_events insert.
+-- The webhook handler in production makes one RPC call per request, so
+-- the realistic test is two sequential statements.
+SELECT public.grant_credits_from_stripe(
+  'evt_legacy_1',
+  'checkout.session.completed',
+  tests.get_supabase_uid('webhook_test_bob'),
+  'cs_legacy_1', 'pi_legacy_1', 'starter', 8, 1600, 'usd'
+);
+
+SELECT is(
+  (SELECT (public.grant_credits_from_stripe(
+    'evt_legacy_1',     -- same event id as the call above
     'checkout.session.completed',
     tests.get_supabase_uid('webhook_test_bob'),
     'cs_legacy_2', 'pi_legacy_2', 'starter', 8, 1600, 'usd'
-  ) AS r
-)
-SELECT is(
-  (SELECT r->>'status' FROM second),
+  ))->>'status'),
   'duplicate',
   'legacy RPC dedups on event id the same way'
 );
