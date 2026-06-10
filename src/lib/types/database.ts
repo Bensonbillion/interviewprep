@@ -241,6 +241,19 @@ export type Database = {
           expires_at?: string | null;
         };
       };
+      webhook_events: {
+        Row: {
+          stripe_event_id: string;
+          event_type: string;
+          received_at: string;
+        };
+        Insert: {
+          stripe_event_id: string;
+          event_type: string;
+          received_at?: string;
+        };
+        Update: never;
+      };
       knowledge_documents: {
         Row: {
           id: string;
@@ -392,6 +405,33 @@ export type Database = {
           p_round?: string | null;
         };
         Returns: boolean;
+      };
+      grant_entitlement_from_stripe: {
+        Args: {
+          p_event_id: string;
+          p_event_type: string;
+          p_user_id: string;
+          p_type: string;
+          p_company_scope: string | null;
+          p_round_scope: string | null;
+          p_stripe_session: string;
+          p_pass_days?: number;
+        };
+        Returns: Record<string, unknown>;
+      };
+      grant_credits_from_stripe: {
+        Args: {
+          p_event_id: string;
+          p_event_type: string;
+          p_user_id: string;
+          p_stripe_session: string;
+          p_payment_intent: string;
+          p_pack_id: string;
+          p_credits: number;
+          p_amount_cents: number;
+          p_currency: string;
+        };
+        Returns: Record<string, unknown>;
       };
       search_knowledge: {
         Args: { query_embedding: number[]; match_threshold?: number; match_count?: number };

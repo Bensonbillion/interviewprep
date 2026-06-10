@@ -27,7 +27,10 @@ import {
   RoleType,
   PrepSession,
 } from "@/types";
-import { hasCreditsRemaining, consumeCredit } from "@/lib/credits";
+// (Session 3) Removed import of dead localStorage credits stub. The real
+// gate is server-side in /api/session/save (entitlement-first / credit
+// fallback). The visible "3 free credits" copy below is left for
+// Session 4's onboarding copy rewrite.
 import { buildAnswerSlots } from "@/lib/session/answer-slots";
 
 const ROLE_OPTIONS: { id: RoleType; label: string; desc: string }[] = [
@@ -135,11 +138,6 @@ export default function OnboardingPage() {
     if (!resume || !jobDescription || !companyName || !targetRole || !stage || !roleType)
       return;
 
-    if (!hasCreditsRemaining()) {
-      router.push("/pricing");
-      return;
-    }
-
     setStep(3);
     setLoading(true);
     setError("");
@@ -182,7 +180,6 @@ export default function OnboardingPage() {
       };
 
       sessionStorage.setItem(`session-${sessionId}`, JSON.stringify(session));
-      consumeCredit(sessionId);
       router.push(`/prep/${sessionId}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
