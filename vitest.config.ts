@@ -39,7 +39,7 @@ export default defineConfig({
         // isn't enough to keep global pct at the previous floor.
         // Engine/route tests need heavy supabase + anthropic mocking
         // — deferred. Ratchet back up as those tests land.
-        lines: 10,
+        lines: 11,
         functions: 7,
         branches: 7,
       },
