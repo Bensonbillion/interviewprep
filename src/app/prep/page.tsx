@@ -26,7 +26,8 @@ import type {
   RoleType,
   PrepSession,
 } from "@/types";
-import { hasCreditsRemaining, consumeCredit } from "@/lib/credits";
+// (Session 3) Removed import of dead localStorage credits stub. Real gate
+// is server-side in /api/session/save (entitlement-first / credit fallback).
 
 // ─── Role type cards ──────────────────────────────────────────────────────────
 
@@ -131,11 +132,6 @@ export default function PrepPage() {
   const handleGenerate = async () => {
     if (!canGenerate) return;
 
-    if (!hasCreditsRemaining()) {
-      router.push("/pricing");
-      return;
-    }
-
     setLoading(true);
     setError("");
 
@@ -171,7 +167,6 @@ export default function PrepPage() {
       const session: PrepSession = sessionData.session;
 
       sessionStorage.setItem(`session-${session.id}`, JSON.stringify(session));
-      consumeCredit(session.id);
       router.push(`/prep/${session.id}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
